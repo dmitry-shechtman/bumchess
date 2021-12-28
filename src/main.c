@@ -30,9 +30,16 @@ enum Piece {
 };
 
 enum Square {
-	Square_File    = 0x07,
-	Square_Rank    = 0x70,
-	Square_Invalid = 0x88
+	Square_File        = 0x07,
+	Square_FileInvalid = 0x08,
+
+	Square_Rank2       = 0x10,
+	Square_Rank3       = 0x20,
+	Square_Rank6       = 0x50,
+	Square_Rank        = 0x70,
+	Square_RankInvalid = 0x80,
+
+	Square_Invalid     = Square_FileInvalid | Square_RankInvalid
 };
 
 enum Vec {
@@ -89,8 +96,13 @@ typedef struct {
 	} sec;
 } move_t;
 
+typedef struct {
+	square_t ep;
+} state_t;
+
 piece_t squares[Count_Squares];
 piece_t color;
+state_t state;
 
 char piece_chars[] = ":KPPNBRQ;kppnbrq";
 
@@ -121,6 +133,7 @@ void board_init() {
 	squares[0x77] = Piece_Rook   + Piece_Black;
 
 	color = Piece_White;
+	state.ep = Square_Rank6 | Square_FileInvalid;
 }
 
 move_t* gen_push_pawn(move_t* moves, piece_square_t from, vector_t vector) {
@@ -138,7 +151,7 @@ move_t* gen_push_pawn(move_t* moves, piece_square_t from, vector_t vector) {
 		*moves++ = move;
 		if (!(from.piece & Piece_Moved)
 			&& !squares[to.square += vector]) {
-				move.prim.to = to;
+				move.prim.to.value = to.value | 0x0800;
 				*moves++ = move;
 		}
 	}
@@ -163,6 +176,30 @@ move_t* gen_vector_pawn(move_t* moves, piece_square_t from, vector_t vector) {
 				}
 			};
 			*moves++ = move;
+	}
+	return moves;
+}
+
+move_t* gen_vector_ep(move_t* moves, vector_t vector) {
+	piece_square_t to = {
+		.square = state.ep
+	};
+	piece_square_t from = to;
+	if (!((from.square += vector) & Square_Invalid)
+		&& ((to.piece = from.piece = squares[from.square]) & (Piece_Type | Piece_Color)) == (Piece_Pawn | color)) {
+			move_t move = {
+				.prim = {
+					.from = from,
+					.to = to
+				},
+				.sec = {
+					.from = {
+						.piece = Piece_Pawn | (color ^ Piece_Color) | Piece_Moved,
+						.square = state.ep ^ Square_Rank2
+					},
+				}
+		};
+		*moves++ = move;
 	}
 	return moves;
 }
@@ -238,6 +275,12 @@ move_t* gen_pawn_white(move_t* moves, piece_square_t from) {
 	return gen_push_pawn(moves, from, Vec_N);
 }
 
+move_t* gen_ep_white(move_t* moves) {
+	moves = gen_vector_ep(moves, Vec_SW);
+	moves = gen_vector_ep(moves, Vec_SE);
+	return moves;
+}
+
 move_t* gen_pawn_black(move_t* moves, piece_square_t from) {
 	if (!(moves = gen_vector_pawn(moves, from, Vec_SW))
 		|| !(moves = gen_vector_pawn(moves, from, Vec_SE))) {
@@ -246,10 +289,24 @@ move_t* gen_pawn_black(move_t* moves, piece_square_t from) {
 	return gen_push_pawn(moves, from, Vec_S);
 }
 
+move_t* gen_ep_black(move_t* moves) {
+	moves = gen_vector_ep(moves, Vec_NW);
+	moves = gen_vector_ep(moves, Vec_NE);
+	return moves;
+}
+
 move_t* gen_pawn(move_t* moves, piece_square_t from) {
 	return color == Piece_White
 		? gen_pawn_white(moves, from)
 		: gen_pawn_black(moves, from);
+}
+
+move_t* gen_ep(move_t* moves) {
+	return !(state.ep & Square_FileInvalid)
+		? color == Piece_White
+			? gen_ep_white(moves)
+			: gen_ep_black(moves)
+		: moves;
 }
 
 move_t* gen_king(move_t* moves, piece_square_t from) {
@@ -307,7 +364,7 @@ move_t* gen(move_t* moves) {
 			}
 		}
 	}
-	return moves;
+	return gen_ep(moves);
 }
 
 void clear_prim_from(piece_square_t from) {
@@ -319,11 +376,11 @@ void set_prim_from(piece_square_t from) {
 }
 
 void clear_prim_to(piece_square_t to) {
-	squares[to.square] = 0x00;
+	squares[to.square & ~Square_Invalid] = 0x00;
 }
 
 void set_prim_to(piece_square_t to) {
-	squares[to.square] = to.piece | Piece_Moved;
+	squares[to.square & ~Square_Invalid] = to.piece | Piece_Moved;
 }
 
 void clear_sec(piece_square_t ps) {
@@ -334,10 +391,17 @@ void set_sec(piece_square_t ps) {
 	squares[ps.square] = ps.piece;
 }
 
+void set_ep(uint8_t file) {
+	state.ep = ((state.ep & Square_Rank) ^ Square_Rank) | file;
+}
+
 void move_make(move_t move) {
 	clear_sec(move.sec.from);
 	clear_prim_from(move.prim.from);
 	set_prim_to(move.prim.to);
+
+	set_ep((move.prim.to.square & Square_File)
+		| ((move.prim.to.square & Square_FileInvalid) ^ Square_FileInvalid));
 
 	color ^= Piece_Color;
 }
@@ -351,16 +415,19 @@ void move_unmake(move_t move) {
 }
 
 uint64_t perft(move_t* moves, uint8_t depth) {
-	move_t* pEnd, * pCurr;
+	move_t *pEnd, *pCurr;
 	uint64_t count = 0;
+	state_t state2;
 	if (!(pEnd = gen(moves)))
 		return 0;
 	if (!depth)
 		return 1;
 	for (pCurr = moves; pCurr != pEnd; ++pCurr) {
+		state2 = state;
 		move_make(*pCurr);
 		count += perft(pEnd, depth - 1);
 		move_unmake(*pCurr);
+		state = state2;
 	}
 	return count;
 }
