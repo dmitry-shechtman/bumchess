@@ -274,8 +274,10 @@ move_t* gen_pawn_white(move_t* moves, piece_square_t from) {
 
 static inline
 move_t* gen_ep_white(move_t* moves) {
-	moves = gen_vector_ep(moves, Vec_SW, Piece_White, Piece_Black);
-	moves = gen_vector_ep(moves, Vec_SE, Piece_White, Piece_Black);
+	if (!(state.ep & Square_FileInvalid)) {
+		moves = gen_vector_ep(moves, Vec_SW, Piece_White, Piece_Black);
+		moves = gen_vector_ep(moves, Vec_SE, Piece_White, Piece_Black);
+	}
 	return moves;
 }
 
@@ -294,8 +296,10 @@ move_t* gen_pawn_black(move_t* moves, piece_square_t from) {
 
 static inline
 move_t* gen_ep_black(move_t* moves) {
-	moves = gen_vector_ep(moves, Vec_NW, Piece_Black, Piece_White);
-	moves = gen_vector_ep(moves, Vec_NE, Piece_Black, Piece_White);
+	if (!(state.ep & Square_FileInvalid)) {
+		moves = gen_vector_ep(moves, Vec_NW, Piece_Black, Piece_White);
+		moves = gen_vector_ep(moves, Vec_NE, Piece_Black, Piece_White);
+	}
 	return moves;
 }
 
@@ -303,15 +307,6 @@ static inline
 bool check_pawn_black(square_t square) {
 	return check_vector_leaper(square, Piece_Pawn, Vec_NW, Piece_Black)
 		|| check_vector_leaper(square, Piece_Pawn, Vec_NE, Piece_Black);
-}
-
-static inline
-move_t* gen_ep(move_t* moves) {
-	return !(state.ep & Square_FileInvalid)
-		? color == Piece_White
-			? gen_ep_white(moves)
-			: gen_ep_black(moves)
-		: moves;
 }
 
 static inline
@@ -485,7 +480,7 @@ move_t* gen_white(move_t* moves) {
 			}
 		}
 	}
-	return gen_ep(moves);
+	return gen_ep_white(moves);
 }
 
 static inline
@@ -508,7 +503,7 @@ move_t* gen_black(move_t* moves) {
 			}
 		}
 	}
-	return gen_ep(moves);
+	return gen_ep_black(moves);
 }
 
 static inline
