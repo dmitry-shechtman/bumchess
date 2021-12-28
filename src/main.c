@@ -387,8 +387,14 @@ char* board_write(char* str) {
 char buffer[1024];
 move_t moves[1024];
 
-int main() {
+int main(int argc, const char* argv[]) {
 	uint8_t max = 255;
+
+	if (argc > 1
+		&& (!sscanf_s(argv[1], "%hhu", &max) || !max)) {
+			printf("Usage: perft <depth>\n");
+			return -1;
+	}
 
 	board_init();
 	
