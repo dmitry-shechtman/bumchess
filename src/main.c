@@ -72,13 +72,6 @@ typedef uint8_t piece_t;
 typedef uint8_t square_t;
 typedef int8_t  vector_t;
 
-vector_t vectors[] = {
-	Vec_SW,  Vec_SE,  Vec_NW,  Vec_NE,
-	Vec_S,   Vec_W,   Vec_E,   Vec_N,
-	Vec_SSW, Vec_SSE, Vec_SWW, Vec_SEE,
-	Vec_NWW, Vec_NEE, Vec_NNW, Vec_NNE
-};
-
 typedef union {
 	uint16_t value;
 	struct {
@@ -262,42 +255,6 @@ bool check_vector_slider(square_t square, piece_t type, vector_t vector, uint8_t
 }
 
 static inline
-move_t* gen_leaper(move_t* moves, piece_square_t from, uint8_t start, uint8_t end, uint8_t color) {
-	for (uint8_t i = start; i < end; ++i) {
-		moves = gen_vector_leaper(moves, from, vectors[i], color);
-	}
-	return moves;
-}
-
-static inline
-bool check_leaper(square_t square, piece_t type, uint8_t start, uint8_t end, uint8_t color) {
-	for (uint8_t i = start; i < end; ++i) {
-		if (check_vector_leaper(square, type, vectors[i], color)) {
-			return true;
-		}
-	}
-	return false;
-}
-
-static inline
-move_t* gen_slider(move_t* moves, piece_square_t from, uint8_t start, uint8_t end, uint8_t color) {
-	for (uint8_t i = start; i < end; ++i) {
-		moves = gen_vector_slider(moves, from, vectors[i], color);
-	}
-	return moves;
-}
-
-static inline
-bool check_slider(square_t square, piece_t type, uint8_t start, uint8_t end, uint8_t color) {
-	for (uint8_t i = start; i < end; ++i) {
-		if (check_vector_slider(square, type, vectors[i], color)) {
-			return true;
-		}
-	}
-	return false;
-}
-
-static inline
 move_t* gen_pawn_white(move_t* moves, piece_square_t from) {
 	moves = gen_vector_pawn(moves, from, Vec_NW, Piece_Black);
 	moves = gen_vector_pawn(moves, from, Vec_NE, Piece_Black);
@@ -348,47 +305,99 @@ move_t* gen_ep(move_t* moves) {
 
 static inline
 move_t* gen_king(move_t* moves, piece_square_t from, uint8_t color) {
-	return gen_leaper(moves, from, 0, 8, color);
+	moves = gen_vector_leaper(moves, from, Vec_SW, color);
+	moves = gen_vector_leaper(moves, from, Vec_S,  color);
+	moves = gen_vector_leaper(moves, from, Vec_SE, color);
+	moves = gen_vector_leaper(moves, from, Vec_W,  color);
+	moves = gen_vector_leaper(moves, from, Vec_E,  color);
+	moves = gen_vector_leaper(moves, from, Vec_NW, color);
+	moves = gen_vector_leaper(moves, from, Vec_N,  color);
+	moves = gen_vector_leaper(moves, from, Vec_NE, color);
+	return moves;
 }
 
 static inline
 bool check_king(square_t square, uint8_t color) {
-	return check_leaper(square, Type_King, 0, 8, color);
+	return check_vector_leaper(square, Piece_King, Vec_SW, color)
+		|| check_vector_leaper(square, Piece_King, Vec_S,  color)
+		|| check_vector_leaper(square, Piece_King, Vec_SE, color)
+		|| check_vector_leaper(square, Piece_King, Vec_W,  color)
+		|| check_vector_leaper(square, Piece_King, Vec_E,  color)
+		|| check_vector_leaper(square, Piece_King, Vec_NW, color)
+		|| check_vector_leaper(square, Piece_King, Vec_N,  color)
+		|| check_vector_leaper(square, Piece_King, Vec_NE, color);
 }
 
 static inline
 move_t* gen_knight(move_t* moves, piece_square_t from, uint8_t color) {
-	return gen_leaper(moves, from, 8, 16, color);
+	moves = gen_vector_leaper(moves, from, Vec_SSW, color);
+	moves = gen_vector_leaper(moves, from, Vec_SSE, color);
+	moves = gen_vector_leaper(moves, from, Vec_SWW, color);
+	moves = gen_vector_leaper(moves, from, Vec_SEE, color);
+	moves = gen_vector_leaper(moves, from, Vec_NWW, color);
+	moves = gen_vector_leaper(moves, from, Vec_NEE, color);
+	moves = gen_vector_leaper(moves, from, Vec_NNW, color);
+	moves = gen_vector_leaper(moves, from, Vec_NNE, color);
+	return moves;
 }
 
 static inline
 bool check_knight(square_t square, uint8_t color) {
-	return check_leaper(square, Type_Knight, 8, 16, color);
+	return check_vector_leaper(square, Type_Knight, Vec_SSW, color)
+		|| check_vector_leaper(square, Type_Knight, Vec_SSE, color)
+		|| check_vector_leaper(square, Type_Knight, Vec_SWW, color)
+		|| check_vector_leaper(square, Type_Knight, Vec_SEE, color)
+		|| check_vector_leaper(square, Type_Knight, Vec_NWW, color)
+		|| check_vector_leaper(square, Type_Knight, Vec_NEE, color)
+		|| check_vector_leaper(square, Type_Knight, Vec_NNW, color)
+		|| check_vector_leaper(square, Type_Knight, Vec_NNE, color);
 }
 
 static inline
 move_t* gen_bishop(move_t* moves, piece_square_t from, uint8_t color) {
-	return gen_slider(moves, from, 0, 4, color);
+	moves = gen_vector_slider(moves, from, Vec_SW, color);
+	moves = gen_vector_slider(moves, from, Vec_SE, color);
+	moves = gen_vector_slider(moves, from, Vec_NW, color);
+	moves = gen_vector_slider(moves, from, Vec_NE, color);
+	return moves;
 }
 
 static inline
 bool check_bishop(square_t square, uint8_t color) {
-	return check_slider(square, Piece_Bishop, 0, 4, color);
+	return check_vector_slider(square, Piece_Bishop, Vec_SW, color)
+		|| check_vector_slider(square, Piece_Bishop, Vec_SE, color)
+		|| check_vector_slider(square, Piece_Bishop, Vec_NW, color)
+		|| check_vector_slider(square, Piece_Bishop, Vec_NE, color);
 }
 
 static inline
 move_t* gen_rook(move_t* moves, piece_square_t from, uint8_t color) {
-	return gen_slider(moves, from, 4, 8, color);
+	moves = gen_vector_slider(moves, from, Vec_S, color);
+	moves = gen_vector_slider(moves, from, Vec_W, color);
+	moves = gen_vector_slider(moves, from, Vec_E, color);
+	moves = gen_vector_slider(moves, from, Vec_N, color);
+	return moves;
 }
 
 static inline
 bool check_rook(square_t square, uint8_t color) {
-	return check_slider(square, Piece_Rook, 4, 8, color);
+	return check_vector_slider(square, Piece_Rook, Vec_S, color)
+		|| check_vector_slider(square, Piece_Rook, Vec_W, color)
+		|| check_vector_slider(square, Piece_Rook, Vec_E, color)
+		|| check_vector_slider(square, Piece_Rook, Vec_N, color);
 }
 
 static inline
 move_t* gen_queen(move_t* moves, piece_square_t from, uint8_t color) {
-	return gen_slider(moves, from, 0, 8, color);
+	moves = gen_vector_slider(moves, from, Vec_SW, color);
+	moves = gen_vector_slider(moves, from, Vec_S,  color);
+	moves = gen_vector_slider(moves, from, Vec_SE, color);
+	moves = gen_vector_slider(moves, from, Vec_W,  color);
+	moves = gen_vector_slider(moves, from, Vec_E,  color);
+	moves = gen_vector_slider(moves, from, Vec_NW, color);
+	moves = gen_vector_slider(moves, from, Vec_N,  color);
+	moves = gen_vector_slider(moves, from, Vec_NE, color);
+	return moves;
 }
 
 static inline
