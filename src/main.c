@@ -143,7 +143,7 @@ move_t* gen_promo_pawn(move_t* moves, move_t move, piece_square_t to, uint8_t pr
 }
 
 static inline
-move_t* gen_push_pawn(move_t* moves, piece_square_t from, vector_t vector, uint8_t promo, uint8_t color) {
+move_t* gen_push_pawn(move_t* moves, piece_square_t from, vector_t vector, uint8_t promo, uint8_t color, uint8_t color2) {
 	piece_square_t to = from;
 	if (!squares[to.square += vector]) {
 		move_t move = {
@@ -269,7 +269,7 @@ static inline
 move_t* gen_pawn_white(move_t* moves, piece_square_t from) {
 	moves = gen_vector_pawn(moves, from, Vec_NW, Square_Rank8, Piece_White, Piece_Black);
 	moves = gen_vector_pawn(moves, from, Vec_NE, Square_Rank8, Piece_White, Piece_Black);
-	return gen_push_pawn(moves, from, Vec_N, Square_Rank8, Piece_White);
+	return gen_push_pawn(moves, from, Vec_N, Square_Rank8, Piece_White, Piece_Black);
 }
 
 static inline
@@ -289,7 +289,7 @@ static inline
 move_t* gen_pawn_black(move_t* moves, piece_square_t from) {
 	moves = gen_vector_pawn(moves, from, Vec_SW, Square_Rank1, Piece_Black, Piece_White);
 	moves = gen_vector_pawn(moves, from, Vec_SE, Square_Rank1, Piece_Black, Piece_White);
-	return gen_push_pawn(moves, from, Vec_S, Square_Rank1, Piece_Black);
+	return gen_push_pawn(moves, from, Vec_S, Square_Rank1, Piece_Black, Piece_White);
 }
 
 static inline
