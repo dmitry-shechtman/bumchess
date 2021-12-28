@@ -34,9 +34,11 @@ enum Square {
 	Square_File        = 0x07,
 	Square_FileInvalid = 0x08,
 
+	Square_Rank1       = 0x00,
 	Square_Rank2       = 0x10,
 	Square_Rank3       = 0x20,
 	Square_Rank6       = 0x50,
+	Square_Rank8       = 0x70,
 	Square_Rank        = 0x70,
 	Square_RankInvalid = 0x80,
 
@@ -138,7 +140,15 @@ void board_init() {
 	state.ep = Square_Rank6 | Square_FileInvalid;
 }
 
-move_t* gen_push_pawn(move_t* moves, piece_square_t from, vector_t vector) {
+move_t* gen_promo_pawn(move_t* moves, move_t move, piece_square_t to, uint8_t promo) {
+	if ((to.square & Square_Rank) == promo) {
+		move.prim.to.piece = Piece_Queen | color | Piece_Moved;
+	}
+	*moves++ = move;
+	return moves;
+}
+
+move_t* gen_push_pawn(move_t* moves, piece_square_t from, vector_t vector, uint8_t promo) {
 	piece_square_t to = from;
 	if (!squares[to.square += vector]) {
 		move_t move = {
@@ -150,7 +160,7 @@ move_t* gen_push_pawn(move_t* moves, piece_square_t from, vector_t vector) {
 				.from = { 0x0800 },
 			}
 		};
-		*moves++ = move;
+		moves = gen_promo_pawn(moves, move, to, promo);
 		if (!(from.piece & Piece_Moved)
 			&& !squares[to.square += vector]) {
 				move.prim.to.value = to.value | 0x0800;
@@ -160,7 +170,7 @@ move_t* gen_push_pawn(move_t* moves, piece_square_t from, vector_t vector) {
 	return moves;
 }
 
-move_t* gen_vector_pawn(move_t* moves, piece_square_t from, vector_t vector) {
+move_t* gen_vector_pawn(move_t* moves, piece_square_t from, vector_t vector, uint8_t promo) {
 	piece_square_t to = from;
 	piece_square_t from2;
 	if (!((to.square += vector) & Square_Invalid)
@@ -174,7 +184,7 @@ move_t* gen_vector_pawn(move_t* moves, piece_square_t from, vector_t vector) {
 					.from = from2,
 				}
 			};
-			*moves++ = move;
+			moves = gen_promo_pawn(moves, move, to, promo);
 	}
 	return moves;
 }
@@ -287,9 +297,9 @@ bool check_slider(square_t square, piece_t type, uint8_t start, uint8_t end) {
 }
 
 move_t* gen_pawn_white(move_t* moves, piece_square_t from) {
-	moves = gen_vector_pawn(moves, from, Vec_NW);
-	moves = gen_vector_pawn(moves, from, Vec_NE);
-	return gen_push_pawn(moves, from, Vec_N);
+	moves = gen_vector_pawn(moves, from, Vec_NW, Square_Rank8);
+	moves = gen_vector_pawn(moves, from, Vec_NE, Square_Rank8);
+	return gen_push_pawn(moves, from, Vec_N, Square_Rank8);
 }
 
 move_t* gen_ep_white(move_t* moves) {
@@ -304,9 +314,9 @@ bool check_pawn_white(square_t square) {
 }
 
 move_t* gen_pawn_black(move_t* moves, piece_square_t from) {
-	moves = gen_vector_pawn(moves, from, Vec_SW);
-	moves = gen_vector_pawn(moves, from, Vec_SE);
-	return gen_push_pawn(moves, from, Vec_S);
+	moves = gen_vector_pawn(moves, from, Vec_SW, Square_Rank1);
+	moves = gen_vector_pawn(moves, from, Vec_SE, Square_Rank1);
+	return gen_push_pawn(moves, from, Vec_S, Square_Rank1);
 }
 
 move_t* gen_ep_black(move_t* moves) {
