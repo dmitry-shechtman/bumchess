@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -98,6 +99,7 @@ typedef struct {
 
 typedef struct {
 	square_t ep;
+	square_t king;
 } state_t;
 
 piece_t squares[Count_Squares];
@@ -163,9 +165,6 @@ move_t* gen_vector_pawn(move_t* moves, piece_square_t from, vector_t vector) {
 	piece_square_t from2;
 	if (!((to.square += vector) & Square_Invalid)
 		&& (from2.piece = squares[from2.square = to.square]) & (color ^ Piece_Color)) {
-			if ((from2.piece & Piece_Type) == Piece_King) {
-				return 0;
-			}
 			move_t move = {
 				.prim = {
 					.from = from,
@@ -209,9 +208,6 @@ move_t* gen_vector_leaper(move_t* moves, piece_square_t from, vector_t vector) {
 	piece_square_t from2;
 	if (!((to.square += vector) & Square_Invalid)
 		&& !((from2.piece = squares[from2.square = to.square]) & color)) {
-			if ((from2.piece & Piece_Type) == Piece_King) {
-				return 0;
-			}
 			move_t move = {
 				.prim = {
 					.from = from,
@@ -224,6 +220,11 @@ move_t* gen_vector_leaper(move_t* moves, piece_square_t from, vector_t vector) {
 			*moves++ = move;
 	}
 	return moves;
+}
+
+bool check_vector_leaper(square_t square, piece_t type, vector_t vector) {
+	return !((square += vector) & Square_Invalid)
+		&& (squares[square] & (Piece_Type | Piece_Color)) == (type | color);
 }
 
 move_t* gen_vector_slider(move_t* moves, piece_square_t from, vector_t vector) {
@@ -232,9 +233,6 @@ move_t* gen_vector_slider(move_t* moves, piece_square_t from, vector_t vector) {
 	while (!from2.piece
 		&& !((to.square += vector) & Square_Invalid)
 		&& !((from2.piece = squares[from2.square = to.square]) & color)) {
-			if ((from2.piece & Piece_Type) == Piece_King) {
-				return 0;
-			}
 			move_t move = {
 				.prim = {
 					.from = from,
@@ -249,29 +247,48 @@ move_t* gen_vector_slider(move_t* moves, piece_square_t from, vector_t vector) {
 	return moves;
 }
 
+bool check_vector_slider(square_t square, piece_t type, vector_t vector) {
+	piece_t piece = 0;
+	while (!((square += vector) & Square_Invalid)
+		&& !(piece = squares[square]));
+	return (piece & (type | Piece_Color)) == (type | color);
+}
+
 move_t* gen_leaper(move_t* moves, piece_square_t from, uint8_t start, uint8_t end) {
 	for (uint8_t i = start; i < end; ++i) {
-		if (!(moves = gen_vector_leaper(moves, from, vectors[i]))) {
-			return 0;
-		}
+		moves = gen_vector_leaper(moves, from, vectors[i]);
 	}
 	return moves;
+}
+
+bool check_leaper(square_t square, piece_t type, uint8_t start, uint8_t end) {
+	for (uint8_t i = start; i < end; ++i) {
+		if (check_vector_leaper(square, type, vectors[i])) {
+			return true;
+		}
+	}
+	return false;
 }
 
 move_t* gen_slider(move_t* moves, piece_square_t from, uint8_t start, uint8_t end) {
 	for (uint8_t i = start; i < end; ++i) {
-		if (!(moves = gen_vector_slider(moves, from, vectors[i]))) {
-			return 0;
-		}
+		moves = gen_vector_slider(moves, from, vectors[i]);
 	}
 	return moves;
 }
 
-move_t* gen_pawn_white(move_t* moves, piece_square_t from) {
-	if (!(moves = gen_vector_pawn(moves, from, Vec_NW))
-		|| !(moves = gen_vector_pawn(moves, from, Vec_NE))) {
-			return 0;
+bool check_slider(square_t square, piece_t type, uint8_t start, uint8_t end) {
+	for (uint8_t i = start; i < end; ++i) {
+		if (check_vector_slider(square, type, vectors[i])) {
+			return true;
+		}
 	}
+	return false;
+}
+
+move_t* gen_pawn_white(move_t* moves, piece_square_t from) {
+	moves = gen_vector_pawn(moves, from, Vec_NW);
+	moves = gen_vector_pawn(moves, from, Vec_NE);
 	return gen_push_pawn(moves, from, Vec_N);
 }
 
@@ -281,11 +298,14 @@ move_t* gen_ep_white(move_t* moves) {
 	return moves;
 }
 
+bool check_pawn_white(square_t square) {
+	return check_vector_leaper(square, Piece_Pawn, Vec_SW)
+		|| check_vector_leaper(square, Piece_Pawn, Vec_SE);
+}
+
 move_t* gen_pawn_black(move_t* moves, piece_square_t from) {
-	if (!(moves = gen_vector_pawn(moves, from, Vec_SW))
-		|| !(moves = gen_vector_pawn(moves, from, Vec_SE))) {
-		return 0;
-	}
+	moves = gen_vector_pawn(moves, from, Vec_SW);
+	moves = gen_vector_pawn(moves, from, Vec_SE);
 	return gen_push_pawn(moves, from, Vec_S);
 }
 
@@ -295,10 +315,21 @@ move_t* gen_ep_black(move_t* moves) {
 	return moves;
 }
 
+bool check_pawn_black(square_t square) {
+	return check_vector_leaper(square, Piece_Pawn, Vec_NW)
+		|| check_vector_leaper(square, Piece_Pawn, Vec_NE);
+}
+
 move_t* gen_pawn(move_t* moves, piece_square_t from) {
 	return color == Piece_White
 		? gen_pawn_white(moves, from)
 		: gen_pawn_black(moves, from);
+}
+
+bool check_pawn(square_t square) {
+	return color == Piece_White
+		? check_pawn_white(square)
+		: check_pawn_black(square);
 }
 
 move_t* gen_ep(move_t* moves) {
@@ -313,16 +344,32 @@ move_t* gen_king(move_t* moves, piece_square_t from) {
 	return gen_leaper(moves, from, 0, 8);
 }
 
+bool check_king(square_t square) {
+	return check_leaper(square, Type_King, 0, 8);
+}
+
 move_t* gen_knight(move_t* moves, piece_square_t from) {
 	return gen_leaper(moves, from, 8, 16);
+}
+
+bool check_knight(square_t square) {
+	return check_leaper(square, Type_Knight, 8, 16);
 }
 
 move_t* gen_bishop(move_t* moves, piece_square_t from) {
 	return gen_slider(moves, from, 0, 4);
 }
 
+bool check_bishop(square_t square) {
+	return check_slider(square, Piece_Bishop, 0, 4);
+}
+
 move_t* gen_rook(move_t* moves, piece_square_t from) {
 	return gen_slider(moves, from, 4, 8);
+}
+
+bool check_rook(square_t square) {
+	return check_slider(square, Piece_Rook, 4, 8);
 }
 
 move_t* gen_queen(move_t* moves, piece_square_t from) {
@@ -346,6 +393,14 @@ move_t* gen_piece(move_t* moves, piece_square_t from) {
 	}
 }
 
+bool check_square(square_t square) {
+	return check_pawn(square)
+		|| check_knight(square)
+		|| check_king(square)
+		|| check_bishop(square)
+		|| check_rook(square);
+}
+
 move_t* gen(move_t* moves) {
 	square_t square;
 	piece_t piece;
@@ -358,13 +413,18 @@ move_t* gen(move_t* moves) {
 					.piece = piece,
 					.square = square
 				};
-				if (!(moves = gen_piece(moves, from))) {
-					return 0;
+				moves = gen_piece(moves, from);
+				if ((piece & Piece_Type) == Piece_King) {
+					state.king = square;
 				}
 			}
 		}
 	}
 	return gen_ep(moves);
+}
+
+bool check() {
+	return check_square(state.king);
 }
 
 void clear_prim_from(piece_square_t from) {
@@ -395,6 +455,12 @@ void set_ep(uint8_t file) {
 	state.ep = ((state.ep & Square_Rank) ^ Square_Rank) | file;
 }
 
+void set_king(piece_square_t ps) {
+	state.king = (ps.piece & Piece_Type) == Piece_King
+		? ps.square
+		: state.king;
+}
+
 void move_make(move_t move) {
 	clear_sec(move.sec.from);
 	clear_prim_from(move.prim.from);
@@ -402,6 +468,8 @@ void move_make(move_t move) {
 
 	set_ep((move.prim.to.square & Square_File)
 		| ((move.prim.to.square & Square_FileInvalid) ^ Square_FileInvalid));
+
+	set_king(move.prim.to);
 
 	color ^= Piece_Color;
 }
@@ -418,14 +486,14 @@ uint64_t perft(move_t* moves, uint8_t depth) {
 	move_t *pEnd, *pCurr;
 	uint64_t count = 0;
 	state_t state2;
-	if (!(pEnd = gen(moves)))
-		return 0;
 	if (!depth)
 		return 1;
+	pEnd = gen(moves);
 	for (pCurr = moves; pCurr != pEnd; ++pCurr) {
 		state2 = state;
 		move_make(*pCurr);
-		count += perft(pEnd, depth - 1);
+		if (!check())
+			count += perft(pEnd, depth - 1);
 		move_unmake(*pCurr);
 		state = state2;
 	}
