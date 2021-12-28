@@ -3,6 +3,10 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifdef _MSC_VER
+#define sscanf sscanf_s
+#endif
+
 enum Type {
 	Type_None,
 	Type_King,
@@ -634,7 +638,7 @@ int main(int argc, const char* argv[]) {
 	uint8_t max = 255;
 
 	if (argc > 1
-		&& (!sscanf_s(argv[1], "%hhu", &max) || !max)) {
+		&& (!sscanf(argv[1], "%hhu", &max) || !max)) {
 			printf("Usage: perft <depth>\n");
 			return -1;
 	}
