@@ -30,6 +30,15 @@ enum Piece {
 	Piece_Moved    = 0x80
 };
 
+enum TypeMask {
+	TypeMask_King   = 1 << Piece_King,
+	TypeMask_Pawn   = 1 << Piece_Pawn,
+	TypeMask_Knight = 1 << Piece_Knight,
+	TypeMask_Bishop = 1 << Piece_Bishop,
+	TypeMask_Rook   = 1 << Piece_Rook,
+	TypeMask_Queen  = 1 << Piece_Queen
+};
+
 enum Square {
 	Square_File        = 0x07,
 	Square_FileInvalid = 0x08,
@@ -62,6 +71,28 @@ enum Vec {
 	Vec_NNE =  33
 };
 
+enum Dir {
+	Dir_SW,
+	Dir_S,
+	Dir_SE,
+	Dir_W,
+	Dir_E,
+	Dir_NW,
+	Dir_N,
+	Dir_NE
+};
+
+enum DirMask {
+	DirMask_SW = 1 << Dir_SW,
+	DirMask_S  = 1 << Dir_S,
+	DirMask_SE = 1 << Dir_SE,
+	DirMask_W  = 1 << Dir_W,
+	DirMask_E  = 1 << Dir_E,
+	DirMask_NW = 1 << Dir_NW,
+	DirMask_N  = 1 << Dir_N,
+	DirMask_NE = 1 << Dir_NE
+};
+
 enum Count {
 	Count_Ranks    =   8,
 	Count_Files    =   8,
@@ -71,6 +102,9 @@ enum Count {
 typedef uint8_t piece_t;
 typedef uint8_t square_t;
 typedef int8_t  vector_t;
+
+typedef uint8_t type_mask_t;
+typedef uint8_t dir_mask_t;
 
 typedef union {
 	uint16_t value;
@@ -220,9 +254,33 @@ move_t* gen_vector_leaper(move_t* moves, piece_square_t from, vector_t vector, u
 }
 
 static inline
-bool check_vector_leaper(square_t square, piece_t type, vector_t vector, uint8_t color) {
+bool check_square_neighbor(square_t square, type_mask_t type_mask, uint8_t dir, dir_mask_t* dir_mask, uint8_t color) {
+	piece_t piece = squares[square];
+	if (piece & color) {
+		return type_mask & (1 << (piece & Piece_Type));
+	}
+	if (!piece) {
+		*dir_mask |= (1 << dir);
+	}
+	return 0;
+}
+
+static inline
+bool check_square_knight(square_t square, uint8_t color) {
+	piece_t piece = squares[square];
+	return (piece & (Piece_Type | Piece_Color)) == (Piece_Knight | color);
+}
+
+static inline
+bool check_vector(square_t square, type_mask_t type_mask, vector_t vector, uint8_t dir, dir_mask_t* dir_mask, uint8_t color) {
 	return !((square += vector) & Square_Invalid)
-		&& (squares[square] & (Piece_Type | Piece_Color)) == (type | color);
+		&& check_square_neighbor(square, type_mask, dir, dir_mask, color);
+}
+
+static inline
+bool check_vector_knight(square_t square, vector_t vector, uint8_t color) {
+	return !((square += vector) & Square_Invalid)
+		&& check_square_knight(square, color);
 }
 
 static inline
@@ -249,8 +307,9 @@ move_t* gen_vector_slider(move_t* moves, piece_square_t from, vector_t vector, u
 static inline
 bool check_vector_slider(square_t square, piece_t type, vector_t vector, uint8_t color) {
 	piece_t piece = 0;
-	while (!((square += vector) & Square_Invalid)
-		&& !(piece = squares[square]));
+	for (square += vector;
+		!((square += vector) & Square_Invalid)
+			&& !(piece = squares[square]); );
 	return (piece & (type | Piece_Color)) == (type | color);
 }
 
@@ -269,9 +328,23 @@ move_t* gen_ep_white(move_t* moves) {
 }
 
 static inline
-bool check_pawn_white(square_t square) {
-	return check_vector_leaper(square, Piece_Pawn, Vec_SW, Piece_White)
-		|| check_vector_leaper(square, Piece_Pawn, Vec_SE, Piece_White);
+bool check_neighbors_white(square_t square, dir_mask_t* dir_mask) {
+	return check_vector(square, TypeMask_Queen | TypeMask_Bishop | TypeMask_King | TypeMask_Pawn,
+			Vec_SW, Dir_SW, dir_mask, Piece_White)
+		|| check_vector(square, TypeMask_Queen | TypeMask_Rook   | TypeMask_King,
+			Vec_S,  Dir_S,  dir_mask, Piece_White)
+		|| check_vector(square, TypeMask_Queen | TypeMask_Bishop | TypeMask_King | TypeMask_Pawn,
+			Vec_SE, Dir_SE, dir_mask, Piece_White)
+		|| check_vector(square, TypeMask_Queen | TypeMask_Rook   | TypeMask_King,
+			Vec_W,  Dir_W,  dir_mask, Piece_White)
+		|| check_vector(square, TypeMask_Queen | TypeMask_Rook   | TypeMask_King,
+			Vec_E,  Dir_E,  dir_mask, Piece_White)
+		|| check_vector(square, TypeMask_Queen | TypeMask_Bishop | TypeMask_King,
+			Vec_NW, Dir_NW, dir_mask, Piece_White)
+		|| check_vector(square, TypeMask_Queen | TypeMask_Rook   | TypeMask_King,
+			Vec_N,  Dir_N,  dir_mask, Piece_White)
+		|| check_vector(square, TypeMask_Queen | TypeMask_Bishop | TypeMask_King,
+			Vec_NE, Dir_NE, dir_mask, Piece_White);
 }
 
 static inline
@@ -289,9 +362,23 @@ move_t* gen_ep_black(move_t* moves) {
 }
 
 static inline
-bool check_pawn_black(square_t square) {
-	return check_vector_leaper(square, Piece_Pawn, Vec_NW, Piece_Black)
-		|| check_vector_leaper(square, Piece_Pawn, Vec_NE, Piece_Black);
+bool check_neighbors_black(square_t square, dir_mask_t* dir_mask) {
+	return check_vector(square, TypeMask_Queen | TypeMask_Bishop | TypeMask_King,
+			Vec_SW, Dir_SW, dir_mask, color)
+		|| check_vector(square, TypeMask_Queen | TypeMask_Rook   | TypeMask_King,
+			Vec_S,  Dir_S,  dir_mask, color)
+		|| check_vector(square, TypeMask_Queen | TypeMask_Bishop | TypeMask_King,
+			Vec_SE, Dir_SE, dir_mask, color)
+		|| check_vector(square, TypeMask_Queen | TypeMask_Rook   | TypeMask_King,
+			Vec_W,  Dir_W,  dir_mask, color)
+		|| check_vector(square, TypeMask_Queen | TypeMask_Rook   | TypeMask_King,
+			Vec_E,  Dir_E,  dir_mask, color)
+		|| check_vector(square, TypeMask_Queen | TypeMask_Bishop | TypeMask_King | TypeMask_Pawn,
+			Vec_NW, Dir_NW, dir_mask, color)
+		|| check_vector(square, TypeMask_Queen | TypeMask_Rook   | TypeMask_King,
+			Vec_N,  Dir_N,  dir_mask, color)
+		|| check_vector(square, TypeMask_Queen | TypeMask_Bishop | TypeMask_King | TypeMask_Pawn,
+			Vec_NE, Dir_NE, dir_mask, color);
 }
 
 static inline
@@ -317,18 +404,6 @@ move_t* gen_king(move_t* moves, piece_square_t from, uint8_t color) {
 }
 
 static inline
-bool check_king(square_t square, uint8_t color) {
-	return check_vector_leaper(square, Piece_King, Vec_SW, color)
-		|| check_vector_leaper(square, Piece_King, Vec_S,  color)
-		|| check_vector_leaper(square, Piece_King, Vec_SE, color)
-		|| check_vector_leaper(square, Piece_King, Vec_W,  color)
-		|| check_vector_leaper(square, Piece_King, Vec_E,  color)
-		|| check_vector_leaper(square, Piece_King, Vec_NW, color)
-		|| check_vector_leaper(square, Piece_King, Vec_N,  color)
-		|| check_vector_leaper(square, Piece_King, Vec_NE, color);
-}
-
-static inline
 move_t* gen_knight(move_t* moves, piece_square_t from, uint8_t color) {
 	moves = gen_vector_leaper(moves, from, Vec_SSW, color);
 	moves = gen_vector_leaper(moves, from, Vec_SSE, color);
@@ -343,14 +418,14 @@ move_t* gen_knight(move_t* moves, piece_square_t from, uint8_t color) {
 
 static inline
 bool check_knight(square_t square, uint8_t color) {
-	return check_vector_leaper(square, Type_Knight, Vec_SSW, color)
-		|| check_vector_leaper(square, Type_Knight, Vec_SSE, color)
-		|| check_vector_leaper(square, Type_Knight, Vec_SWW, color)
-		|| check_vector_leaper(square, Type_Knight, Vec_SEE, color)
-		|| check_vector_leaper(square, Type_Knight, Vec_NWW, color)
-		|| check_vector_leaper(square, Type_Knight, Vec_NEE, color)
-		|| check_vector_leaper(square, Type_Knight, Vec_NNW, color)
-		|| check_vector_leaper(square, Type_Knight, Vec_NNE, color);
+	return check_vector_knight(square, Vec_SSW, color)
+		|| check_vector_knight(square, Vec_SSE, color)
+		|| check_vector_knight(square, Vec_SWW, color)
+		|| check_vector_knight(square, Vec_SEE, color)
+		|| check_vector_knight(square, Vec_NWW, color)
+		|| check_vector_knight(square, Vec_NEE, color)
+		|| check_vector_knight(square, Vec_NNW, color)
+		|| check_vector_knight(square, Vec_NNE, color);
 }
 
 static inline
@@ -363,11 +438,11 @@ move_t* gen_bishop(move_t* moves, piece_square_t from, uint8_t color) {
 }
 
 static inline
-bool check_bishop(square_t square, uint8_t color) {
-	return check_vector_slider(square, Piece_Bishop, Vec_SW, color)
-		|| check_vector_slider(square, Piece_Bishop, Vec_SE, color)
-		|| check_vector_slider(square, Piece_Bishop, Vec_NW, color)
-		|| check_vector_slider(square, Piece_Bishop, Vec_NE, color);
+bool check_bishop(square_t square, dir_mask_t dir_mask, uint8_t color) {
+	return (dir_mask & DirMask_SW) && check_vector_slider(square, Piece_Bishop, Vec_SW, color)
+		|| (dir_mask & DirMask_SE) && check_vector_slider(square, Piece_Bishop, Vec_SE, color)
+		|| (dir_mask & DirMask_NW) && check_vector_slider(square, Piece_Bishop, Vec_NW, color)
+		|| (dir_mask & DirMask_NE) && check_vector_slider(square, Piece_Bishop, Vec_NE, color);
 }
 
 static inline
@@ -380,11 +455,11 @@ move_t* gen_rook(move_t* moves, piece_square_t from, uint8_t color) {
 }
 
 static inline
-bool check_rook(square_t square, uint8_t color) {
-	return check_vector_slider(square, Piece_Rook, Vec_S, color)
-		|| check_vector_slider(square, Piece_Rook, Vec_W, color)
-		|| check_vector_slider(square, Piece_Rook, Vec_E, color)
-		|| check_vector_slider(square, Piece_Rook, Vec_N, color);
+bool check_rook(square_t square, dir_mask_t dir_mask, uint8_t color) {
+	return (dir_mask & DirMask_S) && check_vector_slider(square, Piece_Rook, Vec_S, color)
+		|| (dir_mask & DirMask_W) && check_vector_slider(square, Piece_Rook, Vec_W, color)
+		|| (dir_mask & DirMask_E) && check_vector_slider(square, Piece_Rook, Vec_E, color)
+		|| (dir_mask & DirMask_N) && check_vector_slider(square, Piece_Rook, Vec_N, color);
 }
 
 static inline
@@ -420,11 +495,11 @@ move_t* gen_piece_white(move_t* moves, piece_square_t from) {
 
 static inline
 bool check_square_white(square_t square) {
-	return check_pawn_white(square)
+	dir_mask_t dir_mask = 0;
+	return check_neighbors_white(square, &dir_mask)
 		|| check_knight(square, Piece_White)
-		|| check_king(square, Piece_White)
-		|| check_bishop(square, Piece_White)
-		|| check_rook(square, Piece_White);
+		|| check_bishop(square, dir_mask, Piece_White)
+		|| check_rook(square, dir_mask, Piece_White);
 }
 
 static inline
@@ -447,11 +522,11 @@ move_t* gen_piece_black(move_t* moves, piece_square_t from) {
 
 static inline
 bool check_square_black(square_t square) {
-	return check_pawn_black(square)
+	dir_mask_t dir_mask = 0;
+	return check_neighbors_black(square, &dir_mask)
 		|| check_knight(square, Piece_Black)
-		|| check_king(square, Piece_Black)
-		|| check_bishop(square, Piece_Black)
-		|| check_rook(square, Piece_Black);
+		|| check_bishop(square, dir_mask, Piece_Black)
+		|| check_rook(square, dir_mask, Piece_Black);
 }
 
 static inline
