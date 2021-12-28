@@ -373,14 +373,14 @@ move_t* gen_ep_black(move_t* moves) {
 
 static inline
 bool check_neighbors_black(square_t square, dir_mask_t* dir_mask) {
-	return check_vector_diag (square, Vec_SW, Dir_SW, dir_mask, color)
-		|| check_vector_ortho(square, Vec_S,  Dir_S,  dir_mask, color)
-		|| check_vector_diag (square, Vec_SE, Dir_SE, dir_mask, color)
-		|| check_vector_ortho(square, Vec_W,  Dir_W,  dir_mask, color)
-		|| check_vector_ortho(square, Vec_E,  Dir_E,  dir_mask, color)
-		|| check_vector_pawn (square, Vec_NW, Dir_NW, dir_mask, color)
-		|| check_vector_ortho(square, Vec_N,  Dir_N,  dir_mask, color)
-		|| check_vector_pawn (square, Vec_NE, Dir_NE, dir_mask, color);
+	return check_vector_diag (square, Vec_SW, Dir_SW, dir_mask, Piece_Black)
+		|| check_vector_ortho(square, Vec_S,  Dir_S,  dir_mask, Piece_Black)
+		|| check_vector_diag (square, Vec_SE, Dir_SE, dir_mask, Piece_Black)
+		|| check_vector_ortho(square, Vec_W,  Dir_W,  dir_mask, Piece_Black)
+		|| check_vector_ortho(square, Vec_E,  Dir_E,  dir_mask, Piece_Black)
+		|| check_vector_pawn (square, Vec_NW, Dir_NW, dir_mask, Piece_Black)
+		|| check_vector_ortho(square, Vec_N,  Dir_N,  dir_mask, Piece_Black)
+		|| check_vector_pawn (square, Vec_NE, Dir_NE, dir_mask, Piece_Black);
 }
 
 static inline
