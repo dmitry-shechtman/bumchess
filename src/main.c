@@ -535,6 +535,7 @@ move_t* gen_piece_white(move_t* moves, piece_square_t from) {
 	case Piece_Queen:
 		return gen_queen(moves, from, Piece_White);
 	default:
+		state.king = from.square;
 		return gen_king(moves, from, Piece_White);
 	}
 }
@@ -562,6 +563,7 @@ move_t* gen_piece_black(move_t* moves, piece_square_t from) {
 	case Piece_Queen:
 		return gen_queen(moves, from, Piece_Black);
 	default:
+		state.king = from.square;
 		return gen_king(moves, from, Piece_Black);
 	}
 }
@@ -589,9 +591,6 @@ move_t* gen_white(move_t* moves) {
 					.square = square
 				};
 				moves = gen_piece_white(moves, from);
-				if ((piece & Piece_Type) == Piece_King) {
-					state.king = square;
-				}
 			}
 		}
 	}
@@ -612,9 +611,6 @@ move_t* gen_black(move_t* moves) {
 					.square = square
 				};
 				moves = gen_piece_black(moves, from);
-				if ((piece & Piece_Type) == Piece_King) {
-					state.king = square;
-				}
 			}
 		}
 	}
