@@ -485,10 +485,10 @@ move_t* gen_bishop(move_t* moves, piece_square_t from, uint8_t color) {
 
 static inline
 bool check_bishop(square_t square, dir_mask_t dir_mask, uint8_t color) {
-	return (dir_mask & DirMask_SW) && check_vector_slider(square, Piece_Bishop, Vec_SW, color)
-		|| (dir_mask & DirMask_SE) && check_vector_slider(square, Piece_Bishop, Vec_SE, color)
-		|| (dir_mask & DirMask_NW) && check_vector_slider(square, Piece_Bishop, Vec_NW, color)
-		|| (dir_mask & DirMask_NE) && check_vector_slider(square, Piece_Bishop, Vec_NE, color);
+	return ((dir_mask & DirMask_SW) && check_vector_slider(square, Piece_Bishop, Vec_SW, color))
+		|| ((dir_mask & DirMask_SE) && check_vector_slider(square, Piece_Bishop, Vec_SE, color))
+		|| ((dir_mask & DirMask_NW) && check_vector_slider(square, Piece_Bishop, Vec_NW, color))
+		|| ((dir_mask & DirMask_NE) && check_vector_slider(square, Piece_Bishop, Vec_NE, color));
 }
 
 static inline
@@ -502,10 +502,10 @@ move_t* gen_rook(move_t* moves, piece_square_t from, uint8_t color) {
 
 static inline
 bool check_rook(square_t square, dir_mask_t dir_mask, uint8_t color) {
-	return (dir_mask & DirMask_S) && check_vector_slider(square, Piece_Rook, Vec_S, color)
-		|| (dir_mask & DirMask_W) && check_vector_slider(square, Piece_Rook, Vec_W, color)
-		|| (dir_mask & DirMask_E) && check_vector_slider(square, Piece_Rook, Vec_E, color)
-		|| (dir_mask & DirMask_N) && check_vector_slider(square, Piece_Rook, Vec_N, color);
+	return ((dir_mask & DirMask_S) && check_vector_slider(square, Piece_Rook, Vec_S, color))
+		|| ((dir_mask & DirMask_W) && check_vector_slider(square, Piece_Rook, Vec_W, color))
+		|| ((dir_mask & DirMask_E) && check_vector_slider(square, Piece_Rook, Vec_E, color))
+		|| ((dir_mask & DirMask_N) && check_vector_slider(square, Piece_Rook, Vec_N, color));
 }
 
 static inline
