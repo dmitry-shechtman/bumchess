@@ -351,8 +351,10 @@ move_t* gen_pawn_white(move_t* moves, piece_square_t from) {
 
 static inline
 move_t* gen_ep_white(move_t* moves) {
-	moves = gen_vector_ep(moves, Vec_SW, Piece_White, Piece_Black);
-	moves = gen_vector_ep(moves, Vec_SE, Piece_White, Piece_Black);
+	if (!(state.ep & Square_FileInvalid)) {
+		moves = gen_vector_ep(moves, Vec_SW, Piece_White, Piece_Black);
+		moves = gen_vector_ep(moves, Vec_SE, Piece_White, Piece_Black);
+	}
 	return moves;
 }
 
@@ -394,8 +396,10 @@ move_t* gen_pawn_black(move_t* moves, piece_square_t from) {
 
 static inline
 move_t* gen_ep_black(move_t* moves) {
-	moves = gen_vector_ep(moves, Vec_NW, Piece_Black, Piece_White);
-	moves = gen_vector_ep(moves, Vec_NE, Piece_Black, Piece_White);
+	if (!(state.ep & Square_FileInvalid)) {
+		moves = gen_vector_ep(moves, Vec_NW, Piece_Black, Piece_White);
+		moves = gen_vector_ep(moves, Vec_NE, Piece_Black, Piece_White);
+	}
 	return moves;
 }
 
@@ -426,15 +430,6 @@ bool check_neighbors_black(square_t square, dir_mask_t* dir_mask) {
 	return check_neighbors_black_s(square, dir_mask)
 		|| check_neighbors_black_we(square, dir_mask)
 		|| check_neighbors_black_n(square, dir_mask);
-}
-
-static inline
-move_t* gen_ep(move_t* moves) {
-	return !(state.ep & Square_FileInvalid)
-		? color == Piece_White
-			? gen_ep_white(moves)
-			: gen_ep_black(moves)
-		: moves;
 }
 
 static inline
@@ -596,7 +591,7 @@ move_t* gen_white(move_t* moves) {
 			}
 		}
 	}
-	return gen_ep(moves);
+	return gen_ep_white(moves);
 }
 
 static inline
@@ -619,7 +614,7 @@ move_t* gen_black(move_t* moves) {
 			}
 		}
 	}
-	return gen_ep(moves);
+	return gen_ep_black(moves);
 }
 
 static inline
