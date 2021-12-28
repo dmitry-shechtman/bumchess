@@ -357,15 +357,32 @@ move_t* gen_ep_white(move_t* moves) {
 }
 
 static inline
-bool check_neighbors_white(square_t square, dir_mask_t* dir_mask) {
-	return check_vector_pawn (square, Vec_SW, Dir_SW, dir_mask, Piece_White)
+bool check_neighbors_white_s(square_t square, dir_mask_t* dir_mask) {
+	return (square & Square_Rank)
+		&& (check_vector_pawn(square, Vec_SW, Dir_SW, dir_mask, Piece_White)
 		|| check_vector_ortho(square, Vec_S,  Dir_S,  dir_mask, Piece_White)
-		|| check_vector_pawn (square, Vec_SE, Dir_SE, dir_mask, Piece_White)
-		|| check_vector_ortho(square, Vec_W,  Dir_W,  dir_mask, Piece_White)
-		|| check_vector_ortho(square, Vec_E,  Dir_E,  dir_mask, Piece_White)
-		|| check_vector_diag (square, Vec_NW, Dir_NW, dir_mask, Piece_White)
+		|| check_vector_pawn (square, Vec_SE, Dir_SE, dir_mask, Piece_White));
+}
+
+static inline
+bool check_neighbors_white_we(square_t square, dir_mask_t* dir_mask) {
+	return check_vector_ortho(square, Vec_W, Dir_W, dir_mask, Piece_White)
+		|| check_vector_ortho(square, Vec_E, Dir_E, dir_mask, Piece_White);
+}
+
+static inline
+bool check_neighbors_white_n(square_t square, dir_mask_t* dir_mask) {
+	return (square & Square_Rank) != Square_Rank8
+		&& (check_vector_diag(square, Vec_NW, Dir_NW, dir_mask, Piece_White)
 		|| check_vector_ortho(square, Vec_N,  Dir_N,  dir_mask, Piece_White)
-		|| check_vector_diag (square, Vec_NE, Dir_NE, dir_mask, Piece_White);
+		|| check_vector_diag (square, Vec_NE, Dir_NE, dir_mask, Piece_White));
+}
+
+static inline
+bool check_neighbors_white(square_t square, dir_mask_t* dir_mask) {
+	return check_neighbors_white_s(square, dir_mask)
+		|| check_neighbors_white_we(square, dir_mask)
+		|| check_neighbors_white_n(square, dir_mask);
 }
 
 static inline
@@ -383,15 +400,32 @@ move_t* gen_ep_black(move_t* moves) {
 }
 
 static inline
-bool check_neighbors_black(square_t square, dir_mask_t* dir_mask) {
-	return check_vector_diag (square, Vec_SW, Dir_SW, dir_mask, Piece_Black)
+bool check_neighbors_black_s(square_t square, dir_mask_t* dir_mask) {
+	return (square & Square_Rank)
+		&& (check_vector_diag(square, Vec_SW, Dir_SW, dir_mask, Piece_Black)
 		|| check_vector_ortho(square, Vec_S,  Dir_S,  dir_mask, Piece_Black)
-		|| check_vector_diag (square, Vec_SE, Dir_SE, dir_mask, Piece_Black)
-		|| check_vector_ortho(square, Vec_W,  Dir_W,  dir_mask, Piece_Black)
-		|| check_vector_ortho(square, Vec_E,  Dir_E,  dir_mask, Piece_Black)
-		|| check_vector_pawn (square, Vec_NW, Dir_NW, dir_mask, Piece_Black)
-		|| check_vector_ortho(square, Vec_N,  Dir_N,  dir_mask, Piece_Black)
-		|| check_vector_pawn (square, Vec_NE, Dir_NE, dir_mask, Piece_Black);
+		|| check_vector_diag (square, Vec_SE, Dir_SE, dir_mask, Piece_Black));
+}
+
+static inline
+bool check_neighbors_black_we(square_t square, dir_mask_t* dir_mask) {
+	return check_vector_ortho(square, Vec_W, Dir_W, dir_mask, Piece_Black)
+		|| check_vector_ortho(square, Vec_E, Dir_E, dir_mask, Piece_Black);
+}
+
+static inline
+bool check_neighbors_black_n(square_t square, dir_mask_t* dir_mask) {
+	return (square & Square_Rank) != Square_Rank8
+		&& (check_vector_pawn(square, Vec_NW, Dir_NW, dir_mask, Piece_Black)
+		|| check_vector_ortho(square, Vec_N, Dir_N, dir_mask, Piece_Black)
+		|| check_vector_pawn(square, Vec_NE, Dir_NE, dir_mask, Piece_Black));
+}
+
+static inline
+bool check_neighbors_black(square_t square, dir_mask_t* dir_mask) {
+	return check_neighbors_black_s(square, dir_mask)
+		|| check_neighbors_black_we(square, dir_mask)
+		|| check_neighbors_black_n(square, dir_mask);
 }
 
 static inline
