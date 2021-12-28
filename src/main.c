@@ -138,6 +138,7 @@ void board_init() {
 	state.ep = Square_Rank6 | Square_FileInvalid;
 }
 
+static inline
 move_t* gen_push_pawn(move_t* moves, piece_square_t from, vector_t vector) {
 	piece_square_t to = from;
 	if (!squares[to.square += vector]) {
@@ -160,6 +161,7 @@ move_t* gen_push_pawn(move_t* moves, piece_square_t from, vector_t vector) {
 	return moves;
 }
 
+static inline
 move_t* gen_vector_pawn(move_t* moves, piece_square_t from, vector_t vector) {
 	piece_square_t to = from;
 	piece_square_t from2;
@@ -179,6 +181,7 @@ move_t* gen_vector_pawn(move_t* moves, piece_square_t from, vector_t vector) {
 	return moves;
 }
 
+static inline
 move_t* gen_vector_ep(move_t* moves, vector_t vector) {
 	piece_square_t to = {
 		.square = state.ep
@@ -203,6 +206,7 @@ move_t* gen_vector_ep(move_t* moves, vector_t vector) {
 	return moves;
 }
 
+static inline
 move_t* gen_vector_leaper(move_t* moves, piece_square_t from, vector_t vector) {
 	piece_square_t to = from;
 	piece_square_t from2;
@@ -222,11 +226,13 @@ move_t* gen_vector_leaper(move_t* moves, piece_square_t from, vector_t vector) {
 	return moves;
 }
 
+static inline
 bool check_vector_leaper(square_t square, piece_t type, vector_t vector) {
 	return !((square += vector) & Square_Invalid)
 		&& (squares[square] & (Piece_Type | Piece_Color)) == (type | color);
 }
 
+static inline
 move_t* gen_vector_slider(move_t* moves, piece_square_t from, vector_t vector) {
 	piece_square_t to = from;
 	piece_square_t from2 = {0};
@@ -247,6 +253,7 @@ move_t* gen_vector_slider(move_t* moves, piece_square_t from, vector_t vector) {
 	return moves;
 }
 
+static inline
 bool check_vector_slider(square_t square, piece_t type, vector_t vector) {
 	piece_t piece = 0;
 	while (!((square += vector) & Square_Invalid)
@@ -254,6 +261,7 @@ bool check_vector_slider(square_t square, piece_t type, vector_t vector) {
 	return (piece & (type | Piece_Color)) == (type | color);
 }
 
+static inline
 move_t* gen_leaper(move_t* moves, piece_square_t from, uint8_t start, uint8_t end) {
 	for (uint8_t i = start; i < end; ++i) {
 		moves = gen_vector_leaper(moves, from, vectors[i]);
@@ -261,6 +269,7 @@ move_t* gen_leaper(move_t* moves, piece_square_t from, uint8_t start, uint8_t en
 	return moves;
 }
 
+static inline
 bool check_leaper(square_t square, piece_t type, uint8_t start, uint8_t end) {
 	for (uint8_t i = start; i < end; ++i) {
 		if (check_vector_leaper(square, type, vectors[i])) {
@@ -270,6 +279,7 @@ bool check_leaper(square_t square, piece_t type, uint8_t start, uint8_t end) {
 	return false;
 }
 
+static inline
 move_t* gen_slider(move_t* moves, piece_square_t from, uint8_t start, uint8_t end) {
 	for (uint8_t i = start; i < end; ++i) {
 		moves = gen_vector_slider(moves, from, vectors[i]);
@@ -277,6 +287,7 @@ move_t* gen_slider(move_t* moves, piece_square_t from, uint8_t start, uint8_t en
 	return moves;
 }
 
+static inline
 bool check_slider(square_t square, piece_t type, uint8_t start, uint8_t end) {
 	for (uint8_t i = start; i < end; ++i) {
 		if (check_vector_slider(square, type, vectors[i])) {
@@ -286,52 +297,47 @@ bool check_slider(square_t square, piece_t type, uint8_t start, uint8_t end) {
 	return false;
 }
 
+static inline
 move_t* gen_pawn_white(move_t* moves, piece_square_t from) {
 	moves = gen_vector_pawn(moves, from, Vec_NW);
 	moves = gen_vector_pawn(moves, from, Vec_NE);
 	return gen_push_pawn(moves, from, Vec_N);
 }
 
+static inline
 move_t* gen_ep_white(move_t* moves) {
 	moves = gen_vector_ep(moves, Vec_SW);
 	moves = gen_vector_ep(moves, Vec_SE);
 	return moves;
 }
 
+static inline
 bool check_pawn_white(square_t square) {
 	return check_vector_leaper(square, Piece_Pawn, Vec_SW)
 		|| check_vector_leaper(square, Piece_Pawn, Vec_SE);
 }
 
+static inline
 move_t* gen_pawn_black(move_t* moves, piece_square_t from) {
 	moves = gen_vector_pawn(moves, from, Vec_SW);
 	moves = gen_vector_pawn(moves, from, Vec_SE);
 	return gen_push_pawn(moves, from, Vec_S);
 }
 
+static inline
 move_t* gen_ep_black(move_t* moves) {
 	moves = gen_vector_ep(moves, Vec_NW);
 	moves = gen_vector_ep(moves, Vec_NE);
 	return moves;
 }
 
+static inline
 bool check_pawn_black(square_t square) {
 	return check_vector_leaper(square, Piece_Pawn, Vec_NW)
 		|| check_vector_leaper(square, Piece_Pawn, Vec_NE);
 }
 
-move_t* gen_pawn(move_t* moves, piece_square_t from) {
-	return color == Piece_White
-		? gen_pawn_white(moves, from)
-		: gen_pawn_black(moves, from);
-}
-
-bool check_pawn(square_t square) {
-	return color == Piece_White
-		? check_pawn_white(square)
-		: check_pawn_black(square);
-}
-
+static inline
 move_t* gen_ep(move_t* moves) {
 	return !(state.ep & Square_FileInvalid)
 		? color == Piece_White
@@ -340,46 +346,56 @@ move_t* gen_ep(move_t* moves) {
 		: moves;
 }
 
+static inline
 move_t* gen_king(move_t* moves, piece_square_t from) {
 	return gen_leaper(moves, from, 0, 8);
 }
 
+static inline
 bool check_king(square_t square) {
 	return check_leaper(square, Type_King, 0, 8);
 }
 
+static inline
 move_t* gen_knight(move_t* moves, piece_square_t from) {
 	return gen_leaper(moves, from, 8, 16);
 }
 
+static inline
 bool check_knight(square_t square) {
 	return check_leaper(square, Type_Knight, 8, 16);
 }
 
+static inline
 move_t* gen_bishop(move_t* moves, piece_square_t from) {
 	return gen_slider(moves, from, 0, 4);
 }
 
+static inline
 bool check_bishop(square_t square) {
 	return check_slider(square, Piece_Bishop, 0, 4);
 }
 
+static inline
 move_t* gen_rook(move_t* moves, piece_square_t from) {
 	return gen_slider(moves, from, 4, 8);
 }
 
+static inline
 bool check_rook(square_t square) {
 	return check_slider(square, Piece_Rook, 4, 8);
 }
 
+static inline
 move_t* gen_queen(move_t* moves, piece_square_t from) {
 	return gen_slider(moves, from, 0, 8);
 }
 
-move_t* gen_piece(move_t* moves, piece_square_t from) {
+static inline
+move_t* gen_piece_white(move_t* moves, piece_square_t from) {
 	switch (from.piece & Piece_Type) {
 	case Piece_Pawn:
-		return gen_pawn(moves, from);
+		return gen_pawn_white(moves, from);
 	case Piece_Knight:
 		return gen_knight(moves, from);
 	case Piece_Bishop:
@@ -393,27 +409,56 @@ move_t* gen_piece(move_t* moves, piece_square_t from) {
 	}
 }
 
-bool check_square(square_t square) {
-	return check_pawn(square)
+static inline
+bool check_square_white(square_t square) {
+	return check_pawn_white(square)
 		|| check_knight(square)
 		|| check_king(square)
 		|| check_bishop(square)
 		|| check_rook(square);
 }
 
-move_t* gen(move_t* moves) {
+static inline
+move_t* gen_piece_black(move_t* moves, piece_square_t from) {
+	switch (from.piece & Piece_Type) {
+	case Piece_Pawn:
+		return gen_pawn_black(moves, from);
+	case Piece_Knight:
+		return gen_knight(moves, from);
+	case Piece_Bishop:
+		return gen_bishop(moves, from);
+	case Piece_Rook:
+		return gen_rook(moves, from);
+	case Piece_Queen:
+		return gen_queen(moves, from);
+	default:
+		return gen_king(moves, from);
+	}
+}
+
+static inline
+bool check_square_black(square_t square) {
+	return check_pawn_black(square)
+		|| check_knight(square)
+		|| check_king(square)
+		|| check_bishop(square)
+		|| check_rook(square);
+}
+
+static inline
+move_t* gen_white(move_t* moves) {
 	square_t square;
 	piece_t piece;
 	for (uint8_t rank = 0; rank < Count_Ranks; ++rank) {
 		square = rank << 4;
 		for (uint8_t file = 0; file < Count_Files; ++file, ++square) {
 			piece = squares[square];
-			if (piece & color) {
+			if (piece & Piece_White) {
 				piece_square_t from = {
 					.piece = piece,
 					.square = square
 				};
-				moves = gen_piece(moves, from);
+				moves = gen_piece_white(moves, from);
 				if ((piece & Piece_Type) == Piece_King) {
 					state.king = square;
 				}
@@ -423,44 +468,91 @@ move_t* gen(move_t* moves) {
 	return gen_ep(moves);
 }
 
+static inline
+move_t* gen_black(move_t* moves) {
+	square_t square;
+	piece_t piece;
+	for (uint8_t rank = 0; rank < Count_Ranks; ++rank) {
+		square = rank << 4;
+		for (uint8_t file = 0; file < Count_Files; ++file, ++square) {
+			piece = squares[square];
+			if (piece & Piece_Black) {
+				piece_square_t from = {
+					.piece = piece,
+					.square = square
+				};
+				moves = gen_piece_black(moves, from);
+				if ((piece & Piece_Type) == Piece_King) {
+					state.king = square;
+				}
+			}
+		}
+	}
+	return gen_ep(moves);
+}
+
+static inline
+move_t* gen(move_t* moves) {
+	return color == Piece_White
+		? gen_white(moves)
+		: gen_black(moves);
+}
+
+static inline
+bool check_square(square_t square) {
+	return color == Piece_White
+		? check_square_white(square)
+		: check_square_black(square);
+}
+
+static inline
 bool check() {
 	return check_square(state.king);
 }
 
+static inline
 void clear_prim_from(piece_square_t from) {
 	squares[from.square] = 0x00;
 }
 
+static inline
 void set_prim_from(piece_square_t from) {
 	squares[from.square] = from.piece;
 }
 
+static inline
 void clear_prim_to(piece_square_t to) {
 	squares[to.square & ~Square_Invalid] = 0x00;
 }
 
+static inline
 void set_prim_to(piece_square_t to) {
 	squares[to.square & ~Square_Invalid] = to.piece | Piece_Moved;
 }
 
+static inline
 void clear_sec(piece_square_t ps) {
 	squares[ps.square] = 0x00;
 }
 
+static inline
 void set_sec(piece_square_t ps) {
 	squares[ps.square] = ps.piece;
 }
 
+static inline
 void set_ep(uint8_t file) {
 	state.ep = ((state.ep & Square_Rank) ^ Square_Rank) | file;
 }
 
+static inline
 void set_king(piece_square_t ps) {
 	state.king = (ps.piece & Piece_Type) == Piece_King
 		? ps.square
 		: state.king;
 }
 
+static inline
 void move_make(move_t move) {
 	clear_sec(move.sec.from);
 	clear_prim_from(move.prim.from);
@@ -474,6 +566,7 @@ void move_make(move_t move) {
 	color ^= Piece_Color;
 }
 
+static inline
 void move_unmake(move_t move) {
 	color ^= Piece_Color;
 
