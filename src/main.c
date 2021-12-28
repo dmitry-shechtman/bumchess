@@ -403,6 +403,7 @@ move_t* gen_piece(move_t* moves, piece_square_t from) {
 	case Piece_Queen:
 		return gen_queen(moves, from);
 	default:
+		state.king = from.square;
 		return gen_king(moves, from);
 	}
 }
@@ -428,9 +429,6 @@ move_t* gen(move_t* moves) {
 					.square = square
 				};
 				moves = gen_piece(moves, from);
-				if ((piece & Piece_Type) == Piece_King) {
-					state.king = square;
-				}
 			}
 		}
 	}
