@@ -214,7 +214,7 @@ move_t* gen_vector_pawn(move_t* moves, piece_square_t from, vector_t vector, uin
 				},
 				.sec = {
 					.from = from2,
-					.to = 0x0800
+					.to = { 0x0800 }
 				}
 			};
 			moves = gen_promo_pawn(moves, move, to, promo);
@@ -244,7 +244,7 @@ move_t* gen_vector_ep(move_t* moves, vector_t vector) {
 						.piece = (to.square & Square_File) | Piece_Pawn0 | (color ^ Piece_Color) | Piece_Moved,
 						.square = to.square ^ Square_Rank2
 					},
-					.to = 0x0800
+					.to = { 0x0800 }
 				}
 		};
 		*moves++ = move;
@@ -264,7 +264,7 @@ move_t* gen_vector_leaper(move_t* moves, piece_square_t from, vector_t vector) {
 				},
 				.sec = {
 					.from = from2,
-					.to = 0x0800
+					.to = { 0x0800 }
 				}
 			};
 			*moves++ = move;
@@ -290,7 +290,7 @@ move_t* gen_vector_slider(move_t* moves, piece_square_t from, vector_t vector) {
 				},
 				.sec = {
 					.from = from2,
-					.to = 0x0800
+					.to = { 0x0800 }
 				}
 			};
 			*moves++ = move;
