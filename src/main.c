@@ -90,6 +90,7 @@ enum Count {
 	Count_Pawns    =   8,
 	Count_Knights  =   4,
 	Count_Bishops  =   4,
+	Count_Bishops2 =   2,
 	Count_Rooks    =   4,
 	Count_Queens   =   4,
 	Count_Pieces   =  64,
@@ -144,7 +145,7 @@ void board_init() {
 	squares[0x02] = Piece_Bishop + Piece_White + Piece_Moved;
 	squares[0x03] = Piece_Queen  + Piece_White + Piece_Moved;
 	squares[0x04] = Piece_King   + Piece_White;
-	squares[0x05] = Piece_Bishop + Piece_White + Piece_Moved + 1;
+	squares[0x05] = Piece_Bishop + Piece_White + Piece_Moved + 2;
 	squares[0x06] = Piece_Knight + Piece_White + Piece_Moved + 1;
 	squares[0x07] = Piece_Rook   + Piece_White + 1;
 
@@ -155,15 +156,19 @@ void board_init() {
 
 	squares[0x70] = Piece_Rook   + Piece_Black;
 	squares[0x71] = Piece_Knight + Piece_Black + Piece_Moved;
-	squares[0x72] = Piece_Bishop + Piece_Black + Piece_Moved;
+	squares[0x72] = Piece_Bishop + Piece_Black + Piece_Moved + 2;
 	squares[0x73] = Piece_Queen  + Piece_Black + Piece_Moved;
 	squares[0x74] = Piece_King   + Piece_Black;
-	squares[0x75] = Piece_Bishop + Piece_Black + Piece_Moved + 1;
+	squares[0x75] = Piece_Bishop + Piece_Black + Piece_Moved;
 	squares[0x76] = Piece_Knight + Piece_Black + Piece_Moved + 1;
 	squares[0x77] = Piece_Rook   + Piece_Black + 1;
 
 	color = Piece_White;
 	piecemask = 0;
+}
+
+uint8_t get_index(square_t square) {
+	return (((square ^ (square >> Shift_Rank)) & 1) << 1);
 }
 
 move_t* gen_promo_pawn(move_t* moves, move_t move, piece_square_t to, uint8_t promo) {
@@ -514,9 +519,9 @@ move_t* gen_bishops(move_t* moves) {
 }
 
 bool check_bishops(square_t dest) {
-	piece_t piece = (Piece_Bishop | color) & Piece_Index;
+	piece_t piece = ((Piece_Bishop + get_index(dest)) | color) & Piece_Index;
 	uint64_t mask = 1ull << piece;
-	for (uint8_t i = 0; i < Count_Bishops; ++i, ++piece, mask <<= 1) {
+	for (uint8_t i = 0; i < Count_Bishops2; ++i, ++piece, mask <<= 1) {
 		if ((piecemask & mask) && check_bishop(pieces[piece], dest)) {
 			return true;
 		}
