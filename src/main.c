@@ -619,7 +619,6 @@ bool check() {
 
 void clear_piece(piece_square_t ps) {
 	piece_t piece = ps.piece & Piece_Index;
-	pieces[piece].value = 0x0800;
 	piecemask &= ~(1ull << piece);
 }
 
