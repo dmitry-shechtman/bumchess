@@ -10,7 +10,8 @@
 enum Type {
 	Type_None,
 	Type_King,
-	Type_Pawn   = 3,
+	Type_Pawn0,
+	Type_Pawn1,
 	Type_Knight,
 	Type_Bishop,
 	Type_Rook,
@@ -18,18 +19,29 @@ enum Type {
 	Type_Count
 };
 
-enum Piece {
-	Piece_King     = Type_King,
-	Piece_Pawn     = Type_Pawn,
-	Piece_Knight   = Type_Knight,
-	Piece_Bishop   = Type_Bishop,
-	Piece_Rook     = Type_Rook,
-	Piece_Queen    = Type_Queen,
-	Piece_Type     = Piece_Queen,
+enum Shift {
+	Shift_Type = 2,
+	Shift_Rank = 4
+};
 
-	Piece_Black    = 0x08,
-	Piece_White    = 0x10,
+enum Piece {
+	Piece_Index2   = 0x03,
+
+	Piece_King     = Type_King   << Shift_Type,
+	Piece_Pawn0    = Type_Pawn0  << Shift_Type,
+	Piece_Pawn1    = Type_Pawn1  << Shift_Type,
+	Piece_Knight   = Type_Knight << Shift_Type,
+	Piece_Bishop   = Type_Bishop << Shift_Type,
+	Piece_Rook     = Type_Rook   << Shift_Type,
+	Piece_Queen    = Type_Queen  << Shift_Type,
+	Piece_Type     = Piece_Queen,
+	Piece_TypePawn = Piece_Queen ^ Piece_King,
+
+	Piece_Black    = 0x20,
+	Piece_White    = 0x40,
 	Piece_Color    = Piece_Black | Piece_White,
+
+	Piece_Index    = Piece_Index2 | Piece_Type | Piece_Black,
 
 	Piece_Moved    = 0x80
 };
@@ -72,6 +84,13 @@ enum Count {
 	Count_Ranks    =   8,
 	Count_Files    =   8,
 	Count_Squares  = 128,
+
+	Count_Pawns    =   8,
+	Count_Knights  =   4,
+	Count_Bishops  =   4,
+	Count_Rooks    =   4,
+	Count_Queens   =   4,
+	Count_Pieces   =  64,
 };
 
 typedef uint8_t piece_t;
@@ -105,10 +124,11 @@ typedef struct {
 
 typedef struct {
 	square_t ep;
-	square_t king;
 } state_t;
 
 piece_t squares[Count_Squares];
+piece_square_t pieces[Count_Pieces];
+uint64_t piecemask;
 piece_t color;
 state_t state;
 
@@ -122,13 +142,13 @@ void board_init() {
 	squares[0x02] = Piece_Bishop + Piece_White + Piece_Moved;
 	squares[0x03] = Piece_Queen  + Piece_White + Piece_Moved;
 	squares[0x04] = Piece_King   + Piece_White;
-	squares[0x05] = Piece_Bishop + Piece_White + Piece_Moved;
-	squares[0x06] = Piece_Knight + Piece_White + Piece_Moved;
-	squares[0x07] = Piece_Rook   + Piece_White;
+	squares[0x05] = Piece_Bishop + Piece_White + Piece_Moved + 1;
+	squares[0x06] = Piece_Knight + Piece_White + Piece_Moved + 1;
+	squares[0x07] = Piece_Rook   + Piece_White + 1;
 
 	for (uint8_t i = 0; i < Count_Files; ++i) {
-		squares[i + 0x10] = Piece_Pawn + Piece_White;
-		squares[i + 0x60] = Piece_Pawn + Piece_Black;
+		squares[i + 0x10] = Piece_Pawn0 + Piece_White + i;
+		squares[i + 0x60] = Piece_Pawn0 + Piece_Black + i;
 	}
 
 	squares[0x70] = Piece_Rook   + Piece_Black;
@@ -136,9 +156,9 @@ void board_init() {
 	squares[0x72] = Piece_Bishop + Piece_Black + Piece_Moved;
 	squares[0x73] = Piece_Queen  + Piece_Black + Piece_Moved;
 	squares[0x74] = Piece_King   + Piece_Black;
-	squares[0x75] = Piece_Bishop + Piece_Black + Piece_Moved;
-	squares[0x76] = Piece_Knight + Piece_Black + Piece_Moved;
-	squares[0x77] = Piece_Rook   + Piece_Black;
+	squares[0x75] = Piece_Bishop + Piece_Black + Piece_Moved + 1;
+	squares[0x76] = Piece_Knight + Piece_Black + Piece_Moved + 1;
+	squares[0x77] = Piece_Rook   + Piece_Black + 1;
 
 	color = Piece_White;
 	state.ep = Square_Rank6 | Square_FileInvalid;
@@ -194,13 +214,18 @@ move_t* gen_vector_pawn(move_t* moves, piece_square_t from, vector_t vector, uin
 	return moves;
 }
 
+bool check_vector_pawn(square_t square, vector_t vector) {
+	return !((square += vector) & Square_Invalid)
+		&& (squares[square] & (Piece_TypePawn | Piece_Color)) == (Piece_Pawn0 | color);
+}
+
 move_t* gen_vector_ep(move_t* moves, vector_t vector) {
 	piece_square_t to = {
 		.square = state.ep
 	};
 	piece_square_t from = to;
 	if (!((from.square += vector) & Square_Invalid)
-		&& ((to.piece = from.piece = squares[from.square]) & (Piece_Type | Piece_Color)) == (Piece_Pawn | color)) {
+		&& ((to.piece = from.piece = squares[from.square]) & (Piece_TypePawn | Piece_Color)) == (Piece_Pawn0 | color)) {
 			move_t move = {
 				.prim = {
 					.from = from,
@@ -208,8 +233,8 @@ move_t* gen_vector_ep(move_t* moves, vector_t vector) {
 				},
 				.sec = {
 					.from = {
-						.piece = Piece_Pawn | (color ^ Piece_Color) | Piece_Moved,
-						.square = state.ep ^ Square_Rank2
+						.piece = (to.square & Square_File) | Piece_Pawn0 | (color ^ Piece_Color) | Piece_Moved,
+						.square = to.square ^ Square_Rank2
 					},
 				}
 		};
@@ -314,8 +339,8 @@ move_t* gen_ep_white(move_t* moves) {
 }
 
 bool check_pawn_white(square_t square) {
-	return check_vector_leaper(square, Piece_Pawn, Vec_SW)
-		|| check_vector_leaper(square, Piece_Pawn, Vec_SE);
+	return check_vector_pawn(square, Vec_SW)
+		|| check_vector_pawn(square, Vec_SE);
 }
 
 move_t* gen_pawn_black(move_t* moves, piece_square_t from) {
@@ -331,8 +356,8 @@ move_t* gen_ep_black(move_t* moves) {
 }
 
 bool check_pawn_black(square_t square) {
-	return check_vector_leaper(square, Piece_Pawn, Vec_NW)
-		|| check_vector_leaper(square, Piece_Pawn, Vec_NE);
+	return check_vector_pawn(square, Vec_NW)
+		|| check_vector_pawn(square, Vec_NE);
 }
 
 move_t* gen_pawn(move_t* moves, piece_square_t from) {
@@ -360,7 +385,7 @@ move_t* gen_king(move_t* moves, piece_square_t from) {
 }
 
 bool check_king(square_t square) {
-	return check_leaper(square, Type_King, 0, 8);
+	return check_leaper(square, Piece_King, 0, 8);
 }
 
 move_t* gen_knight(move_t* moves, piece_square_t from) {
@@ -368,7 +393,7 @@ move_t* gen_knight(move_t* moves, piece_square_t from) {
 }
 
 bool check_knight(square_t square) {
-	return check_leaper(square, Type_Knight, 8, 16);
+	return check_leaper(square, Piece_Knight, 8, 16);
 }
 
 move_t* gen_bishop(move_t* moves, piece_square_t from) {
@@ -391,22 +416,64 @@ move_t* gen_queen(move_t* moves, piece_square_t from) {
 	return gen_slider(moves, from, 0, 8);
 }
 
-move_t* gen_piece(move_t* moves, piece_square_t from) {
-	switch (from.piece & Piece_Type) {
-	case Piece_Pawn:
-		return gen_pawn(moves, from);
-	case Piece_Knight:
-		return gen_knight(moves, from);
-	case Piece_Bishop:
-		return gen_bishop(moves, from);
-	case Piece_Rook:
-		return gen_rook(moves, from);
-	case Piece_Queen:
-		return gen_queen(moves, from);
-	default:
-		state.king = from.square;
-		return gen_king(moves, from);
+move_t* gen_kings(move_t* moves) {
+	piece_t piece = (Piece_King | color) & Piece_Index;
+	return gen_king(moves, pieces[piece]);
+}
+
+move_t* gen_pawns(move_t* moves) {
+	piece_t piece = (Piece_Pawn0 | color) & Piece_Index;
+	uint64_t mask = 1ull << piece;
+	for (uint8_t i = 0; i < Count_Pawns; ++i, ++piece, mask <<= 1) {
+		if (piecemask & mask) {
+			moves = gen_pawn(moves, pieces[piece]);
+		}
 	}
+	return moves;
+}
+
+move_t* gen_knights(move_t* moves) {
+	piece_t piece = (Piece_Knight | color) & Piece_Index;
+	uint64_t mask = 1ull << piece;
+	for (uint8_t i = 0; i < Count_Knights; ++i, ++piece, mask <<= 1) {
+		if (piecemask & mask) {
+			moves = gen_knight(moves, pieces[piece]);
+		}
+	}
+	return moves;
+}
+
+move_t* gen_bishops(move_t* moves) {
+	piece_t piece = (Piece_Bishop | color) & Piece_Index;
+	uint64_t mask = 1ull << piece;
+	for (uint8_t i = 0; i < Count_Bishops; ++i, ++piece, mask <<= 1) {
+		if (piecemask & mask) {
+			moves = gen_bishop(moves, pieces[piece]);
+		}
+	}
+	return moves;
+}
+
+move_t* gen_rooks(move_t* moves) {
+	piece_t piece = (Piece_Rook | color) & Piece_Index;
+	uint64_t mask = 1ull << piece;
+	for (uint8_t i = 0; i < Count_Rooks; ++i, ++piece, mask <<= 1) {
+		if (piecemask & mask) {
+			moves = gen_rook(moves, pieces[piece]);
+		}
+	}
+	return moves;
+}
+
+move_t* gen_queens(move_t* moves) {
+	piece_t piece = (Piece_Queen | color) & Piece_Index;
+	uint64_t mask = 1ull << piece;
+	for (uint8_t i = 0; i < Count_Queens; ++i, ++piece, mask <<= 1) {
+		if (piecemask & mask) {
+			moves = gen_queen(moves, pieces[piece]);
+		}
+	}
+	return moves;
 }
 
 bool check_square(square_t square) {
@@ -418,60 +485,67 @@ bool check_square(square_t square) {
 }
 
 move_t* gen(move_t* moves) {
-	square_t square;
-	piece_t piece;
-	for (uint8_t rank = 0; rank < Count_Ranks; ++rank) {
-		square = rank << 4;
-		for (uint8_t file = 0; file < Count_Files; ++file, ++square) {
-			piece = squares[square];
-			if (piece & color) {
-				piece_square_t from = {
-					.piece = piece,
-					.square = square
-				};
-				moves = gen_piece(moves, from);
-			}
-		}
-	}
+	moves = gen_kings(moves);
+	moves = gen_pawns(moves);
+	moves = gen_knights(moves);
+	moves = gen_bishops(moves);
+	moves = gen_rooks(moves);
+	moves = gen_queens(moves);
 	return gen_ep(moves);
 }
 
 bool check() {
-	return check_square(state.king);
+	piece_t piece = (Piece_King | (color ^ Piece_Color)) & Piece_Index;
+	return check_square(pieces[piece].square);
+}
+
+void clear_piece(piece_square_t ps) {
+	piece_t piece = ps.piece & Piece_Index;
+	pieces[piece].value = 0x0800;
+	piecemask &= ~(1ull << piece);
+}
+
+void set_piece(piece_square_t ps) {
+	piece_t piece = ps.piece & Piece_Index;
+	pieces[piece] = ps;
+	piecemask |= (1ull << piece);
 }
 
 void clear_prim_from(piece_square_t from) {
 	squares[from.square] = 0x00;
+	clear_piece(from);
 }
 
 void set_prim_from(piece_square_t from) {
 	squares[from.square] = from.piece;
+	set_piece(from);
 }
 
 void clear_prim_to(piece_square_t to) {
-	squares[to.square & ~Square_Invalid] = 0x00;
+	to.square &= ~Square_Invalid;
+	squares[to.square] = 0x00;
+	clear_piece(to);
 }
 
 void set_prim_to(piece_square_t to) {
-	squares[to.square & ~Square_Invalid] = to.piece | Piece_Moved;
+	to.piece |= Piece_Moved;
+	to.square &= ~Square_Invalid;
+	squares[to.square] = to.piece;
+	set_piece(to);
 }
 
 void clear_sec(piece_square_t ps) {
 	squares[ps.square] = 0x00;
+	clear_piece(ps);
 }
 
 void set_sec(piece_square_t ps) {
 	squares[ps.square] = ps.piece;
+	set_piece(ps);
 }
 
 void set_ep(uint8_t file) {
 	state.ep = ((state.ep & Square_Rank) ^ Square_Rank) | file;
-}
-
-void set_king(piece_square_t ps) {
-	state.king = (ps.piece & Piece_Type) == Piece_King
-		? ps.square
-		: state.king;
 }
 
 void move_make(move_t move) {
@@ -481,8 +555,6 @@ void move_make(move_t move) {
 
 	set_ep((move.prim.to.square & Square_File)
 		| ((move.prim.to.square & Square_FileInvalid) ^ Square_FileInvalid));
-
-	set_king(move.prim.to);
 
 	color ^= Piece_Color;
 }
@@ -513,17 +585,30 @@ uint64_t perft(move_t* moves, uint8_t depth) {
 	return count;
 }
 
+void set_pieces() {
+	piece_square_t ps;
+	piecemask = 0;
+	for (uint8_t rank = 0; rank < Count_Ranks; ++rank) {
+		ps.square = rank << Shift_Rank;
+		for (uint8_t file = 0; file < Count_Files; ++file, ++ps.square) {
+			if ((ps.piece = squares[ps.square])) {
+				set_piece(ps);
+			}
+		}
+	}
+}
+
 char* board_write(char* str) {
 	square_t square;
 	piece_t piece;
 	for (int8_t rank = Count_Ranks - 1; rank >= 0; --rank) {
-		square = rank << 4;
+		square = rank << Shift_Rank;
 		*str++ = rank + '1';
 		for (uint8_t file = 0; file < Count_Files; ++file, ++square) {
 			piece = squares[square];
 			*str++ = ' ';
 			*str++ = piece
-				? piece_chars[piece & (Piece_Type | Piece_Black)]
+				? piece_chars[(piece & (Piece_Type | Piece_Black)) >> Shift_Type]
 				: '.';
 		}
 		*str++ = '\n';
@@ -545,7 +630,8 @@ int main(int argc, const char* argv[]) {
 	}
 
 	board_init();
-	
+	set_pieces();
+
 	board_write(buffer);
 	printf("%s\n", buffer);
 
