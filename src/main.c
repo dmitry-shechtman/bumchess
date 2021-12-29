@@ -89,6 +89,7 @@ enum Count {
 
 	Count_Pawns    =   8,
 	Count_Knights  =   4,
+	Count_Knights2 =   2,
 	Count_Bishops  =   4,
 	Count_Bishops2 =   2,
 	Count_Rooks    =   4,
@@ -146,7 +147,7 @@ void board_init() {
 	squares[0x03] = Piece_Queen  + Piece_White + Piece_Moved;
 	squares[0x04] = Piece_King   + Piece_White;
 	squares[0x05] = Piece_Bishop + Piece_White + Piece_Moved + 2;
-	squares[0x06] = Piece_Knight + Piece_White + Piece_Moved + 1;
+	squares[0x06] = Piece_Knight + Piece_White + Piece_Moved + 3;
 	squares[0x07] = Piece_Rook   + Piece_White + 1;
 
 	for (uint8_t i = 0; i < Count_Files; ++i) {
@@ -155,12 +156,12 @@ void board_init() {
 	}
 
 	squares[0x70] = Piece_Rook   + Piece_Black;
-	squares[0x71] = Piece_Knight + Piece_Black + Piece_Moved;
+	squares[0x71] = Piece_Knight + Piece_Black + Piece_Moved + 3;
 	squares[0x72] = Piece_Bishop + Piece_Black + Piece_Moved + 2;
 	squares[0x73] = Piece_Queen  + Piece_Black + Piece_Moved;
 	squares[0x74] = Piece_King   + Piece_Black;
 	squares[0x75] = Piece_Bishop + Piece_Black + Piece_Moved;
-	squares[0x76] = Piece_Knight + Piece_Black + Piece_Moved + 1;
+	squares[0x76] = Piece_Knight + Piece_Black + Piece_Moved;
 	squares[0x77] = Piece_Rook   + Piece_Black + 1;
 
 	color = Piece_White;
@@ -254,7 +255,7 @@ move_t* gen_vector_ep(move_t* moves, vector_t vector) {
 	return moves;
 }
 
-move_t* gen_vector_leaper(move_t* moves, piece_square_t from, vector_t vector) {
+move_t* gen_vector_king(move_t* moves, piece_square_t from, vector_t vector) {
 	piece_square_t to = from;
 	piece_square_t from2;
 	if (!((to.square += vector) & Square_Invalid)
@@ -263,6 +264,26 @@ move_t* gen_vector_leaper(move_t* moves, piece_square_t from, vector_t vector) {
 				.prim = {
 					.from = from,
 					.to = to
+				},
+				.sec = {
+					.from = from2,
+					.to = { 0x0800 }
+				}
+			};
+			*moves++ = move;
+	}
+	return moves;
+}
+
+move_t* gen_vector_knight(move_t* moves, piece_square_t from, vector_t vector) {
+	piece_square_t to = from;
+	piece_square_t from2;
+	if (!((to.square += vector) & Square_Invalid)
+		&& !((from2.piece = squares[from2.square = to.square]) & color)) {
+			move_t move = {
+				.prim = {
+					.from = from,
+					.to = { to.value ^ 0x02 }
 				},
 				.sec = {
 					.from = from2,
@@ -300,13 +321,6 @@ bool check_vector(square_t src, square_t dest, vector_t vector) {
 		src += vector;
 	} while (!squares[src]);
 	return src == dest;
-}
-
-move_t* gen_leaper(move_t* moves, piece_square_t from, uint8_t start, uint8_t end) {
-	for (uint8_t i = start; i < end; ++i) {
-		moves = gen_vector_leaper(moves, from, vectors[i]);
-	}
-	return moves;
 }
 
 move_t* gen_slider(move_t* moves, piece_square_t from, uint8_t start, uint8_t end) {
@@ -411,7 +425,10 @@ move_t* gen_ep(move_t* moves) {
 }
 
 move_t* gen_king(move_t* moves, piece_square_t from) {
-	return gen_leaper(moves, from, 0, 8);
+	for (uint8_t i = 0; i < 8; ++i) {
+		moves = gen_vector_king(moves, from, vectors[i]);
+	}
+	return moves;
 }
 
 bool check_king(piece_square_t from, square_t dest) {
@@ -421,7 +438,10 @@ bool check_king(piece_square_t from, square_t dest) {
 }
 
 move_t* gen_knight(move_t* moves, piece_square_t from) {
-	return gen_leaper(moves, from, 8, 16);
+	for (uint8_t i = 8; i < 16; ++i) {
+		moves = gen_vector_knight(moves, from, vectors[i]);
+	}
+	return moves;
 }
 
 bool check_knight(piece_square_t from, square_t dest) {
@@ -497,9 +517,9 @@ move_t* gen_knights(move_t* moves) {
 }
 
 bool check_knights(square_t dest) {
-	piece_t piece = (Piece_Knight | color) & Piece_Index;
+	piece_t piece = ((Piece_Knight + get_index(dest)) | color) & Piece_Index;
 	uint64_t mask = 1ull << piece;
-	for (uint8_t i = 0; i < Count_Knights; ++i, ++piece, mask <<= 1) {
+	for (uint8_t i = 0; i < Count_Knights2; ++i, ++piece, mask <<= 1) {
 		if ((piecemask & mask) && check_knight(pieces[piece], dest)) {
 			return true;
 		}
