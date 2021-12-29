@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -206,7 +207,7 @@ move_t* gen_vector_ep(move_t* moves, vector_t vector, uint8_t color, uint8_t col
 				.sec = {
 					.from = {
 						.piece = Piece_Pawn | color2 | Piece_Moved,
-						.square = state.ep ^ Square_Rank2
+						.square = to.square ^ Square_Rank2
 					},
 				}
 		};
@@ -643,7 +644,7 @@ int main(int argc, const char* argv[]) {
 
 	for (uint8_t depth = 0; depth <= max; ++depth) {
 		uint64_t count = perft(moves, depth);
-		printf("perft(%3d)=%11llu\n", depth, count);
+		printf("perft(%3d)=%11" PRIu64 "\n", depth, count);
 	}
 	
 	return 0;
