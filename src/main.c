@@ -103,13 +103,6 @@ typedef uint8_t piece_t;
 typedef uint8_t square_t;
 typedef int8_t  vector_t;
 
-vector_t vectors[] = {
-	Vec_SW,  Vec_SE,  Vec_NW,  Vec_NE,
-	Vec_S,   Vec_W,   Vec_E,   Vec_N,
-	Vec_SSW, Vec_SSE, Vec_SWW, Vec_SEE,
-	Vec_NWW, Vec_NEE, Vec_NNW, Vec_NNE
-};
-
 typedef union {
 	uint16_t value;
 	struct {
@@ -170,11 +163,13 @@ void board_init() {
 	piecemask = 0;
 }
 
-uint8_t get_index(square_t square) {
+static inline
+uint8_t get_index(register square_t square) {
 	return (((square ^ (square >> Shift_Rank)) & 1) << 1);
 }
 
-move_t* gen_promo_pawn(move_t* moves, move_t move, piece_square_t to, uint8_t promo) {
+static inline
+move_t* gen_promo_pawn(move_t* moves, register move_t move, register piece_square_t to, uint8_t promo, uint8_t color) {
 	if ((to.square & Square_Rank) == promo) {
 		move.prim.to.piece = Piece_Queen | color | Piece_Moved;
 	}
@@ -182,11 +177,12 @@ move_t* gen_promo_pawn(move_t* moves, move_t move, piece_square_t to, uint8_t pr
 	return moves;
 }
 
-move_t* gen_push_pawn(move_t* moves, piece_square_t from, vector_t vector, uint8_t promo) {
-	piece_square_t to = from;
-	piece_square_t from2;
+static inline
+move_t* gen_push_pawn(move_t* moves, register piece_square_t from, vector_t vector, uint8_t promo, uint8_t color, uint8_t color2) {
+	register piece_square_t to = from;
+	register piece_square_t from2;
 	if (!(from2.piece = squares[from2.square = to.square += vector])) {
-		move_t move = {
+		register move_t move = {
 			.prim = {
 				.from = from,
 				.to = to
@@ -196,7 +192,7 @@ move_t* gen_push_pawn(move_t* moves, piece_square_t from, vector_t vector, uint8
 				.to = { 0x0800 }
 			}
 		};
-		moves = gen_promo_pawn(moves, move, to, promo);
+		moves = gen_promo_pawn(moves, move, to, promo, color);
 		if (!(from.piece & Piece_Moved)
 			&& !squares[to.square += vector]) {
 				move.prim.to = to;
@@ -207,12 +203,13 @@ move_t* gen_push_pawn(move_t* moves, piece_square_t from, vector_t vector, uint8
 	return moves;
 }
 
-move_t* gen_vector_pawn(move_t* moves, piece_square_t from, vector_t vector, uint8_t promo) {
-	piece_square_t to = from;
-	piece_square_t from2;
+static inline
+move_t* gen_vector_pawn(move_t* moves, register piece_square_t from, vector_t vector, uint8_t promo, uint8_t color, uint8_t color2) {
+	register piece_square_t to = from;
+	register piece_square_t from2;
 	if (!((to.square += vector) & Square_Invalid)
-		&& (from2.piece = squares[from2.square = to.square]) & (color ^ Piece_Color)) {
-			move_t move = {
+		&& (from2.piece = squares[from2.square = to.square]) & color2) {
+			register move_t move = {
 				.prim = {
 					.from = from,
 					.to = to
@@ -222,31 +219,33 @@ move_t* gen_vector_pawn(move_t* moves, piece_square_t from, vector_t vector, uin
 					.to = { 0x0800 }
 				}
 			};
-			moves = gen_promo_pawn(moves, move, to, promo);
+			moves = gen_promo_pawn(moves, move, to, promo, color);
 	}
 	return moves;
 }
 
-bool check_vector_pawn(square_t square, vector_t vector) {
+static inline
+bool check_vector_pawn(register square_t square, vector_t vector, uint8_t color) {
 	return !((square += vector) & Square_Invalid)
 		&& (squares[square] & (Piece_TypePawn | Piece_Color)) == (Piece_Pawn0 | color);
 }
 
-move_t* gen_vector_ep(move_t* moves, vector_t vector) {
-	piece_square_t to = {
+static inline
+move_t* gen_vector_ep(move_t* moves, vector_t vector, uint8_t color, uint8_t color2) {
+	register piece_square_t to = {
 		.square = pieces[Piece_EP].square & ~Square_FileInvalid
 	};
-	piece_square_t from = to;
+	register piece_square_t from = to;
 	if (!((from.square += vector) & Square_Invalid)
 		&& ((to.piece = from.piece = squares[from.square]) & (Piece_TypePawn | Piece_Color)) == (Piece_Pawn0 | color)) {
-			move_t move = {
+			register move_t move = {
 				.prim = {
 					.from = from,
 					.to = to
 				},
 				.sec = {
 					.from = {
-						.piece = (to.square & Square_File) | Piece_Pawn0 | (color ^ Piece_Color) | Piece_Moved,
+						.piece = (to.square & Square_File) | Piece_Pawn0 | (color2) | Piece_Moved,
 						.square = to.square ^ Square_Rank2
 					},
 					.to = { 0x0800 }
@@ -257,12 +256,13 @@ move_t* gen_vector_ep(move_t* moves, vector_t vector) {
 	return moves;
 }
 
-move_t* gen_vector_king(move_t* moves, piece_square_t from, vector_t vector) {
-	piece_square_t to = from;
-	piece_square_t from2;
+static inline
+move_t* gen_vector_king(move_t* moves, register piece_square_t from, vector_t vector, uint8_t color) {
+	register piece_square_t to = from;
+	register piece_square_t from2;
 	if (!((to.square += vector) & Square_Invalid)
 		&& !((from2.piece = squares[from2.square = to.square]) & color)) {
-			move_t move = {
+			register move_t move = {
 				.prim = {
 					.from = from,
 					.to = to
@@ -277,12 +277,13 @@ move_t* gen_vector_king(move_t* moves, piece_square_t from, vector_t vector) {
 	return moves;
 }
 
-move_t* gen_vector_knight(move_t* moves, piece_square_t from, vector_t vector) {
-	piece_square_t to = from;
-	piece_square_t from2;
+static inline
+move_t* gen_vector_knight(move_t* moves, register piece_square_t from, vector_t vector, uint8_t color) {
+	register piece_square_t to = from;
+	register piece_square_t from2;
 	if (!((to.square += vector) & Square_Invalid)
 		&& !((from2.piece = squares[from2.square = to.square]) & color)) {
-			move_t move = {
+			register move_t move = {
 				.prim = {
 					.from = from,
 					.to = { to.value ^ 0x02 }
@@ -297,13 +298,14 @@ move_t* gen_vector_knight(move_t* moves, piece_square_t from, vector_t vector) {
 	return moves;
 }
 
-move_t* gen_vector_slider(move_t* moves, piece_square_t from, vector_t vector) {
-	piece_square_t to = from;
-	piece_square_t from2 = {0};
+static inline
+move_t* gen_vector_slider(move_t* moves, register piece_square_t from, vector_t vector, uint8_t color) {
+	register piece_square_t to = from;
+	register piece_square_t from2 = {0};
 	while (!from2.piece
 		&& !((to.square += vector) & Square_Invalid)
 		&& !((from2.piece = squares[from2.square = to.square]) & color)) {
-			move_t move = {
+			register move_t move = {
 				.prim = {
 					.from = from,
 					.to = to
@@ -318,45 +320,44 @@ move_t* gen_vector_slider(move_t* moves, piece_square_t from, vector_t vector) {
 	return moves;
 }
 
-bool check_vector(square_t src, square_t dest, vector_t vector) {
+static inline
+bool check_vector(register square_t src, register square_t dest, vector_t vector) {
 	do {
 		src += vector;
 	} while (!squares[src]);
 	return src == dest;
 }
 
-move_t* gen_slider(move_t* moves, piece_square_t from, uint8_t start, uint8_t end) {
-	for (uint8_t i = start; i < end; ++i) {
-		moves = gen_vector_slider(moves, from, vectors[i]);
-	}
-	return moves;
-}
-
-bool check_vert(square_t src, square_t dest, int8_t drank) {
+static inline
+bool check_vert(register square_t src, register square_t dest, register int8_t drank) {
 	return !(drank & Square_FileInvalid)
 		? check_vector(src, dest, Vec_N)
 		: check_vector(src, dest, Vec_S);
 }
 
-bool check_horiz(square_t src, square_t dest, int8_t dfile) {
+static inline
+bool check_horiz(register square_t src, register square_t dest, register int8_t dfile) {
 	return !(dfile & Square_FileInvalid)
 		? check_vector(src, dest, Vec_E)
 		: check_vector(src, dest, Vec_W);
 }
 
-bool check_diag1(square_t src, square_t dest, int8_t drank) {
+static inline
+bool check_diag1(register square_t src, register square_t dest, register int8_t drank) {
 	return !(drank & Square_FileInvalid)
 		? check_vector(src, dest, Vec_NE)
 		: check_vector(src, dest, Vec_SW);
 }
 
-bool check_diag2(square_t src, square_t dest, int8_t dfile) {
+static inline
+bool check_diag2(register square_t src, register square_t dest, register int8_t dfile) {
 	return !(dfile & Square_FileInvalid)
 		? check_vector(src, dest, Vec_SE)
 		: check_vector(src, dest, Vec_NW);
 }
 
-bool check_ortho(square_t src, square_t dest, int8_t dfile, int8_t drank) {
+static inline
+bool check_ortho(register square_t src, register square_t dest, register int8_t dfile, register int8_t drank) {
 	return !dfile
 		? check_vert(src, dest, drank)
 		: !drank
@@ -364,7 +365,8 @@ bool check_ortho(square_t src, square_t dest, int8_t dfile, int8_t drank) {
 			: false;
 }
 
-bool check_diag(square_t src, square_t dest, int8_t dfile, int8_t drank) {
+static inline
+bool check_diag(register square_t src, register square_t dest, register int8_t dfile, register int8_t drank) {
 	return dfile == drank
 		? check_diag1(src, dest, drank)
 		: dfile == -drank
@@ -372,155 +374,198 @@ bool check_diag(square_t src, square_t dest, int8_t dfile, int8_t drank) {
 			: false;
 }
 
-move_t* gen_pawn_white(move_t* moves, piece_square_t from) {
-	moves = gen_vector_pawn(moves, from, Vec_NW, Square_Rank8);
-	moves = gen_vector_pawn(moves, from, Vec_NE, Square_Rank8);
-	return gen_push_pawn(moves, from, Vec_N, Square_Rank8);
+static inline
+move_t* gen_pawn_white(move_t* moves, register piece_square_t from) {
+	moves = gen_vector_pawn(moves, from, Vec_NW, Square_Rank8, Piece_White, Piece_Black);
+	moves = gen_vector_pawn(moves, from, Vec_NE, Square_Rank8, Piece_White, Piece_Black);
+	return gen_push_pawn(moves, from, Vec_N, Square_Rank8, Piece_White, Piece_Black);
 }
 
+static inline
 move_t* gen_ep_white(move_t* moves) {
-	moves = gen_vector_ep(moves, Vec_SW);
-	moves = gen_vector_ep(moves, Vec_SE);
-	return moves;
-}
-
-bool check_pawns_white(square_t dest) {
-	return check_vector_pawn(dest, Vec_SW)
-		|| check_vector_pawn(dest, Vec_SE);
-}
-
-move_t* gen_pawn_black(move_t* moves, piece_square_t from) {
-	moves = gen_vector_pawn(moves, from, Vec_SW, Square_Rank1);
-	moves = gen_vector_pawn(moves, from, Vec_SE, Square_Rank1);
-	return gen_push_pawn(moves, from, Vec_S, Square_Rank1);
-}
-
-move_t* gen_ep_black(move_t* moves) {
-	moves = gen_vector_ep(moves, Vec_NW);
-	moves = gen_vector_ep(moves, Vec_NE);
-	return moves;
-}
-
-bool check_pawns_black(square_t dest) {
-	return check_vector_pawn(dest, Vec_NW)
-		|| check_vector_pawn(dest, Vec_NE);
-}
-
-move_t* gen_pawn(move_t* moves, piece_square_t from) {
-	return color == Piece_White
-		? gen_pawn_white(moves, from)
-		: gen_pawn_black(moves, from);
-}
-
-bool check_pawns(square_t dest) {
-	return color == Piece_White
-		? check_pawns_white(dest)
-		: check_pawns_black(dest);
-}
-
-move_t* gen_ep(move_t* moves) {
-	return piecemask & (1ull << Piece_EP)
-		? color == Piece_White
-			? gen_ep_white(moves)
-			: gen_ep_black(moves)
-		: moves;
-}
-
-move_t* gen_king(move_t* moves, piece_square_t from) {
-	for (uint8_t i = 0; i < 8; ++i) {
-		moves = gen_vector_king(moves, from, vectors[i]);
+	if (piecemask & (1ull << Piece_EP)) {
+		moves = gen_vector_ep(moves, Vec_SW, Piece_White, Piece_Black);
+		moves = gen_vector_ep(moves, Vec_SE, Piece_White, Piece_Black);
 	}
 	return moves;
 }
 
-bool check_king(piece_square_t from, square_t dest) {
-	square_t src = from.square;
-	uint8_t delta = abs(dest - src);
+static inline
+bool check_pawns_white(register square_t dest) {
+	return check_vector_pawn(dest, Vec_SW, Piece_White)
+		|| check_vector_pawn(dest, Vec_SE, Piece_White);
+}
+
+static inline
+move_t* gen_pawn_black(move_t* moves, register piece_square_t from) {
+	moves = gen_vector_pawn(moves, from, Vec_SW, Square_Rank1, Piece_Black, Piece_White);
+	moves = gen_vector_pawn(moves, from, Vec_SE, Square_Rank1, Piece_Black, Piece_White);
+	return gen_push_pawn(moves, from, Vec_S, Square_Rank1, Piece_Black, Piece_White);
+}
+
+static inline
+move_t* gen_ep_black(move_t* moves) {
+	if (piecemask & (1ull << Piece_EP)) {
+		moves = gen_vector_ep(moves, Vec_NW, Piece_Black, Piece_White);
+		moves = gen_vector_ep(moves, Vec_NE, Piece_Black, Piece_White);
+	}
+	return moves;
+}
+
+static inline
+bool check_pawns_black(register square_t dest) {
+	return check_vector_pawn(dest, Vec_NW, Piece_Black)
+		|| check_vector_pawn(dest, Vec_NE, Piece_Black);
+}
+
+static inline
+move_t* gen_king(move_t* moves, register piece_square_t from, uint8_t color) {
+	moves = gen_vector_king(moves, from, Vec_SW, color);
+	moves = gen_vector_king(moves, from, Vec_S,  color);
+	moves = gen_vector_king(moves, from, Vec_SE, color);
+	moves = gen_vector_king(moves, from, Vec_W,  color);
+	moves = gen_vector_king(moves, from, Vec_E,  color);
+	moves = gen_vector_king(moves, from, Vec_NW, color);
+	moves = gen_vector_king(moves, from, Vec_N,  color);
+	moves = gen_vector_king(moves, from, Vec_NE, color);
+	return moves;
+}
+
+static inline
+bool check_king(register piece_square_t from, register square_t dest) {
+	register square_t src = from.square;
+	register uint8_t delta = abs(dest - src);
 	return delta == Vec_E || delta == Vec_NW || delta == Vec_N || delta == Vec_NE;
 }
 
-move_t* gen_knight(move_t* moves, piece_square_t from) {
-	for (uint8_t i = 8; i < 16; ++i) {
-		moves = gen_vector_knight(moves, from, vectors[i]);
-	}
+static inline
+move_t* gen_knight(move_t* moves, register piece_square_t from, uint8_t color) {
+	moves = gen_vector_knight(moves, from, Vec_SSW, color);
+	moves = gen_vector_knight(moves, from, Vec_SSE, color);
+	moves = gen_vector_knight(moves, from, Vec_SWW, color);
+	moves = gen_vector_knight(moves, from, Vec_SEE, color);
+	moves = gen_vector_knight(moves, from, Vec_NWW, color);
+	moves = gen_vector_knight(moves, from, Vec_NEE, color);
+	moves = gen_vector_knight(moves, from, Vec_NNW, color);
+	moves = gen_vector_knight(moves, from, Vec_NNE, color);
 	return moves;
 }
 
-bool check_knight(piece_square_t from, square_t dest) {
-	square_t src = from.square;
-	uint8_t delta = abs(dest - src);
+static inline
+bool check_knight(register piece_square_t from, register square_t dest) {
+	register square_t src = from.square;
+	register uint8_t delta = abs(dest - src);
 	return delta == Vec_NWW || delta == Vec_NEE || delta == Vec_NNW || delta == Vec_NNE;
 }
 
-move_t* gen_bishop(move_t* moves, piece_square_t from) {
-	return gen_slider(moves, from, 0, 4);
+static inline
+move_t* gen_bishop(move_t* moves, register piece_square_t from, uint8_t color) {
+	moves = gen_vector_slider(moves, from, Vec_SW, color);
+	moves = gen_vector_slider(moves, from, Vec_SE, color);
+	moves = gen_vector_slider(moves, from, Vec_NW, color);
+	moves = gen_vector_slider(moves, from, Vec_NE, color);
+	return moves;
 }
 
-bool check_bishop(piece_square_t from, square_t dest) {
-	square_t src = from.square;
-	int8_t dfile = (dest & Square_File) - (src & Square_File);
-	int8_t drank = (dest >> Shift_Rank) - (src >> Shift_Rank);
+static inline
+bool check_bishop(register piece_square_t from, register square_t dest) {
+	register square_t src = from.square;
+	register int8_t dfile = (dest & Square_File) - (src & Square_File);
+	register int8_t drank = (dest >> Shift_Rank) - (src >> Shift_Rank);
 	return check_diag(src, dest, dfile, drank);
 }
 
-move_t* gen_rook(move_t* moves, piece_square_t from) {
-	return gen_slider(moves, from, 4, 8);
+static inline
+move_t* gen_rook(move_t* moves, register piece_square_t from, uint8_t color) {
+	moves = gen_vector_slider(moves, from, Vec_S, color);
+	moves = gen_vector_slider(moves, from, Vec_W, color);
+	moves = gen_vector_slider(moves, from, Vec_E, color);
+	moves = gen_vector_slider(moves, from, Vec_N, color);
+	return moves;
 }
 
-bool check_rook(piece_square_t from, square_t dest) {
-	square_t src = from.square;
-	int8_t dfile = (dest & Square_File) - (src & Square_File);
-	int8_t drank = (dest >> Shift_Rank) - (src >> Shift_Rank);
+static inline
+bool check_rook(register piece_square_t from, register square_t dest) {
+	register square_t src = from.square;
+	register int8_t dfile = (dest & Square_File) - (src & Square_File);
+	register int8_t drank = (dest >> Shift_Rank) - (src >> Shift_Rank);
 	return check_ortho(src, dest, dfile, drank);
 }
 
-move_t* gen_queen(move_t* moves, piece_square_t from) {
-	return gen_slider(moves, from, 0, 8);
+static inline
+move_t* gen_queen(move_t* moves, register piece_square_t from, uint8_t color) {
+	moves = gen_vector_slider(moves, from, Vec_SW, color);
+	moves = gen_vector_slider(moves, from, Vec_S,  color);
+	moves = gen_vector_slider(moves, from, Vec_SE, color);
+	moves = gen_vector_slider(moves, from, Vec_W,  color);
+	moves = gen_vector_slider(moves, from, Vec_E,  color);
+	moves = gen_vector_slider(moves, from, Vec_NW, color);
+	moves = gen_vector_slider(moves, from, Vec_N,  color);
+	moves = gen_vector_slider(moves, from, Vec_NE, color);
+	return moves;
 }
 
-bool check_queen(piece_square_t from, square_t dest) {
-	square_t src = from.square;
-	int8_t dfile = (dest & Square_File) - (src & Square_File);
-	int8_t drank = (dest >> Shift_Rank) - (src >> Shift_Rank);
+static inline
+bool check_queen(register piece_square_t from, register square_t dest) {
+	register square_t src = from.square;
+	register int8_t dfile = (dest & Square_File) - (src & Square_File);
+	register int8_t drank = (dest >> Shift_Rank) - (src >> Shift_Rank);
 	return check_diag(src, dest, dfile, drank)
 		|| check_ortho(src, dest, dfile, drank);
 }
 
-move_t* gen_kings(move_t* moves) {
-	piece_t piece = (Piece_King | color) & Piece_Index;
-	return gen_king(moves, pieces[piece]);
+static inline
+move_t* gen_kings(move_t* moves, uint8_t color) {
+	register piece_t piece = (Piece_King | color) & Piece_Index;
+	return gen_king(moves, pieces[piece], color);
 }
 
-bool check_kings(square_t dest) {
-	piece_t piece = (Piece_King | color) & Piece_Index;
+static inline
+bool check_kings(register square_t dest, uint8_t color) {
+	register piece_t piece = (Piece_King | color) & Piece_Index;
 	return check_king(pieces[piece], dest);
 }
 
-move_t* gen_pawns(move_t* moves) {
-	piece_t piece = (Piece_Pawn0 | color) & Piece_Index;
-	uint64_t mask = 1ull << piece;
+static inline
+move_t* gen_pawns_white(move_t* moves) {
+	register piece_t piece = Piece_Pawn0;
+	register uint64_t mask = 1ull << piece;
 	for (uint8_t i = 0; i < Count_Pawns; ++i, ++piece, mask <<= 1) {
 		if (piecemask & mask) {
-			moves = gen_pawn(moves, pieces[piece]);
+			moves = gen_pawn_white(moves, pieces[piece]);
 		}
 	}
 	return moves;
 }
 
-move_t* gen_knights(move_t* moves) {
-	piece_t piece = (Piece_Knight | color) & Piece_Index;
-	uint64_t mask = 1ull << piece;
+static inline
+move_t* gen_pawns_black(move_t* moves) {
+	register piece_t piece = Piece_Pawn0 | Piece_Black;
+	register uint64_t mask = 1ull << piece;
+	for (uint8_t i = 0; i < Count_Pawns; ++i, ++piece, mask <<= 1) {
+		if (piecemask & mask) {
+			moves = gen_pawn_black(moves, pieces[piece]);
+		}
+	}
+	return moves;
+}
+
+static inline
+move_t* gen_knights(move_t* moves, uint8_t color) {
+	register piece_t piece = (Piece_Knight | color) & Piece_Index;
+	register uint64_t mask = 1ull << piece;
 	for (uint8_t i = 0; i < Count_Knights; ++i, ++piece, mask <<= 1) {
 		if (piecemask & mask) {
-			moves = gen_knight(moves, pieces[piece]);
+			moves = gen_knight(moves, pieces[piece], color);
 		}
 	}
 	return moves;
 }
 
-bool check_knights(square_t dest) {
-	piece_t piece = ((Piece_Knight + get_index(dest)) | color) & Piece_Index;
-	uint64_t mask = 1ull << piece;
+static inline
+bool check_knights(register square_t dest, uint8_t color) {
+	register piece_t piece = ((Piece_Knight + get_index(dest)) | color) & Piece_Index;
+	register uint64_t mask = 1ull << piece;
 	for (uint8_t i = 0; i < Count_Knights2; ++i, ++piece, mask <<= 1) {
 		if ((piecemask & mask) && check_knight(pieces[piece], dest)) {
 			return true;
@@ -529,20 +574,22 @@ bool check_knights(square_t dest) {
 	return false;
 }
 
-move_t* gen_bishops(move_t* moves) {
-	piece_t piece = (Piece_Bishop | color) & Piece_Index;
-	uint64_t mask = 1ull << piece;
+static inline
+move_t* gen_bishops(move_t* moves, uint8_t color) {
+	register piece_t piece = (Piece_Bishop | color) & Piece_Index;
+	register uint64_t mask = 1ull << piece;
 	for (uint8_t i = 0; i < Count_Bishops; ++i, ++piece, mask <<= 1) {
 		if (piecemask & mask) {
-			moves = gen_bishop(moves, pieces[piece]);
+			moves = gen_bishop(moves, pieces[piece], color);
 		}
 	}
 	return moves;
 }
 
-bool check_bishops(square_t dest) {
-	piece_t piece = ((Piece_Bishop + get_index(dest)) | color) & Piece_Index;
-	uint64_t mask = 1ull << piece;
+static inline
+bool check_bishops(register square_t dest, uint8_t color) {
+	register piece_t piece = ((Piece_Bishop + get_index(dest)) | color) & Piece_Index;
+	register uint64_t mask = 1ull << piece;
 	for (uint8_t i = 0; i < Count_Bishops2; ++i, ++piece, mask <<= 1) {
 		if ((piecemask & mask) && check_bishop(pieces[piece], dest)) {
 			return true;
@@ -551,20 +598,22 @@ bool check_bishops(square_t dest) {
 	return false;
 }
 
-move_t* gen_rooks(move_t* moves) {
-	piece_t piece = (Piece_Rook | color) & Piece_Index;
-	uint64_t mask = 1ull << piece;
+static inline
+move_t* gen_rooks(move_t* moves, uint8_t color) {
+	register piece_t piece = (Piece_Rook | color) & Piece_Index;
+	register uint64_t mask = 1ull << piece;
 	for (uint8_t i = 0; i < Count_Rooks; ++i, ++piece, mask <<= 1) {
 		if (piecemask & mask) {
-			moves = gen_rook(moves, pieces[piece]);
+			moves = gen_rook(moves, pieces[piece], color);
 		}
 	}
 	return moves;
 }
 
-bool check_rooks(square_t dest) {
-	piece_t piece = (Piece_Rook | color) & Piece_Index;
-	uint64_t mask = 1ull << piece;
+static inline
+bool check_rooks(register square_t dest, uint8_t color) {
+	register piece_t piece = (Piece_Rook | color) & Piece_Index;
+	register uint64_t mask = 1ull << piece;
 	for (uint8_t i = 0; i < Count_Rooks; ++i, ++piece, mask <<= 1) {
 		if ((piecemask & mask) && check_rook(pieces[piece], dest)) {
 			return true;
@@ -573,20 +622,22 @@ bool check_rooks(square_t dest) {
 	return false;
 }
 
-move_t* gen_queens(move_t* moves) {
-	piece_t piece = (Piece_Queen | color) & Piece_Index;
-	uint64_t mask = 1ull << piece;
+static inline
+move_t* gen_queens(move_t* moves, uint8_t color) {
+	register piece_t piece = (Piece_Queen | color) & Piece_Index;
+	register uint64_t mask = 1ull << piece;
 	for (uint8_t i = 0; i < Count_Queens; ++i, ++piece, mask <<= 1) {
 		if (piecemask & mask) {
-			moves = gen_queen(moves, pieces[piece]);
+			moves = gen_queen(moves, pieces[piece], color);
 		}
 	}
 	return moves;
 }
 
-bool check_queens(square_t dest) {
-	piece_t piece = (Piece_Queen | color) & Piece_Index;
-	uint64_t mask = 1ull << piece;
+static inline
+bool check_queens(register square_t dest, uint8_t color) {
+	register piece_t piece = (Piece_Queen | color) & Piece_Index;
+	register uint64_t mask = 1ull << piece;
 	for (uint8_t i = 0; i < Count_Queens; ++i, ++piece, mask <<= 1) {
 		if ((piecemask & mask) && check_queen(pieces[piece], dest)) {
 			return true;
@@ -595,77 +646,133 @@ bool check_queens(square_t dest) {
 	return false;
 }
 
-bool check_square(square_t dest) {
-	return check_pawns(dest)
-		|| check_kings(dest)
-		|| check_knights(dest)
-		|| check_bishops(dest)
-		|| check_rooks(dest)
-		|| check_queens(dest);
+static inline
+bool check_square_white(register square_t square) {
+	return check_pawns_white(square)
+		|| check_knights(square, Piece_White)
+		|| check_kings(square, Piece_White)
+		|| check_bishops(square, Piece_White)
+		|| check_rooks(square, Piece_White)
+		|| check_queens(square, Piece_White);
 }
 
+static inline
+bool check_square_black(square_t dest) {
+	return check_pawns_black(dest)
+		|| check_kings(dest, Piece_Black)
+		|| check_knights(dest, Piece_Black)
+		|| check_bishops(dest, Piece_Black)
+		|| check_rooks(dest, Piece_Black)
+		|| check_queens(dest, Piece_Black);
+}
+
+static inline
+move_t* gen_white(move_t* moves) {
+	moves = gen_kings(moves, Piece_White);
+	moves = gen_pawns_white(moves);
+	moves = gen_knights(moves, Piece_White);
+	moves = gen_bishops(moves, Piece_White);
+	moves = gen_rooks(moves, Piece_White);
+	moves = gen_queens(moves, Piece_White);
+	moves = gen_ep_white(moves);
+	return moves;
+}
+
+static inline
+move_t* gen_black(move_t* moves) {
+	moves = gen_ep_black(moves);
+	moves = gen_kings(moves, Piece_Black);
+	moves = gen_pawns_black(moves);
+	moves = gen_knights(moves, Piece_Black);
+	moves = gen_bishops(moves, Piece_Black);
+	moves = gen_rooks(moves, Piece_Black);
+	moves = gen_queens(moves, Piece_Black);
+	return moves;
+}
+
+static inline
+bool check_white() {
+	piece_t piece = Piece_King | Piece_Black;
+	return check_square_white(pieces[piece].square);
+}
+
+static inline
+bool check_black() {
+	piece_t piece = Piece_King;
+	return check_square_black(pieces[piece].square);
+}
+
+static inline
 move_t* gen(move_t* moves) {
-	moves = gen_kings(moves);
-	moves = gen_pawns(moves);
-	moves = gen_knights(moves);
-	moves = gen_bishops(moves);
-	moves = gen_rooks(moves);
-	moves = gen_queens(moves);
-	return gen_ep(moves);
+	return color == Piece_White
+		? gen_white(moves)
+		: gen_black(moves);
 }
 
+static inline
 bool check() {
-	piece_t piece = (Piece_King | (color ^ Piece_Color)) & Piece_Index;
-	return check_square(pieces[piece].square);
+	return color == Piece_White
+		? check_white()
+		: check_black();
 }
 
-void clear_piece(piece_square_t ps) {
-	piece_t piece = ps.piece & Piece_Index;
+static inline
+void clear_piece(register piece_square_t ps) {
+	register piece_t piece = ps.piece & Piece_Index;
 	piecemask &= ~(1ull << piece);
 }
 
-void set_piece(piece_square_t ps) {
-	piece_t piece = ps.piece & Piece_Index;
+static inline
+void set_piece(register piece_square_t ps) {
+	register piece_t piece = ps.piece & Piece_Index;
 	pieces[piece] = ps;
 	piecemask |= (1ull << piece);
 }
 
-void clear_prim_from(piece_square_t from) {
+static inline
+void clear_prim_from(register piece_square_t from) {
 	squares[from.square] = 0x00;
 	clear_piece(from);
 }
 
-void set_prim_from(piece_square_t from) {
+static inline
+void set_prim_from(register piece_square_t from) {
 	squares[from.square] = from.piece;
 	set_piece(from);
 }
 
-void clear_prim_to(piece_square_t to) {
+static inline
+void clear_prim_to(register piece_square_t to) {
 	squares[to.square] = 0x00;
 	clear_piece(to);
 }
 
-void set_prim_to(piece_square_t to) {
+static inline
+void set_prim_to(register piece_square_t to) {
 	to.piece |= Piece_Moved;
 	squares[to.square] = to.piece;
 	set_piece(to);
 }
 
-void clear_sec(piece_square_t ps) {
+static inline
+void clear_sec(register piece_square_t ps) {
 	squares[ps.square] = 0x00;
 	clear_piece(ps);
 }
 
-void set_sec(piece_square_t ps) {
+static inline
+void set_sec(register piece_square_t ps) {
 	squares[ps.square] = ps.piece;
 	set_piece(ps);
 }
 
+static inline
 void clear_ep() {
 	piecemask &= ~(1ull << Piece_EP);
 }
 
-void move_make(move_t move) {
+static inline
+void move_make(register move_t move) {
 	clear_ep();
 
 	clear_sec(move.sec.from);
@@ -676,7 +783,8 @@ void move_make(move_t move) {
 	color ^= Piece_Color;
 }
 
-void move_unmake(move_t move) {
+static inline
+void move_unmake(register move_t move) {
 	color ^= Piece_Color;
 
 	clear_prim_to(move.prim.to);
@@ -685,7 +793,7 @@ void move_unmake(move_t move) {
 	set_sec(move.sec.from);
 }
 
-uint64_t perft(move_t* moves, uint8_t depth) {
+uint64_t perft(move_t* moves, register uint8_t depth) {
 	move_t *pEnd, *pCurr;
 	uint64_t count = 0;
 	state_t state;
