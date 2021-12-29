@@ -269,11 +269,6 @@ move_t* gen_vector_leaper(move_t* moves, piece_square_t from, vector_t vector) {
 	return moves;
 }
 
-bool check_vector_leaper(square_t square, piece_t type, vector_t vector) {
-	return !((square += vector) & Square_Invalid)
-		&& (squares[square] & (Piece_Type | Piece_Color)) == (type | color);
-}
-
 move_t* gen_vector_slider(move_t* moves, piece_square_t from, vector_t vector) {
 	piece_square_t to = from;
 	piece_square_t from2 = {0};
@@ -295,11 +290,11 @@ move_t* gen_vector_slider(move_t* moves, piece_square_t from, vector_t vector) {
 	return moves;
 }
 
-bool check_vector_slider(square_t square, piece_t type, vector_t vector) {
-	piece_t piece = 0;
-	while (!((square += vector) & Square_Invalid)
-		&& !(piece = squares[square]));
-	return (piece & (type | Piece_Color)) == (type | color);
+bool check_vector(square_t src, square_t dest, vector_t vector) {
+	do {
+		src += vector;
+	} while (!squares[src]);
+	return src == dest;
 }
 
 move_t* gen_leaper(move_t* moves, piece_square_t from, uint8_t start, uint8_t end) {
@@ -309,15 +304,6 @@ move_t* gen_leaper(move_t* moves, piece_square_t from, uint8_t start, uint8_t en
 	return moves;
 }
 
-bool check_leaper(square_t square, piece_t type, uint8_t start, uint8_t end) {
-	for (uint8_t i = start; i < end; ++i) {
-		if (check_vector_leaper(square, type, vectors[i])) {
-			return true;
-		}
-	}
-	return false;
-}
-
 move_t* gen_slider(move_t* moves, piece_square_t from, uint8_t start, uint8_t end) {
 	for (uint8_t i = start; i < end; ++i) {
 		moves = gen_vector_slider(moves, from, vectors[i]);
@@ -325,13 +311,44 @@ move_t* gen_slider(move_t* moves, piece_square_t from, uint8_t start, uint8_t en
 	return moves;
 }
 
-bool check_slider(square_t square, piece_t type, uint8_t start, uint8_t end) {
-	for (uint8_t i = start; i < end; ++i) {
-		if (check_vector_slider(square, type, vectors[i])) {
-			return true;
-		}
-	}
-	return false;
+bool check_vert(square_t src, square_t dest, int8_t drank) {
+	return !(drank & Square_FileInvalid)
+		? check_vector(src, dest, Vec_N)
+		: check_vector(src, dest, Vec_S);
+}
+
+bool check_horiz(square_t src, square_t dest, int8_t dfile) {
+	return !(dfile & Square_FileInvalid)
+		? check_vector(src, dest, Vec_E)
+		: check_vector(src, dest, Vec_W);
+}
+
+bool check_diag1(square_t src, square_t dest, int8_t drank) {
+	return !(drank & Square_FileInvalid)
+		? check_vector(src, dest, Vec_NE)
+		: check_vector(src, dest, Vec_SW);
+}
+
+bool check_diag2(square_t src, square_t dest, int8_t dfile) {
+	return !(dfile & Square_FileInvalid)
+		? check_vector(src, dest, Vec_SE)
+		: check_vector(src, dest, Vec_NW);
+}
+
+bool check_ortho(square_t src, square_t dest, int8_t dfile, int8_t drank) {
+	return !dfile
+		? check_vert(src, dest, drank)
+		: !drank
+			? check_horiz(src, dest, dfile)
+			: false;
+}
+
+bool check_diag(square_t src, square_t dest, int8_t dfile, int8_t drank) {
+	return dfile == drank
+		? check_diag1(src, dest, drank)
+		: dfile == -drank
+			? check_diag2(src, dest, dfile)
+			: false;
 }
 
 move_t* gen_pawn_white(move_t* moves, piece_square_t from) {
@@ -346,9 +363,9 @@ move_t* gen_ep_white(move_t* moves) {
 	return moves;
 }
 
-bool check_pawn_white(square_t square) {
-	return check_vector_pawn(square, Vec_SW)
-		|| check_vector_pawn(square, Vec_SE);
+bool check_pawns_white(square_t dest) {
+	return check_vector_pawn(dest, Vec_SW)
+		|| check_vector_pawn(dest, Vec_SE);
 }
 
 move_t* gen_pawn_black(move_t* moves, piece_square_t from) {
@@ -363,9 +380,9 @@ move_t* gen_ep_black(move_t* moves) {
 	return moves;
 }
 
-bool check_pawn_black(square_t square) {
-	return check_vector_pawn(square, Vec_NW)
-		|| check_vector_pawn(square, Vec_NE);
+bool check_pawns_black(square_t dest) {
+	return check_vector_pawn(dest, Vec_NW)
+		|| check_vector_pawn(dest, Vec_NE);
 }
 
 move_t* gen_pawn(move_t* moves, piece_square_t from) {
@@ -374,10 +391,10 @@ move_t* gen_pawn(move_t* moves, piece_square_t from) {
 		: gen_pawn_black(moves, from);
 }
 
-bool check_pawn(square_t square) {
+bool check_pawns(square_t dest) {
 	return color == Piece_White
-		? check_pawn_white(square)
-		: check_pawn_black(square);
+		? check_pawns_white(dest)
+		: check_pawns_black(dest);
 }
 
 move_t* gen_ep(move_t* moves) {
@@ -392,41 +409,64 @@ move_t* gen_king(move_t* moves, piece_square_t from) {
 	return gen_leaper(moves, from, 0, 8);
 }
 
-bool check_king(square_t square) {
-	return check_leaper(square, Piece_King, 0, 8);
+bool check_king(piece_square_t from, square_t dest) {
+	square_t src = from.square;
+	uint8_t delta = abs(dest - src);
+	return delta == Vec_E || delta == Vec_NW || delta == Vec_N || delta == Vec_NE;
 }
 
 move_t* gen_knight(move_t* moves, piece_square_t from) {
 	return gen_leaper(moves, from, 8, 16);
 }
 
-bool check_knight(square_t square) {
-	return check_leaper(square, Piece_Knight, 8, 16);
+bool check_knight(piece_square_t from, square_t dest) {
+	square_t src = from.square;
+	uint8_t delta = abs(dest - src);
+	return delta == Vec_NWW || delta == Vec_NEE || delta == Vec_NNW || delta == Vec_NNE;
 }
 
 move_t* gen_bishop(move_t* moves, piece_square_t from) {
 	return gen_slider(moves, from, 0, 4);
 }
 
-bool check_bishop(square_t square) {
-	return check_slider(square, Piece_Bishop, 0, 4);
+bool check_bishop(piece_square_t from, square_t dest) {
+	square_t src = from.square;
+	int8_t dfile = (dest & Square_File) - (src & Square_File);
+	int8_t drank = (dest >> Shift_Rank) - (src >> Shift_Rank);
+	return check_diag(src, dest, dfile, drank);
 }
 
 move_t* gen_rook(move_t* moves, piece_square_t from) {
 	return gen_slider(moves, from, 4, 8);
 }
 
-bool check_rook(square_t square) {
-	return check_slider(square, Piece_Rook, 4, 8);
+bool check_rook(piece_square_t from, square_t dest) {
+	square_t src = from.square;
+	int8_t dfile = (dest & Square_File) - (src & Square_File);
+	int8_t drank = (dest >> Shift_Rank) - (src >> Shift_Rank);
+	return check_ortho(src, dest, dfile, drank);
 }
 
 move_t* gen_queen(move_t* moves, piece_square_t from) {
 	return gen_slider(moves, from, 0, 8);
 }
 
+bool check_queen(piece_square_t from, square_t dest) {
+	square_t src = from.square;
+	int8_t dfile = (dest & Square_File) - (src & Square_File);
+	int8_t drank = (dest >> Shift_Rank) - (src >> Shift_Rank);
+	return check_diag(src, dest, dfile, drank)
+		|| check_ortho(src, dest, dfile, drank);
+}
+
 move_t* gen_kings(move_t* moves) {
 	piece_t piece = (Piece_King | color) & Piece_Index;
 	return gen_king(moves, pieces[piece]);
+}
+
+bool check_kings(square_t dest) {
+	piece_t piece = (Piece_King | color) & Piece_Index;
+	return check_king(pieces[piece], dest);
 }
 
 move_t* gen_pawns(move_t* moves) {
@@ -451,6 +491,17 @@ move_t* gen_knights(move_t* moves) {
 	return moves;
 }
 
+bool check_knights(square_t dest) {
+	piece_t piece = (Piece_Knight | color) & Piece_Index;
+	uint64_t mask = 1ull << piece;
+	for (uint8_t i = 0; i < Count_Knights; ++i, ++piece, mask <<= 1) {
+		if ((piecemask & mask) && check_knight(pieces[piece], dest)) {
+			return true;
+		}
+	}
+	return false;
+}
+
 move_t* gen_bishops(move_t* moves) {
 	piece_t piece = (Piece_Bishop | color) & Piece_Index;
 	uint64_t mask = 1ull << piece;
@@ -460,6 +511,17 @@ move_t* gen_bishops(move_t* moves) {
 		}
 	}
 	return moves;
+}
+
+bool check_bishops(square_t dest) {
+	piece_t piece = (Piece_Bishop | color) & Piece_Index;
+	uint64_t mask = 1ull << piece;
+	for (uint8_t i = 0; i < Count_Bishops; ++i, ++piece, mask <<= 1) {
+		if ((piecemask & mask) && check_bishop(pieces[piece], dest)) {
+			return true;
+		}
+	}
+	return false;
 }
 
 move_t* gen_rooks(move_t* moves) {
@@ -473,6 +535,17 @@ move_t* gen_rooks(move_t* moves) {
 	return moves;
 }
 
+bool check_rooks(square_t dest) {
+	piece_t piece = (Piece_Rook | color) & Piece_Index;
+	uint64_t mask = 1ull << piece;
+	for (uint8_t i = 0; i < Count_Rooks; ++i, ++piece, mask <<= 1) {
+		if ((piecemask & mask) && check_rook(pieces[piece], dest)) {
+			return true;
+		}
+	}
+	return false;
+}
+
 move_t* gen_queens(move_t* moves) {
 	piece_t piece = (Piece_Queen | color) & Piece_Index;
 	uint64_t mask = 1ull << piece;
@@ -484,12 +557,24 @@ move_t* gen_queens(move_t* moves) {
 	return moves;
 }
 
-bool check_square(square_t square) {
-	return check_pawn(square)
-		|| check_knight(square)
-		|| check_king(square)
-		|| check_bishop(square)
-		|| check_rook(square);
+bool check_queens(square_t dest) {
+	piece_t piece = (Piece_Queen | color) & Piece_Index;
+	uint64_t mask = 1ull << piece;
+	for (uint8_t i = 0; i < Count_Queens; ++i, ++piece, mask <<= 1) {
+		if ((piecemask & mask) && check_queen(pieces[piece], dest)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+bool check_square(square_t dest) {
+	return check_pawns(dest)
+		|| check_kings(dest)
+		|| check_knights(dest)
+		|| check_bishops(dest)
+		|| check_rooks(dest)
+		|| check_queens(dest);
 }
 
 move_t* gen(move_t* moves) {
