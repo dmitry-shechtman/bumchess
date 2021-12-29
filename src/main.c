@@ -163,7 +163,7 @@ void board_init() {
 	squares[0x77] = Piece_Rook   + Piece_Black + 1;
 
 	color = Piece_White;
-	pieces[Piece_EP].square = Square_Rank6 | Square_FileInvalid;
+	piecemask = 0;
 }
 
 move_t* gen_promo_pawn(move_t* moves, move_t move, piece_square_t to, uint8_t promo) {
@@ -177,6 +177,7 @@ move_t* gen_promo_pawn(move_t* moves, move_t move, piece_square_t to, uint8_t pr
 move_t* gen_push_pawn(move_t* moves, piece_square_t from, vector_t vector, uint8_t promo) {
 	piece_square_t to = from;
 	piece_square_t from2;
+	piece_square_t to2 = { 0x0800 };
 	if (!(from2.piece = squares[from2.square = to.square += vector])) {
 		move_t move = {
 			.prim = {
@@ -185,14 +186,17 @@ move_t* gen_push_pawn(move_t* moves, piece_square_t from, vector_t vector, uint8
 			},
 			.sec = {
 				.from = from2,
-				.to = 0x0800
+				.to = to2
 			}
 		};
 		moves = gen_promo_pawn(moves, move, to, promo);
-		if (!(from.piece & Piece_Moved)
-			&& !squares[to.square += vector]) {
-				move.prim.to.value = to.value | 0x0800;
+		if (!(from.piece & Piece_Moved)) {
+			to2.square = to.square;
+			if (!squares[to.square += vector]) {
+				move.prim.to = to;
+				move.sec.to.value = to2.value | Piece_EP | 0x0800;
 				*moves++ = move;
+			}
 		}
 	}
 	return moves;
@@ -224,7 +228,9 @@ bool check_vector_pawn(square_t square, vector_t vector) {
 }
 
 move_t* gen_vector_ep(move_t* moves, vector_t vector) {
-	piece_square_t to = pieces[Piece_EP];
+	piece_square_t to = {
+		.square = pieces[Piece_EP].square & ~Square_FileInvalid
+	};
 	piece_square_t from = to;
 	if (!((from.square += vector) & Square_Invalid)
 		&& ((to.piece = from.piece = squares[from.square]) & (Piece_TypePawn | Piece_Color)) == (Piece_Pawn0 | color)) {
@@ -378,7 +384,7 @@ bool check_pawn(square_t square) {
 }
 
 move_t* gen_ep(move_t* moves) {
-	return !(pieces[Piece_EP].square & Square_FileInvalid)
+	return piecemask & (1ull << Piece_EP)
 		? color == Piece_White
 			? gen_ep_white(moves)
 			: gen_ep_black(moves)
@@ -527,14 +533,12 @@ void set_prim_from(piece_square_t from) {
 }
 
 void clear_prim_to(piece_square_t to) {
-	to.square &= ~Square_Invalid;
 	squares[to.square] = 0x00;
 	clear_piece(to);
 }
 
 void set_prim_to(piece_square_t to) {
 	to.piece |= Piece_Moved;
-	to.square &= ~Square_Invalid;
 	squares[to.square] = to.piece;
 	set_piece(to);
 }
@@ -549,18 +553,17 @@ void set_sec(piece_square_t ps) {
 	set_piece(ps);
 }
 
-void set_ep(uint8_t file) {
-	pieces[Piece_EP].square = ((pieces[Piece_EP].square & Square_Rank) ^ Square_Rank) | file;
+void clear_ep() {
+	piecemask &= ~(1ull << Piece_EP);
 }
 
 void move_make(move_t move) {
+	clear_ep();
+
 	clear_sec(move.sec.from);
 	set_sec(move.sec.to);
 	clear_prim_from(move.prim.from);
 	set_prim_to(move.prim.to);
-
-	set_ep((move.prim.to.square & Square_File)
-		| ((move.prim.to.square & Square_FileInvalid) ^ Square_FileInvalid));
 
 	color ^= Piece_Color;
 }
@@ -594,7 +597,6 @@ uint64_t perft(move_t* moves, uint8_t depth) {
 
 void set_pieces() {
 	piece_square_t ps;
-	piecemask = 0;
 	for (uint8_t rank = 0; rank < Count_Ranks; ++rank) {
 		ps.square = rank << Shift_Rank;
 		for (uint8_t file = 0; file < Count_Files; ++file, ++ps.square) {
