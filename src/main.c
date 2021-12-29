@@ -177,7 +177,6 @@ move_t* gen_promo_pawn(move_t* moves, move_t move, piece_square_t to, uint8_t pr
 move_t* gen_push_pawn(move_t* moves, piece_square_t from, vector_t vector, uint8_t promo) {
 	piece_square_t to = from;
 	piece_square_t from2;
-	piece_square_t to2 = { 0x0800 };
 	if (!(from2.piece = squares[from2.square = to.square += vector])) {
 		move_t move = {
 			.prim = {
@@ -186,17 +185,15 @@ move_t* gen_push_pawn(move_t* moves, piece_square_t from, vector_t vector, uint8
 			},
 			.sec = {
 				.from = from2,
-				.to = to2
+				.to = { 0x0800 }
 			}
 		};
 		moves = gen_promo_pawn(moves, move, to, promo);
-		if (!(from.piece & Piece_Moved)) {
-			to2.square = to.square;
-			if (!squares[to.square += vector]) {
+		if (!(from.piece & Piece_Moved)
+			&& !squares[to.square += vector]) {
 				move.prim.to = to;
-				move.sec.to.value = to2.value | Piece_EP | 0x0800;
+				move.sec.to.value = from2.value | Piece_EP | 0x0800;
 				*moves++ = move;
-			}
 		}
 	}
 	return moves;
