@@ -157,6 +157,7 @@ typedef struct {
 } move_t;
 
 typedef struct {
+	uint64_t piecemask;
 	square_t ep;
 } state_t;
 
@@ -924,16 +925,19 @@ void move_unmake(register move_t move) {
 uint64_t perft(move_t* moves, register uint8_t depth) {
 	move_t *pEnd, *pCurr;
 	uint64_t count = 0;
-	state_t state;
 	if (!depth)
 		return 1;
 	pEnd = gen(moves);
 	for (pCurr = moves; pCurr != pEnd; ++pCurr) {
-		state.ep = pieces[Piece_EP].square;
+		state_t state = {
+			.piecemask = piecemask,
+			.ep = pieces[Piece_EP].square
+		};
 		move_make(*pCurr);
 		if (!check())
 			count += perft(pEnd, depth - 1);
 		move_unmake(*pCurr);
+		piecemask = state.piecemask;
 		pieces[Piece_EP].square = state.ep;
 	}
 	return count;
