@@ -43,6 +43,8 @@ enum Piece {
 
 	Piece_Index    = Piece_Index2 | Piece_Type | Piece_Black,
 
+	Piece_EP       = Piece_Black,
+
 	Piece_Moved    = 0x80
 };
 
@@ -130,7 +132,6 @@ piece_t squares[Count_Squares];
 piece_square_t pieces[Count_Pieces];
 uint64_t piecemask;
 piece_t color;
-state_t state;
 
 char piece_chars[] = ":KPPNBRQ;kppnbrq";
 
@@ -161,7 +162,7 @@ void board_init() {
 	squares[0x77] = Piece_Rook   + Piece_Black + 1;
 
 	color = Piece_White;
-	state.ep = Square_Rank6 | Square_FileInvalid;
+	pieces[Piece_EP].square = Square_Rank6 | Square_FileInvalid;
 }
 
 move_t* gen_promo_pawn(move_t* moves, move_t move, piece_square_t to, uint8_t promo) {
@@ -220,9 +221,7 @@ bool check_vector_pawn(square_t square, vector_t vector) {
 }
 
 move_t* gen_vector_ep(move_t* moves, vector_t vector) {
-	piece_square_t to = {
-		.square = state.ep
-	};
+	piece_square_t to = pieces[Piece_EP];
 	piece_square_t from = to;
 	if (!((from.square += vector) & Square_Invalid)
 		&& ((to.piece = from.piece = squares[from.square]) & (Piece_TypePawn | Piece_Color)) == (Piece_Pawn0 | color)) {
@@ -373,7 +372,7 @@ bool check_pawn(square_t square) {
 }
 
 move_t* gen_ep(move_t* moves) {
-	return !(state.ep & Square_FileInvalid)
+	return !(pieces[Piece_EP].square & Square_FileInvalid)
 		? color == Piece_White
 			? gen_ep_white(moves)
 			: gen_ep_black(moves)
@@ -545,7 +544,7 @@ void set_sec(piece_square_t ps) {
 }
 
 void set_ep(uint8_t file) {
-	state.ep = ((state.ep & Square_Rank) ^ Square_Rank) | file;
+	pieces[Piece_EP].square = ((pieces[Piece_EP].square & Square_Rank) ^ Square_Rank) | file;
 }
 
 void move_make(move_t move) {
@@ -570,17 +569,17 @@ void move_unmake(move_t move) {
 uint64_t perft(move_t* moves, uint8_t depth) {
 	move_t *pEnd, *pCurr;
 	uint64_t count = 0;
-	state_t state2;
+	state_t state;
 	if (!depth)
 		return 1;
 	pEnd = gen(moves);
 	for (pCurr = moves; pCurr != pEnd; ++pCurr) {
-		state2 = state;
+		state.ep = pieces[Piece_EP].square;
 		move_make(*pCurr);
 		if (!check())
 			count += perft(pEnd, depth - 1);
 		move_unmake(*pCurr);
-		state = state2;
+		pieces[Piece_EP].square = state.ep;
 	}
 	return count;
 }
