@@ -120,6 +120,7 @@ typedef struct {
 	} prim;
 	struct {
 		piece_square_t from;
+		piece_square_t to;
 	} sec;
 } move_t;
 
@@ -215,6 +216,7 @@ move_t* gen_push_pawn(move_t* moves, piece_square_t from, vector_t vector, uint8
 			},
 			.sec = {
 				.from = from2,
+				.to = { 0x0800 }
 			}
 		};
 		moves = gen_promo_pawn(moves, move, to, promo);
@@ -239,6 +241,7 @@ move_t* gen_vector_pawn(move_t* moves, piece_square_t from, vector_t vector, uin
 				},
 				.sec = {
 					.from = from2,
+					.to = { 0x0800 }
 				}
 			};
 			moves = gen_promo_pawn(moves, move, to, promo);
@@ -263,6 +266,7 @@ move_t* gen_vector_ep(move_t* moves, vector_t vector) {
 						.piece = Piece_Pawn | (color ^ Piece_Color) | Piece_Moved,
 						.square = to.square ^ Square_Rank2
 					},
+					.to = { 0x0800 }
 				}
 		};
 		*moves++ = move;
@@ -282,6 +286,7 @@ move_t* gen_vector_leaper(move_t* moves, piece_square_t from, vector_t vector) {
 				},
 				.sec = {
 					.from = from2,
+					.to = { 0x0800 }
 				}
 			};
 			*moves++ = move;
@@ -307,6 +312,7 @@ move_t* gen_vector_slider(move_t* moves, piece_square_t from, vector_t vector) {
 				},
 				.sec = {
 					.from = from2,
+					.to = { 0x0800 }
 				}
 			};
 			*moves++ = move;
@@ -531,6 +537,7 @@ void set_king(piece_square_t ps) {
 
 void move_make(move_t move) {
 	clear_sec(move.sec.from);
+	set_sec(move.sec.to);
 	clear_prim_from(move.prim.from);
 	set_prim_to(move.prim.to);
 
@@ -547,6 +554,7 @@ void move_unmake(move_t move) {
 
 	clear_prim_to(move.prim.to);
 	set_prim_from(move.prim.from);
+	clear_sec(move.sec.to);
 	set_sec(move.sec.from);
 }
 
@@ -772,8 +780,9 @@ const char* fen_read_castling(const char* str) {
 	uint8_t i;
 	piece_square_t ps;
 	if ((i = find_castling(c)) == Count_Castlings
-		|| (ps.piece = get_square(ps.square = castling_rooks[i])) != (Piece_Rook | Piece_Moved | color_values[i >> Shift_Castling])) {
-			return fen_read_error(c);
+		|| (ps.piece = get_square(ps.square = castling_rooks[i]))
+			!= (Piece_Rook | Piece_Moved | color_values[i >> Shift_Castling])) {
+				return fen_read_error(c);
 	}
 	ps.piece &= ~Piece_Moved;
 	set_square(ps);
