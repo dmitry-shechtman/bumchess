@@ -154,14 +154,15 @@ move_t* gen_promo_pawn(move_t* moves, move_t move, piece_square_t to, uint8_t pr
 
 move_t* gen_push_pawn(move_t* moves, piece_square_t from, vector_t vector, uint8_t promo) {
 	piece_square_t to = from;
-	if (!squares[to.square += vector]) {
+	piece_square_t from2;
+	if (!(from2.piece = squares[from2.square = to.square += vector])) {
 		move_t move = {
 			.prim = {
 				.from = from,
 				.to = to
 			},
 			.sec = {
-				.from = { 0x0800 },
+				.from = from2,
 			}
 		};
 		moves = gen_promo_pawn(moves, move, to, promo);
