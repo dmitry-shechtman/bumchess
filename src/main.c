@@ -183,14 +183,15 @@ move_t* gen_promo_pawn(move_t* moves, register move_t move, piece_square_t to, u
 static inline
 move_t* gen_push_pawn(move_t* moves, register piece_square_t from, vector_t vector, uint8_t promo, uint8_t color, uint8_t color2) {
 	register piece_square_t to = from;
-	if (!squares[to.square += vector]) {
+	register piece_square_t from2;
+	if (!(from2.piece = squares[from2.square = to.square += vector])) {
 		register move_t move = {
 			.prim = {
 				.from = from,
 				.to = to
 			},
 			.sec = {
-				.from = { 0x0800 },
+				.from = from2,
 			}
 		};
 		moves = gen_promo_pawn(moves, move, to, promo, color);
