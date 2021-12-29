@@ -209,7 +209,7 @@ move_t* gen_vector_ep(move_t* moves, vector_t vector) {
 				.sec = {
 					.from = {
 						.piece = Piece_Pawn | (color ^ Piece_Color) | Piece_Moved,
-						.square = state.ep ^ Square_Rank2
+						.square = to.square ^ Square_Rank2
 					},
 				}
 		};
