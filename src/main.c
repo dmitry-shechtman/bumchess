@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -752,7 +753,7 @@ int main(int argc, const char* argv[]) {
 
 	for (uint8_t depth = 0; depth <= max; ++depth) {
 		uint64_t count = perft(moves, depth);
-		printf("perft(%3d)=%11llu\n", depth, count);
+		printf("perft(%3d)=%11" PRIu64 "\n", depth, count);
 	}
 	
 	return 0;
