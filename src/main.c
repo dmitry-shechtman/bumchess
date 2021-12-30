@@ -352,6 +352,7 @@ move_t* gen_vector_knight(move_t* moves, register piece_square_t from, vector_t 
 	return moves;
 }
 
+static inline
 bool check_square_neighbor(register square_t square, type_mask_t type_mask, uint8_t dir, dir_mask_t* dir_mask, uint8_t color) {
 	register piece_t piece = squares[square];
 	if (piece & color) {
