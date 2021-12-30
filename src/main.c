@@ -171,7 +171,7 @@ void board_init() {
 	piecemask = 0;
 }
 
-uint8_t get_index(square_t square) {
+uint8_t get_index2(square_t square) {
 	return (((square ^ (square >> Shift_Rank)) & 1) << 1);
 }
 
@@ -543,7 +543,7 @@ move_t* gen_knights(move_t* moves) {
 }
 
 bool check_knights(square_t dest) {
-	piece_t piece = ((Piece_Knight + get_index(dest)) | color) & Piece_Index;
+	piece_t piece = ((Piece_Knight + get_index2(dest)) | color) & Piece_Index;
 	uint64_t mask = piecemask >> piece;
 	for (uint8_t i = 0; i < Count_Knights2; ++i, ++piece, mask >>= 1) {
 		if ((mask & 1) && check_knight(pieces[piece], dest)) {
@@ -565,7 +565,7 @@ move_t* gen_bishops(move_t* moves) {
 }
 
 bool check_bishops(square_t dest) {
-	piece_t piece = ((Piece_Bishop + get_index(dest)) | color) & Piece_Index;
+	piece_t piece = ((Piece_Bishop + get_index2(dest)) | color) & Piece_Index;
 	uint64_t mask = piecemask >> piece;
 	for (uint8_t i = 0; i < Count_Bishops2; ++i, ++piece, mask >>= 1) {
 		if ((mask & 1) && check_bishop(pieces[piece], dest)) {
