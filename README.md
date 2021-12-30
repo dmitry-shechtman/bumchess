@@ -14,9 +14,11 @@ Branchless Unmake/Make Chess Move Generator
 * 8 pawns per side
 
 ## License
-BSD 3-Clause License
+
+### BSD 3-Clause License
 
 Copyright (c) 2021 Dmitry Shechtman
+
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
