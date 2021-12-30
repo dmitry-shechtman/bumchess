@@ -175,6 +175,13 @@ uint8_t get_index(square_t square) {
 	return (((square ^ (square >> Shift_Rank)) & 1) << 1);
 }
 
+uint8_t find_index(piece_t piece) {
+	for (uint64_t mask = piecemask >> (1ull << (piece & Piece_Index));
+		mask & 1;
+		++piece, mask >>= 1);
+	return piece;
+}
+
 move_t* gen_null(move_t* moves) {
 	piece_square_t nullps = { 0x0800 };
 	move_t move = {
@@ -193,7 +200,7 @@ move_t* gen_null(move_t* moves) {
 
 move_t* gen_promo_pawn(move_t* moves, move_t move, piece_square_t to, uint8_t promo) {
 	if ((to.square & Square_Rank) == promo) {
-		move.prim.to.piece = Piece_Queen | color | Piece_Moved;
+		move.prim.to.piece = find_index(Piece_Queen | color) | Piece_Moved;
 	}
 	*moves++ = move;
 	return moves;
