@@ -175,6 +175,22 @@ uint8_t get_index(square_t square) {
 	return (((square ^ (square >> Shift_Rank)) & 1) << 1);
 }
 
+move_t* gen_null(move_t* moves) {
+	piece_square_t nullps = { 0x0800 };
+	move_t move = {
+		.prim = {
+			.from = nullps,
+			.to = nullps
+		},
+		.sec = {
+			.from = nullps,
+			.to = nullps
+		}
+	};
+	*moves++ = move;
+	return moves;
+}
+
 move_t* gen_promo_pawn(move_t* moves, move_t move, piece_square_t to, uint8_t promo) {
 	if ((to.square & Square_Rank) == promo) {
 		move.prim.to.piece = Piece_Queen | color | Piece_Moved;
@@ -612,7 +628,11 @@ move_t* gen(move_t* moves) {
 	moves = gen_bishops(moves);
 	moves = gen_rooks(moves);
 	moves = gen_queens(moves);
-	return gen_ep(moves);
+	moves = gen_ep(moves);
+#if !NDEBUG
+	moves = gen_null(moves);
+#endif
+	return moves;
 }
 
 bool check() {
@@ -698,6 +718,9 @@ uint64_t perft(move_t* moves, uint8_t depth) {
 			.ep = pieces[Piece_EP].square
 		};
 		move_make(*pCurr);
+#if !NDEBUG
+		if (pCurr->prim.from.piece)
+#endif
 		if (!check())
 			count += perft(pEnd, depth - 1);
 		move_unmake(*pCurr);
