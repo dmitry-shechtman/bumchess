@@ -365,7 +365,7 @@ move_t* gen_vector_knight(move_t* moves, register piece_square_t from,
 }
 
 static inline
-bool check_square_neighbor(register square_t square,
+bool check_square(register square_t square,
 	const type_mask_t type_mask, const uint8_t dir, dir_mask_t* dir_mask, const uint8_t color)
 {
 	register piece_t piece = squares[square];
@@ -391,7 +391,7 @@ bool check_vector(register square_t square,
 	const type_mask_t type_mask, const vector_t vector, const uint8_t dir, dir_mask_t* dir_mask, const uint8_t color)
 {
 	return !((square += vector) & Square_Invalid)
-		&& check_square_neighbor(square, type_mask, dir, dir_mask, color);
+		&& check_square(square, type_mask, dir, dir_mask, color);
 }
 
 static inline
