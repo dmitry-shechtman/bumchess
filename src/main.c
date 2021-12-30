@@ -849,6 +849,10 @@ uint64_t perft(move_t* moves, uint8_t depth) {
 	return count;
 }
 
+char get_piece_char(piece_t piece) {
+	return piece_chars[(piece & Piece_Index) >> Shift_Type];
+}
+
 bool set_pieces() {
 	piece_square_t ps, ps2;
 	for (uint8_t rank = 0; rank < Count_Ranks; ++rank) {
@@ -856,7 +860,7 @@ bool set_pieces() {
 		for (uint8_t file = 0; file < Count_Files; ++file, ++ps.square) {
 			if ((ps.piece = squares[ps.square])) {
 				if (!(ps2 = find_index(ps)).value) {
-					fprintf(stderr, "Too many %c's.\n", piece_chars[(ps.piece & Piece_Index) >> Shift_Type]);
+					fprintf(stderr, "Too many %c's.\n", get_piece_char(ps.piece));
 					return false;
 				}
 				set_square(ps2);
@@ -877,7 +881,7 @@ char* board_write(char* str) {
 			piece = squares[square];
 			*str++ = ' ';
 			*str++ = piece
-				? piece_chars[(piece & (Piece_Index)) >> Shift_Type]
+				? get_piece_char(piece)
 				: '.';
 		}
 		*str++ = '\n';
