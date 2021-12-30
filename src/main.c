@@ -880,7 +880,7 @@ bool check_queens(register square_t square,
 }
 
 static inline
-bool check_square_white(register square_t square) {
+bool check_to_white(register square_t square) {
 	dir_mask_t dir_mask = 0;
 	return check_neighbors_white(square, &dir_mask)
 		|| check_knights(square, Piece_White)
@@ -890,7 +890,7 @@ bool check_square_white(register square_t square) {
 }
 
 static inline
-bool check_square_black(register square_t square) {
+bool check_to_black(register square_t square) {
 	dir_mask_t dir_mask = 0;
 	return check_neighbors_black(square, &dir_mask)
 		|| check_knights(square, Piece_Black)
@@ -932,13 +932,13 @@ move_t* gen_black(move_t* moves) {
 static inline
 bool check_white() {
 	piece_t piece = Piece_King | Piece_Black;
-	return check_square_white(pieces[piece].square);
+	return check_to_white(pieces[piece].square);
 }
 
 static inline
 bool check_black() {
 	piece_t piece = Piece_King;
-	return check_square_black(pieces[piece].square);
+	return check_to_black(pieces[piece].square);
 }
 
 static inline
