@@ -441,28 +441,39 @@ bool check() {
 	return check_to(state.king);
 }
 
-void clear_prim_from(piece_square_t from) {
-	squares[from.square] = 0x00;
-}
-
-void set_prim_from(piece_square_t from) {
-	squares[from.square] = from.piece;
-}
-
-void clear_prim_to(piece_square_t to) {
-	squares[to.square & ~Square_Invalid] = 0x00;
-}
-
-void set_prim_to(piece_square_t to) {
-	squares[to.square & ~Square_Invalid] = to.piece | Piece_Moved;
-}
-
-void clear_sec(piece_square_t ps) {
+void clear_square(piece_square_t ps) {
 	squares[ps.square] = 0x00;
 }
 
-void set_sec(piece_square_t ps) {
+void set_square(piece_square_t ps) {
 	squares[ps.square] = ps.piece;
+}
+
+void clear_prim_from(piece_square_t from) {
+	clear_square(from);
+}
+
+void set_prim_from(piece_square_t from) {
+	set_square(from);
+}
+
+void clear_prim_to(piece_square_t to) {
+	to.square &= ~Square_Invalid;
+	clear_square(to);
+}
+
+void set_prim_to(piece_square_t to) {
+	to.square &= ~Square_Invalid;
+	to.piece |= Piece_Moved;
+	set_square(to);
+}
+
+void clear_sec(piece_square_t ps) {
+	clear_square(ps);
+}
+
+void set_sec(piece_square_t ps) {
+	set_square(ps);
 }
 
 void set_ep(uint8_t file) {
