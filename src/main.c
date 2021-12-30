@@ -204,6 +204,14 @@ uint8_t get_index(register square_t square) {
 }
 
 static inline
+uint8_t find_index(register piece_t piece) {
+	for (uint64_t mask = piecemask >> (1ull << (piece & Piece_Index));
+		mask & 1;
+		++piece, mask >>= 1);
+	return piece;
+}
+
+static inline
 move_t* gen_null(move_t* moves) {
 	register piece_square_t nullps = { 0x0800 };
 	register move_t move = {
@@ -223,7 +231,7 @@ move_t* gen_null(move_t* moves) {
 static inline
 move_t* gen_promo_pawn(move_t* moves, register move_t move, register piece_square_t to, uint8_t promo, uint8_t color) {
 	if ((to.square & Square_Rank) == promo) {
-		move.prim.to.piece = Piece_Queen | color | Piece_Moved;
+		move.prim.to.piece = find_index(Piece_Queen | color) | Piece_Moved;
 	}
 	*moves++ = move;
 	return moves;
