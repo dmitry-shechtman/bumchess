@@ -695,6 +695,14 @@ bool check() {
 	return check_to(pieces[piece].square);
 }
 
+void clear_square(piece_square_t ps) {
+	squares[ps.square] = 0x00;
+}
+
+void set_square(piece_square_t ps) {
+	squares[ps.square] = ps.piece;
+}
+
 void clear_piece(piece_square_t ps) {
 	piece_t piece = ps.piece & Piece_Index;
 	piecemask &= ~(1ull << piece);
@@ -707,33 +715,33 @@ void set_piece(piece_square_t ps) {
 }
 
 void clear_prim_from(piece_square_t from) {
-	squares[from.square] = 0x00;
+	clear_square(from);
 	clear_piece(from);
 }
 
 void set_prim_from(piece_square_t from) {
-	squares[from.square] = from.piece;
+	set_square(from);
 	set_piece(from);
 }
 
 void clear_prim_to(piece_square_t to) {
-	squares[to.square] = 0x00;
+	clear_square(to);
 	clear_piece(to);
 }
 
 void set_prim_to(piece_square_t to) {
 	to.piece |= Piece_Moved;
-	squares[to.square] = to.piece;
+	set_square(to);
 	set_piece(to);
 }
 
 void clear_sec(piece_square_t ps) {
-	squares[ps.square] = 0x00;
+	clear_square(ps);
 	clear_piece(ps);
 }
 
 void set_sec(piece_square_t ps) {
-	squares[ps.square] = ps.piece;
+	set_square(ps);
 	set_piece(ps);
 }
 
