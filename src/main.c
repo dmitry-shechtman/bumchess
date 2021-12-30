@@ -22,11 +22,13 @@ enum Type {
 };
 
 enum Shift {
-	Shift_Type = 2,
-	Shift_Rank = 4
+	Shift_Odd         = 1,
+	Shift_Type        = 2,
+	Shift_Rank        = 4,
 };
 
 enum Piece {
+	Piece_Odd      = 0x02,
 	Piece_Index2   = 0x03,
 
 	Piece_King     = Type_King   << Shift_Type,
@@ -176,39 +178,110 @@ void board_init() {
 	squares[0x02] = Piece_Bishop + Piece_White + Piece_Moved;
 	squares[0x03] = Piece_Queen  + Piece_White + Piece_Moved;
 	squares[0x04] = Piece_King   + Piece_White;
-	squares[0x05] = Piece_Bishop + Piece_White + Piece_Moved + 2;
-	squares[0x06] = Piece_Knight + Piece_White + Piece_Moved + 3;
-	squares[0x07] = Piece_Rook   + Piece_White + 1;
+	squares[0x05] = Piece_Bishop + Piece_White + Piece_Moved;
+	squares[0x06] = Piece_Knight + Piece_White + Piece_Moved;
+	squares[0x07] = Piece_Rook   + Piece_White;
 
 	for (uint8_t i = 0; i < Count_Files; ++i) {
-		squares[i + 0x10] = Piece_Pawn0 + Piece_White + i;
-		squares[i + 0x60] = Piece_Pawn0 + Piece_Black + i;
+		squares[i + 0x10] = Piece_Pawn0 + Piece_White;
+		squares[i + 0x60] = Piece_Pawn0 + Piece_Black;
 	}
 
 	squares[0x70] = Piece_Rook   + Piece_Black;
-	squares[0x71] = Piece_Knight + Piece_Black + Piece_Moved + 3;
-	squares[0x72] = Piece_Bishop + Piece_Black + Piece_Moved + 2;
+	squares[0x71] = Piece_Knight + Piece_Black + Piece_Moved;
+	squares[0x72] = Piece_Bishop + Piece_Black + Piece_Moved;
 	squares[0x73] = Piece_Queen  + Piece_Black + Piece_Moved;
 	squares[0x74] = Piece_King   + Piece_Black;
 	squares[0x75] = Piece_Bishop + Piece_Black + Piece_Moved;
 	squares[0x76] = Piece_Knight + Piece_Black + Piece_Moved;
-	squares[0x77] = Piece_Rook   + Piece_Black + 1;
+	squares[0x77] = Piece_Rook   + Piece_Black;
 
 	color = Piece_White;
 	piecemask = 0;
 }
 
 static inline
-uint8_t get_index2(register square_t square) {
-	return (((square ^ (square >> Shift_Rank)) & 1) << 1);
+uint8_t get_index2_knight(register square_t square) {
+	return (((square ^ (square >> Shift_Rank)) & 1) ^ 1) * 3;
 }
 
 static inline
-uint8_t find_index(register piece_t piece) {
-	for (uint64_t mask = piecemask >> (1ull << (piece & Piece_Index));
+uint8_t get_index2(register square_t square) {
+	return ((square ^ (square >> Shift_Rank)) & 1) << Shift_Odd;
+}
+
+static inline
+piece_square_t find_index_to(register piece_square_t ps) {
+	for (uint64_t mask = piecemask >> (ps.value & Piece_Index);
 		mask & 1;
-		++piece, mask >>= 1);
-	return piece;
+		++ps.value, mask >>= 1);
+	return ps;
+}
+
+piece_square_t find_index_to_knight(piece_square_t ps) {
+	ps.value += get_index2_knight(ps.square);
+	return ps;
+}
+
+piece_square_t find_index_to_bishop(piece_square_t ps) {
+	ps.value += get_index2(ps.square);
+	return ps;
+}
+
+piece_square_t find_index_king(piece_square_t ps) {
+	piece_square_t ps2 = find_index_to(ps);
+	if (ps2.value & Piece_Index2) {
+		ps2.value = 0;
+	}
+	return ps2;
+}
+
+piece_square_t find_index_pawn(piece_square_t ps) {
+	piece_square_t ps2 = find_index_to(ps);
+	if ((ps.value ^ ps2.value) & Piece_TypePawn) {
+		ps2.value = 0;
+	}
+	return ps2;
+}
+
+piece_square_t find_index_knight(piece_square_t ps) {
+	piece_square_t ps2 = find_index_to_knight(ps);
+	if (piecemask & (1ull << ps2.value & (Piece_Index))) {
+		ps2.value = 0;
+	}
+	return ps2;
+}
+
+piece_square_t find_index_bishop(piece_square_t ps) {
+	ps = find_index_to_bishop(ps);
+	piece_square_t ps2 = find_index_to(ps);
+	if ((ps.value ^ ps2.value) & (Piece_Type | Piece_Odd)) {
+		ps2.value = 0;
+	}
+	return ps2;
+}
+
+piece_square_t find_index_other(piece_square_t ps) {
+	piece_square_t ps2 = find_index_to(ps);
+	if ((ps.value ^ ps2.value) & Piece_Type) {
+		ps2.value = 0;
+	}
+	return ps2;
+}
+
+piece_square_t find_index(piece_square_t ps) {
+	switch (ps.piece & Piece_Type) {
+	case Piece_King:
+		return find_index_king(ps);
+	case Piece_Pawn0:
+		return find_index_pawn(ps);
+	case Piece_Knight:
+		return find_index_knight(ps);
+	case Piece_Bishop:
+		return find_index_bishop(ps);
+	default:
+		return find_index_other(ps);
+	}
 }
 
 static inline
@@ -229,11 +302,55 @@ move_t* gen_null(move_t* moves) {
 }
 
 static inline
-move_t* gen_promo_pawn(move_t* moves, register move_t move, register piece_square_t to,
+move_t* gen_promo_knight(move_t* moves, register move_t move, register piece_square_t to,
+	const uint8_t color)
+{
+	to.piece = Piece_Knight | color | Piece_Moved;
+	move.prim.to = find_index_to_knight(to);
+	*moves++ = move;
+	return moves;
+}
+
+static inline
+move_t* gen_promo_bishop(move_t* moves, register move_t move, register piece_square_t to,
+	const uint8_t color)
+{
+	to.piece = Piece_Bishop | color | Piece_Moved;
+	move.prim.to = find_index_to_bishop(to);
+	*moves++ = move;
+	return moves;
+}
+
+static inline
+move_t* gen_promo_rook(move_t* moves, register move_t move, register piece_square_t to,
+	const uint8_t color)
+{
+	to.piece = Piece_Rook | color | Piece_Moved;
+	move.prim.to = find_index_to(to);
+	*moves++ = move;
+	return moves;
+}
+
+static inline
+move_t* gen_promo_queen(move_t* moves, register move_t move, register piece_square_t to,
+	const uint8_t color)
+{
+	to.piece = Piece_Queen | color | Piece_Moved;
+	move.prim.to = find_index_to(to);
+	*moves++ = move;
+	return moves;
+}
+
+static inline
+move_t* gen_promo_pawn(move_t* moves, move_t move, piece_square_t to,
 	const uint8_t promo, const uint8_t color)
 {
 	if ((to.square & Square_Rank) == promo) {
-		move.prim.to.piece = find_index(Piece_Queen | color) | Piece_Moved;
+		moves = gen_promo_knight(moves, move, to, color);
+		moves = gen_promo_bishop(moves, move, to, color);
+		moves = gen_promo_rook(moves, move, to, color);
+		moves = gen_promo_queen(moves, move, to, color);
+		return moves;
 	}
 	*moves++ = move;
 	return moves;
@@ -352,7 +469,7 @@ move_t* gen_vector_knight(move_t* moves, register piece_square_t from,
 			register move_t move = {
 				.prim = {
 					.from = from,
-					.to = { to.value ^ 0x02 }
+					.to = { to.value ^ Piece_Odd }
 				},
 				.sec = {
 					.from = from2,
@@ -956,6 +1073,16 @@ bool check() {
 }
 
 static inline
+void clear_square(register piece_square_t ps) {
+	squares[ps.square] = 0x00;
+}
+
+static inline
+void set_square(register piece_square_t ps) {
+	squares[ps.square] = ps.piece;
+}
+
+static inline
 void clear_piece(register piece_square_t ps) {
 	register piece_t piece = ps.piece & Piece_Index;
 	piecemask &= ~(1ull << piece);
@@ -970,38 +1097,38 @@ void set_piece(register piece_square_t ps) {
 
 static inline
 void clear_prim_from(register piece_square_t from) {
-	squares[from.square] = 0x00;
+	clear_square(from);
 	clear_piece(from);
 }
 
 static inline
 void set_prim_from(register piece_square_t from) {
-	squares[from.square] = from.piece;
+	set_square(from);
 	set_piece(from);
 }
 
 static inline
 void clear_prim_to(register piece_square_t to) {
-	squares[to.square] = 0x00;
+	clear_square(to);
 	clear_piece(to);
 }
 
 static inline
 void set_prim_to(register piece_square_t to) {
 	to.piece |= Piece_Moved;
-	squares[to.square] = to.piece;
+	set_square(to);
 	set_piece(to);
 }
 
 static inline
 void clear_sec(register piece_square_t ps) {
-	squares[ps.square] = 0x00;
+	clear_square(ps);
 	clear_piece(ps);
 }
 
 static inline
 void set_sec(register piece_square_t ps) {
-	squares[ps.square] = ps.piece;
+	set_square(ps);
 	set_piece(ps);
 }
 
@@ -1063,16 +1190,22 @@ uint64_t perft(move_t* moves, register uint8_t depth) {
 		: 1;
 }
 
-void set_pieces() {
-	piece_square_t ps;
+bool set_pieces() {
+	piece_square_t ps, ps2;
 	for (uint8_t rank = 0; rank < Count_Ranks; ++rank) {
 		ps.square = rank << Shift_Rank;
 		for (uint8_t file = 0; file < Count_Files; ++file, ++ps.square) {
 			if ((ps.piece = squares[ps.square])) {
-				set_piece(ps);
+				if (!(ps2 = find_index(ps)).value) {
+					fprintf(stderr, "Too many %c's.\n", piece_chars[(ps.piece & Piece_Index) >> Shift_Type]);
+					return false;
+				}
+				set_square(ps2);
+				set_piece(ps2);
 			}
 		}
 	}
+	return true;
 }
 
 char* board_write(char* str) {
@@ -1085,7 +1218,7 @@ char* board_write(char* str) {
 			piece = squares[square];
 			*str++ = ' ';
 			*str++ = piece
-				? piece_chars[(piece & (Piece_Type | Piece_Black)) >> Shift_Type]
+				? piece_chars[(piece & (Piece_Index)) >> Shift_Type]
 				: '.';
 		}
 		*str++ = '\n';
@@ -1107,7 +1240,9 @@ int main(int argc, const char* argv[]) {
 	}
 
 	board_init();
-	set_pieces();
+	if (!set_pieces()) {
+		return 1;
+	}
 
 	board_write(buffer);
 	printf("%s\n", buffer);
