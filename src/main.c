@@ -218,12 +218,14 @@ piece_square_t find_index_to(register piece_square_t ps) {
 	return ps;
 }
 
-piece_square_t find_index_to_knight(piece_square_t ps) {
+static inline
+piece_square_t find_index_to_knight(register piece_square_t ps) {
 	ps.value += get_index2_knight(ps.square);
 	return ps;
 }
 
-piece_square_t find_index_to_bishop(piece_square_t ps) {
+static inline
+piece_square_t find_index_to_bishop(register piece_square_t ps) {
 	ps.value += get_index2(ps.square);
 	return ps;
 }
