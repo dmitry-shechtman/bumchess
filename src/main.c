@@ -22,11 +22,13 @@ enum Type {
 };
 
 enum Shift {
-	Shift_Type = 2,
-	Shift_Rank = 4
+	Shift_Odd         = 1,
+	Shift_Type        = 2,
+	Shift_Rank        = 4,
 };
 
 enum Piece {
+	Piece_Odd      = 0x02,
 	Piece_Index2   = 0x03,
 
 	Piece_King     = Type_King   << Shift_Type,
@@ -171,15 +173,29 @@ void board_init() {
 	piecemask = 0;
 }
 
-uint8_t get_index2(square_t square) {
-	return ((square ^ (square >> Shift_Rank)) & 1) << 1;
+uint8_t get_index2_knight(square_t square) {
+	return (((square ^ (square >> Shift_Rank)) & 1) ^ 1) * 3;
 }
 
-uint8_t find_index(piece_t piece) {
-	for (uint64_t mask = piecemask >> (piece & Piece_Index);
+uint8_t get_index2(square_t square) {
+	return ((square ^ (square >> Shift_Rank)) & 1) << Shift_Odd;
+}
+
+piece_square_t find_index_to(piece_square_t ps) {
+	for (uint64_t mask = piecemask >> (ps.value & Piece_Index);
 		mask & 1;
-		++piece, mask >>= 1);
-	return piece;
+		++ps.value, mask >>= 1);
+	return ps;
+}
+
+piece_square_t find_index_to_knight(piece_square_t ps) {
+	ps.value += get_index2_knight(ps.square);
+	return ps;
+}
+
+piece_square_t find_index_to_bishop(piece_square_t ps) {
+	ps.value += get_index2(ps.square);
+	return ps;
 }
 
 move_t* gen_null(move_t* moves) {
@@ -198,9 +214,41 @@ move_t* gen_null(move_t* moves) {
 	return moves;
 }
 
+move_t* gen_promo_knight(move_t* moves, move_t move, piece_square_t to) {
+	to.piece = Piece_Knight | color | Piece_Moved;
+	move.prim.to = find_index_to_knight(to);
+	*moves++ = move;
+	return moves;
+}
+
+move_t* gen_promo_bishop(move_t* moves, move_t move, piece_square_t to) {
+	to.piece = Piece_Bishop | color | Piece_Moved;
+	move.prim.to = find_index_to_bishop(to);
+	*moves++ = move;
+	return moves;
+}
+
+move_t* gen_promo_rook(move_t* moves, move_t move, piece_square_t to) {
+	to.piece = Piece_Rook | color | Piece_Moved;
+	move.prim.to = find_index_to(to);
+	*moves++ = move;
+	return moves;
+}
+
+move_t* gen_promo_queen(move_t* moves, move_t move, piece_square_t to) {
+	to.piece = Piece_Queen | color | Piece_Moved;
+	move.prim.to = find_index_to(to);
+	*moves++ = move;
+	return moves;
+}
+
 move_t* gen_promo_pawn(move_t* moves, move_t move, piece_square_t to, uint8_t promo) {
 	if ((to.square & Square_Rank) == promo) {
-		move.prim.to.piece = find_index(Piece_Queen | color) | Piece_Moved;
+		moves = gen_promo_knight(moves, move, to);
+		moves = gen_promo_bishop(moves, move, to);
+		moves = gen_promo_rook(moves, move, to);
+		moves = gen_promo_queen(moves, move, to);
+		return moves;
 	}
 	*moves++ = move;
 	return moves;
@@ -309,7 +357,7 @@ move_t* gen_vector_knight(move_t* moves, piece_square_t from, vector_t vector) {
 			move_t move = {
 				.prim = {
 					.from = from,
-					.to = { to.value ^ 0x02 }
+					.to = { to.value ^ Piece_Odd }
 				},
 				.sec = {
 					.from = from2,
