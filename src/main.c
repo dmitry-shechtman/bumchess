@@ -525,6 +525,10 @@ uint64_t perft(move_t* moves, uint8_t depth) {
 	return count;
 }
 
+char get_piece_char(piece_t piece) {
+	return piece_chars[piece & (Piece_Type | Piece_Black)];
+}
+
 char* board_write(char* str) {
 	square_t square;
 	piece_t piece;
@@ -535,7 +539,7 @@ char* board_write(char* str) {
 			piece = squares[square];
 			*str++ = ' ';
 			*str++ = piece
-				? piece_chars[piece & (Piece_Type | Piece_Black)]
+				? get_piece_char(piece)
 				: '.';
 		}
 		*str++ = '\n';
