@@ -198,45 +198,45 @@ piece_square_t find_index_to_bishop(piece_square_t ps) {
 	return ps;
 }
 
+piece_square_t find_index_error(piece_square_t ps) {
+	ps.value = 0;
+	return ps;
+}
+
 piece_square_t find_index_king(piece_square_t ps) {
 	piece_square_t ps2 = find_index_to(ps);
-	if (ps2.value & Piece_Index2) {
-		ps2.value = 0;
-	}
-	return ps2;
+	return (ps2.value & Piece_Index2)
+		? find_index_error(ps2)
+		: ps2;
 }
 
 piece_square_t find_index_pawn(piece_square_t ps) {
 	piece_square_t ps2 = find_index_to(ps);
-	if ((ps.value ^ ps2.value) & Piece_TypePawn) {
-		ps2.value = 0;
-	}
-	return ps2;
+	return ((ps.value ^ ps2.value) & Piece_TypePawn)
+		? find_index_error(ps2)
+		: ps2;
 }
 
 piece_square_t find_index_knight(piece_square_t ps) {
 	piece_square_t ps2 = find_index_to_knight(ps);
-	if (piecemask & (1ull << ps2.value & (Piece_Index))) {
-		ps2.value = 0;
-	}
-	return ps2;
+	return (piecemask & (1ull << ps2.value & (Piece_Index)))
+		? find_index_error(ps2)
+		: ps2;
 }
 
 piece_square_t find_index_bishop(piece_square_t ps) {
 	ps = find_index_to_bishop(ps);
 	piece_square_t ps2 = find_index_to(ps);
-	if ((ps.value ^ ps2.value) & (Piece_Type | Piece_Odd)) {
-		ps2.value = 0;
-	}
-	return ps2;
+	return ((ps.value ^ ps2.value) & (Piece_Type | Piece_Odd))
+		? find_index_error(ps2)
+		: ps2;
 }
 
 piece_square_t find_index_other(piece_square_t ps) {
 	piece_square_t ps2 = find_index_to(ps);
-	if ((ps.value ^ ps2.value) & Piece_Type) {
-		ps2.value = 0;
-	}
-	return ps2;
+	return ((ps.value ^ ps2.value) & Piece_Type)
+		? find_index_error(ps2)
+		: ps2;
 }
 
 piece_square_t find_index(piece_square_t ps) {
