@@ -151,23 +151,23 @@ void board_init() {
 	squares[0x02] = Piece_Bishop + Piece_White + Piece_Moved;
 	squares[0x03] = Piece_Queen  + Piece_White + Piece_Moved;
 	squares[0x04] = Piece_King   + Piece_White;
-	squares[0x05] = Piece_Bishop + Piece_White + Piece_Moved + 2;
-	squares[0x06] = Piece_Knight + Piece_White + Piece_Moved + 3;
-	squares[0x07] = Piece_Rook   + Piece_White + 1;
+	squares[0x05] = Piece_Bishop + Piece_White + Piece_Moved;
+	squares[0x06] = Piece_Knight + Piece_White + Piece_Moved;
+	squares[0x07] = Piece_Rook   + Piece_White;
 
 	for (uint8_t i = 0; i < Count_Files; ++i) {
-		squares[i + 0x10] = Piece_Pawn0 + Piece_White + i;
-		squares[i + 0x60] = Piece_Pawn0 + Piece_Black + i;
+		squares[i + 0x10] = Piece_Pawn0 + Piece_White;
+		squares[i + 0x60] = Piece_Pawn0 + Piece_Black;
 	}
 
 	squares[0x70] = Piece_Rook   + Piece_Black;
-	squares[0x71] = Piece_Knight + Piece_Black + Piece_Moved + 3;
-	squares[0x72] = Piece_Bishop + Piece_Black + Piece_Moved + 2;
+	squares[0x71] = Piece_Knight + Piece_Black + Piece_Moved;
+	squares[0x72] = Piece_Bishop + Piece_Black + Piece_Moved;
 	squares[0x73] = Piece_Queen  + Piece_Black + Piece_Moved;
 	squares[0x74] = Piece_King   + Piece_Black;
 	squares[0x75] = Piece_Bishop + Piece_Black + Piece_Moved;
 	squares[0x76] = Piece_Knight + Piece_Black + Piece_Moved;
-	squares[0x77] = Piece_Rook   + Piece_Black + 1;
+	squares[0x77] = Piece_Rook   + Piece_Black;
 
 	color = Piece_White;
 	piecemask = 0;
@@ -196,6 +196,62 @@ piece_square_t find_index_to_knight(piece_square_t ps) {
 piece_square_t find_index_to_bishop(piece_square_t ps) {
 	ps.value += get_index2(ps.square);
 	return ps;
+}
+
+piece_square_t find_index_king(piece_square_t ps) {
+	piece_square_t ps2 = find_index_to(ps);
+	if (ps2.value & Piece_Index2) {
+		ps2.value = 0;
+	}
+	return ps2;
+}
+
+piece_square_t find_index_pawn(piece_square_t ps) {
+	piece_square_t ps2 = find_index_to(ps);
+	if ((ps.value ^ ps2.value) & Piece_TypePawn) {
+		ps2.value = 0;
+	}
+	return ps2;
+}
+
+piece_square_t find_index_knight(piece_square_t ps) {
+	piece_square_t ps2 = find_index_to_knight(ps);
+	if (piecemask & (1ull << ps2.value & (Piece_Index))) {
+		ps2.value = 0;
+	}
+	return ps2;
+}
+
+piece_square_t find_index_bishop(piece_square_t ps) {
+	ps = find_index_to_bishop(ps);
+	piece_square_t ps2 = find_index_to(ps);
+	if ((ps.value ^ ps2.value) & (Piece_Type | Piece_Odd)) {
+		ps2.value = 0;
+	}
+	return ps2;
+}
+
+piece_square_t find_index_other(piece_square_t ps) {
+	piece_square_t ps2 = find_index_to(ps);
+	if ((ps.value ^ ps2.value) & Piece_Type) {
+		ps2.value = 0;
+	}
+	return ps2;
+}
+
+piece_square_t find_index(piece_square_t ps) {
+	switch (ps.piece & Piece_Type) {
+	case Piece_King:
+		return find_index_king(ps);
+	case Piece_Pawn0:
+		return find_index_pawn(ps);
+	case Piece_Knight:
+		return find_index_knight(ps);
+	case Piece_Bishop:
+		return find_index_bishop(ps);
+	default:
+		return find_index_other(ps);
+	}
 }
 
 move_t* gen_null(move_t* moves) {
@@ -793,16 +849,22 @@ uint64_t perft(move_t* moves, uint8_t depth) {
 	return count;
 }
 
-void set_pieces() {
-	piece_square_t ps;
+bool set_pieces() {
+	piece_square_t ps, ps2;
 	for (uint8_t rank = 0; rank < Count_Ranks; ++rank) {
 		ps.square = rank << Shift_Rank;
 		for (uint8_t file = 0; file < Count_Files; ++file, ++ps.square) {
 			if ((ps.piece = squares[ps.square])) {
-				set_piece(ps);
+				if (!(ps2 = find_index(ps)).value) {
+					fprintf(stderr, "Too many %c's.\n", piece_chars[(ps.piece & Piece_Index) >> Shift_Type]);
+					return false;
+				}
+				set_square(ps2);
+				set_piece(ps2);
 			}
 		}
 	}
+	return true;
 }
 
 char* board_write(char* str) {
@@ -815,7 +877,7 @@ char* board_write(char* str) {
 			piece = squares[square];
 			*str++ = ' ';
 			*str++ = piece
-				? piece_chars[(piece & (Piece_Type | Piece_Black)) >> Shift_Type]
+				? piece_chars[(piece & (Piece_Index)) >> Shift_Type]
 				: '.';
 		}
 		*str++ = '\n';
@@ -837,7 +899,9 @@ int main(int argc, const char* argv[]) {
 	}
 
 	board_init();
-	set_pieces();
+	if (!set_pieces()) {
+		return 1;
+	}
 
 	board_write(buffer);
 	printf("%s\n", buffer);
