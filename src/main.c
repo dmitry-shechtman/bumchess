@@ -410,7 +410,7 @@ move_t* gen_piece(move_t* moves, piece_square_t from) {
 	}
 }
 
-bool check_square(square_t square) {
+bool check_to(square_t square) {
 	return check_pawn(square)
 		|| check_knight(square)
 		|| check_king(square)
@@ -438,7 +438,7 @@ move_t* gen(move_t* moves) {
 }
 
 bool check() {
-	return check_square(state.king);
+	return check_to(state.king);
 }
 
 void clear_prim_from(piece_square_t from) {
