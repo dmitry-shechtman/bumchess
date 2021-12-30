@@ -499,9 +499,9 @@ bool check_kings(square_t dest) {
 
 move_t* gen_pawns(move_t* moves) {
 	piece_t piece = (Piece_Pawn0 | color) & Piece_Index;
-	uint64_t mask = 1ull << piece;
-	for (uint8_t i = 0; i < Count_Pawns; ++i, ++piece, mask <<= 1) {
-		if (piecemask & mask) {
+	uint64_t mask = piecemask >> piece;
+	for (uint8_t i = 0; i < Count_Pawns; ++i, ++piece, mask >>= 1) {
+		if (mask & 1) {
 			moves = gen_pawn(moves, pieces[piece]);
 		}
 	}
@@ -510,9 +510,9 @@ move_t* gen_pawns(move_t* moves) {
 
 move_t* gen_knights(move_t* moves) {
 	piece_t piece = (Piece_Knight | color) & Piece_Index;
-	uint64_t mask = 1ull << piece;
-	for (uint8_t i = 0; i < Count_Knights; ++i, ++piece, mask <<= 1) {
-		if (piecemask & mask) {
+	uint64_t mask = piecemask >> piece;
+	for (uint8_t i = 0; i < Count_Knights; ++i, ++piece, mask >>= 1) {
+		if (mask & 1) {
 			moves = gen_knight(moves, pieces[piece]);
 		}
 	}
@@ -521,9 +521,9 @@ move_t* gen_knights(move_t* moves) {
 
 bool check_knights(square_t dest) {
 	piece_t piece = ((Piece_Knight + get_index(dest)) | color) & Piece_Index;
-	uint64_t mask = 1ull << piece;
-	for (uint8_t i = 0; i < Count_Knights2; ++i, ++piece, mask <<= 1) {
-		if ((piecemask & mask) && check_knight(pieces[piece], dest)) {
+	uint64_t mask = piecemask >> piece;
+	for (uint8_t i = 0; i < Count_Knights2; ++i, ++piece, mask >>= 1) {
+		if ((mask & 1) && check_knight(pieces[piece], dest)) {
 			return true;
 		}
 	}
@@ -532,9 +532,9 @@ bool check_knights(square_t dest) {
 
 move_t* gen_bishops(move_t* moves) {
 	piece_t piece = (Piece_Bishop | color) & Piece_Index;
-	uint64_t mask = 1ull << piece;
-	for (uint8_t i = 0; i < Count_Bishops; ++i, ++piece, mask <<= 1) {
-		if (piecemask & mask) {
+	uint64_t mask = piecemask >> piece;
+	for (uint8_t i = 0; i < Count_Bishops; ++i, ++piece, mask >>= 1) {
+		if (mask & 1) {
 			moves = gen_bishop(moves, pieces[piece]);
 		}
 	}
@@ -543,9 +543,9 @@ move_t* gen_bishops(move_t* moves) {
 
 bool check_bishops(square_t dest) {
 	piece_t piece = ((Piece_Bishop + get_index(dest)) | color) & Piece_Index;
-	uint64_t mask = 1ull << piece;
-	for (uint8_t i = 0; i < Count_Bishops2; ++i, ++piece, mask <<= 1) {
-		if ((piecemask & mask) && check_bishop(pieces[piece], dest)) {
+	uint64_t mask = piecemask >> piece;
+	for (uint8_t i = 0; i < Count_Bishops2; ++i, ++piece, mask >>= 1) {
+		if ((mask & 1) && check_bishop(pieces[piece], dest)) {
 			return true;
 		}
 	}
@@ -554,9 +554,9 @@ bool check_bishops(square_t dest) {
 
 move_t* gen_rooks(move_t* moves) {
 	piece_t piece = (Piece_Rook | color) & Piece_Index;
-	uint64_t mask = 1ull << piece;
-	for (uint8_t i = 0; i < Count_Rooks; ++i, ++piece, mask <<= 1) {
-		if (piecemask & mask) {
+	uint64_t mask = piecemask >> piece;
+	for (uint8_t i = 0; i < Count_Rooks; ++i, ++piece, mask >>= 1) {
+		if (mask & 1) {
 			moves = gen_rook(moves, pieces[piece]);
 		}
 	}
@@ -565,9 +565,9 @@ move_t* gen_rooks(move_t* moves) {
 
 bool check_rooks(square_t dest) {
 	piece_t piece = (Piece_Rook | color) & Piece_Index;
-	uint64_t mask = 1ull << piece;
-	for (uint8_t i = 0; i < Count_Rooks; ++i, ++piece, mask <<= 1) {
-		if ((piecemask & mask) && check_rook(pieces[piece], dest)) {
+	uint64_t mask = piecemask >> piece;
+	for (uint8_t i = 0; i < Count_Rooks; ++i, ++piece, mask >>= 1) {
+		if ((mask & 1) && check_rook(pieces[piece], dest)) {
 			return true;
 		}
 	}
@@ -576,9 +576,9 @@ bool check_rooks(square_t dest) {
 
 move_t* gen_queens(move_t* moves) {
 	piece_t piece = (Piece_Queen | color) & Piece_Index;
-	uint64_t mask = 1ull << piece;
-	for (uint8_t i = 0; i < Count_Queens; ++i, ++piece, mask <<= 1) {
-		if (piecemask & mask) {
+	uint64_t mask = piecemask >> piece;
+	for (uint8_t i = 0; i < Count_Queens; ++i, ++piece, mask >>= 1) {
+		if (mask & 1) {
 			moves = gen_queen(moves, pieces[piece]);
 		}
 	}
@@ -587,9 +587,9 @@ move_t* gen_queens(move_t* moves) {
 
 bool check_queens(square_t dest) {
 	piece_t piece = (Piece_Queen | color) & Piece_Index;
-	uint64_t mask = 1ull << piece;
-	for (uint8_t i = 0; i < Count_Queens; ++i, ++piece, mask <<= 1) {
-		if ((piecemask & mask) && check_queen(pieces[piece], dest)) {
+	uint64_t mask = piecemask >> piece;
+	for (uint8_t i = 0; i < Count_Queens; ++i, ++piece, mask >>= 1) {
+		if ((mask & 1) && check_queen(pieces[piece], dest)) {
 			return true;
 		}
 	}
