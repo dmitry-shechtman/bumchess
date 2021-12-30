@@ -1032,12 +1032,11 @@ void move_unmake(register move_t move) {
 	set_sec(move.sec.from);
 }
 
-uint64_t perft(move_t* moves, register uint8_t depth) {
+uint64_t perft_opt(move_t* moves, register uint8_t depth) {
 	move_t *pEnd, *pCurr;
 	uint64_t count = 0;
-	if (!depth)
-		return 1;
 	pEnd = gen(moves);
+	--depth;
 	for (pCurr = moves; pCurr != pEnd; ++pCurr) {
 		state_t state = {
 			.piecemask = piecemask,
@@ -1048,12 +1047,20 @@ uint64_t perft(move_t* moves, register uint8_t depth) {
 		if (pCurr->prim.from.piece)
 #endif
 		if (!check())
-			count += perft(pEnd, depth - 1);
+			count += depth
+				? perft_opt(pEnd, depth)
+				: 1;
 		move_unmake(*pCurr);
 		piecemask = state.piecemask;
 		pieces[Piece_EP].square = state.ep;
 	}
 	return count;
+}
+
+uint64_t perft(move_t* moves, register uint8_t depth) {
+	return depth
+		? perft_opt(moves, depth)
+		: 1;
 }
 
 void set_pieces() {
