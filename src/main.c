@@ -69,6 +69,7 @@ enum Square {
 	Square_Rank2       = 0x10,
 	Square_Rank3       = 0x20,
 	Square_Rank6       = 0x50,
+	Square_Rank7       = 0x60,
 	Square_Rank8       = 0x70,
 	Square_Rank        = 0x70,
 	Square_RankInvalid = 0x80,
@@ -230,45 +231,82 @@ piece_square_t find_index_to_bishop(register piece_square_t ps) {
 	return ps;
 }
 
-piece_square_t find_index_king(piece_square_t ps) {
+piece_square_t find_index_error(piece_square_t ps) {
+	ps.value = 0;
+	return ps;
+}
+
+piece_square_t find_index_moved_king(piece_square_t ps) {
 	piece_square_t ps2 = find_index_to(ps);
-	if (ps2.value & Piece_Index2) {
-		ps2.value = 0;
+	return (ps2.value & Piece_Index2)
+		? find_index_error(ps2)
+		: ps2;
+}
+
+piece_square_t find_index_king(piece_square_t ps) {
+	if ((ps.square & Square_Rank) != (!(ps.piece & Piece_Black) ? Square_Rank1 : Square_Rank8)) {
+		ps.piece |= Piece_Moved;
+		return ps;
 	}
-	return ps2;
+	return find_index_moved_king(ps);
+}
+
+piece_square_t find_index_unmoved_pawn(piece_square_t ps) {
+	ps.piece |= (ps.square & Square_File);
+	return (piecemask & (1ull << (ps.value & Piece_Index)))
+		? find_index_error(ps)
+		: ps;
 }
 
 piece_square_t find_index_pawn(piece_square_t ps) {
-	piece_square_t ps2 = find_index_to(ps);
-	if ((ps.value ^ ps2.value) & Piece_TypePawn) {
-		ps2.value = 0;
+	if ((ps.square & Square_Rank) != (!(ps.piece & Piece_Black) ? Square_Rank2 : Square_Rank7)) {
+		ps.piece |= Piece_Moved;
+		return ps;
 	}
-	return ps2;
+	return find_index_unmoved_pawn(ps);
 }
 
 piece_square_t find_index_knight(piece_square_t ps) {
 	piece_square_t ps2 = find_index_to_knight(ps);
-	if (piecemask & (1ull << ps2.value & (Piece_Index))) {
-		ps2.value = 0;
-	}
-	return ps2;
+	return (piecemask & (1ull << (ps2.value & Piece_Index)))
+		? find_index_error(ps2)
+		: ps2;
 }
 
 piece_square_t find_index_bishop(piece_square_t ps) {
 	ps = find_index_to_bishop(ps);
 	piece_square_t ps2 = find_index_to(ps);
-	if ((ps.value ^ ps2.value) & (Piece_Type | Piece_Odd)) {
-		ps2.value = 0;
-	}
-	return ps2;
+	return ((ps.value ^ ps2.value) & (Piece_Type | Piece_Odd))
+		? find_index_error(ps2)
+		: ps2;
 }
 
-piece_square_t find_index_other(piece_square_t ps) {
+piece_square_t find_index_rook(piece_square_t ps) {
+	ps.piece |= (piecemask >> (Piece_King | (ps.piece & Piece_Black))) & 1;
+	return (piecemask & (1ull << (ps.value & Piece_Index)))
+		? find_index_error(ps)
+		: ps;
+}
+
+piece_square_t find_index_queen(piece_square_t ps) {
 	piece_square_t ps2 = find_index_to(ps);
-	if ((ps.value ^ ps2.value) & Piece_Type) {
-		ps2.value = 0;
-	}
-	return ps2;
+	return ((ps.value ^ ps2.value) & Piece_Type)
+		? find_index_error(ps2)
+		: ps2;
+}
+
+piece_square_t find_index_moved_pawn(piece_square_t ps) {
+	piece_square_t ps2 = find_index_to(ps);
+	return ((ps.value ^ ps2.value) & Piece_TypePawn)
+		? find_index_error(ps2)
+		: ps2;
+}
+
+piece_square_t find_index_moved_rook(piece_square_t ps) {
+	piece_square_t ps2 = find_index_to(ps);
+	return ((ps.value ^ ps2.value) & Piece_Type)
+		? find_index_error(ps2)
+		: ps2;
 }
 
 piece_square_t find_index(piece_square_t ps) {
@@ -277,12 +315,29 @@ piece_square_t find_index(piece_square_t ps) {
 		return find_index_king(ps);
 	case Piece_Pawn0:
 		return find_index_pawn(ps);
+	case Piece_Rook:
+		return find_index_rook(ps);
+	default:
+		return find_index_error(ps);
+	}
+}
+
+piece_square_t find_index_moved(piece_square_t ps) {
+	switch (ps.piece & Piece_Type) {
+	case Piece_King:
+		return find_index_moved_king(ps);
+	case Piece_Pawn0:
+		return find_index_moved_pawn(ps);
 	case Piece_Knight:
 		return find_index_knight(ps);
 	case Piece_Bishop:
 		return find_index_bishop(ps);
+	case Piece_Rook:
+		return find_index_moved_rook(ps);
+	case Piece_Queen:
+		return find_index_queen(ps);
 	default:
-		return find_index_other(ps);
+		return find_index_error(ps);
 	}
 }
 
@@ -1192,14 +1247,18 @@ uint64_t perft(move_t* moves, register uint8_t depth) {
 		: 1;
 }
 
-bool set_pieces() {
+char get_piece_char(piece_t piece) {
+	return piece_chars[(piece & Piece_Index) >> Shift_Type];
+}
+
+bool set_pieces_unmoved() {
 	piece_square_t ps, ps2;
 	for (uint8_t rank = 0; rank < Count_Ranks; ++rank) {
 		ps.square = rank << Shift_Rank;
 		for (uint8_t file = 0; file < Count_Files; ++file, ++ps.square) {
-			if ((ps.piece = squares[ps.square])) {
+			if ((ps.piece = squares[ps.square]) && !(ps.piece & Piece_Moved)) {
 				if (!(ps2 = find_index(ps)).value) {
-					fprintf(stderr, "Too many %c's.\n", piece_chars[(ps.piece & Piece_Index) >> Shift_Type]);
+					fprintf(stderr, "Invalid %c.\n", get_piece_char(ps.piece));
 					return false;
 				}
 				set_square(ps2);
@@ -1208,6 +1267,29 @@ bool set_pieces() {
 		}
 	}
 	return true;
+}
+
+bool set_pieces_moved() {
+	piece_square_t ps, ps2;
+	for (uint8_t rank = 0; rank < Count_Ranks; ++rank) {
+		ps.square = rank << Shift_Rank;
+		for (uint8_t file = 0; file < Count_Files; ++file, ++ps.square) {
+			if ((ps.piece = squares[ps.square]) & Piece_Moved) {
+				if (!(ps2 = find_index_moved(ps)).value) {
+					fprintf(stderr, "Too many %c's.\n", get_piece_char(ps.piece));
+					return false;
+				}
+				set_square(ps2);
+				set_piece(ps2);
+			}
+		}
+	}
+	return true;
+}
+
+bool set_pieces() {
+	return set_pieces_unmoved()
+		&& set_pieces_moved();
 }
 
 char* board_write(char* str) {
@@ -1220,7 +1302,7 @@ char* board_write(char* str) {
 			piece = squares[square];
 			*str++ = ' ';
 			*str++ = piece
-				? piece_chars[(piece & (Piece_Index)) >> Shift_Type]
+				? get_piece_char(piece)
 				: '.';
 		}
 		*str++ = '\n';
