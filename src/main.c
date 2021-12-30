@@ -204,6 +204,23 @@ uint8_t get_index(register square_t square) {
 }
 
 static inline
+move_t* gen_null(move_t* moves) {
+	register piece_square_t nullps = { 0x0800 };
+	register move_t move = {
+		.prim = {
+			.from = nullps,
+			.to = nullps
+		},
+		.sec = {
+			.from = nullps,
+			.to = nullps
+		}
+	};
+	*moves++ = move;
+	return moves;
+}
+
+static inline
 move_t* gen_promo_pawn(move_t* moves, register move_t move, register piece_square_t to, uint8_t promo, uint8_t color) {
 	if ((to.square & Square_Rank) == promo) {
 		move.prim.to.piece = Piece_Queen | color | Piece_Moved;
@@ -804,6 +821,9 @@ move_t* gen_white(move_t* moves) {
 	moves = gen_rooks(moves, Piece_White);
 	moves = gen_queens(moves, Piece_White);
 	moves = gen_ep_white(moves);
+#if !NDEBUG
+	moves = gen_null(moves);
+#endif
 	return moves;
 }
 
@@ -816,6 +836,9 @@ move_t* gen_black(move_t* moves) {
 	moves = gen_bishops(moves, Piece_Black);
 	moves = gen_rooks(moves, Piece_Black);
 	moves = gen_queens(moves, Piece_Black);
+#if !NDEBUG
+	moves = gen_null(moves);
+#endif
 	return moves;
 }
 
@@ -934,6 +957,9 @@ uint64_t perft(move_t* moves, register uint8_t depth) {
 			.ep = pieces[Piece_EP].square
 		};
 		move_make(*pCurr);
+#if !NDEBUG
+		if (pCurr->prim.from.piece)
+#endif
 		if (!check())
 			count += perft(pEnd, depth - 1);
 		move_unmake(*pCurr);
