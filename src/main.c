@@ -172,11 +172,11 @@ void board_init() {
 }
 
 uint8_t get_index2(square_t square) {
-	return (((square ^ (square >> Shift_Rank)) & 1) << 1);
+	return ((square ^ (square >> Shift_Rank)) & 1) << 1;
 }
 
 uint8_t find_index(piece_t piece) {
-	for (uint64_t mask = piecemask >> (1ull << (piece & Piece_Index));
+	for (uint64_t mask = piecemask >> (piece & Piece_Index);
 		mask & 1;
 		++piece, mask >>= 1);
 	return piece;
