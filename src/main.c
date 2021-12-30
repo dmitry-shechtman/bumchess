@@ -619,7 +619,7 @@ bool check_queens(square_t dest) {
 	return false;
 }
 
-bool check_square(square_t dest) {
+bool check_to(square_t dest) {
 	return check_pawns(dest)
 		|| check_kings(dest)
 		|| check_knights(dest)
@@ -644,7 +644,7 @@ move_t* gen(move_t* moves) {
 
 bool check() {
 	piece_t piece = (Piece_King | (color ^ Piece_Color)) & Piece_Index;
-	return check_square(pieces[piece].square);
+	return check_to(pieces[piece].square);
 }
 
 void clear_piece(piece_square_t ps) {
