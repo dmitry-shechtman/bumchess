@@ -702,8 +702,8 @@ move_t* gen_pawn_white(move_t* moves, register piece_square_t from) {
 }
 
 static inline
-move_t* gen_ep_white(move_t* moves) {
-	if (state.piecemask & (1ull << Piece_EP)) {
+move_t* gen_ep_white(move_t* moves, register uint64_t mask) {
+	if (mask & 1) {
 		moves = gen_vector_ep(moves, Vec_SW, Piece_White, Piece_Black);
 		moves = gen_vector_ep(moves, Vec_SE, Piece_White, Piece_Black);
 	}
@@ -747,8 +747,8 @@ move_t* gen_pawn_black(move_t* moves, register piece_square_t from) {
 }
 
 static inline
-move_t* gen_ep_black(move_t* moves) {
-	if (state.piecemask & (1ull << Piece_EP)) {
+move_t* gen_ep_black(move_t* moves, register uint64_t mask) {
+	if (mask & 1) {
 		moves = gen_vector_ep(moves, Vec_NW, Piece_Black, Piece_White);
 		moves = gen_vector_ep(moves, Vec_NE, Piece_Black, Piece_White);
 	}
@@ -913,9 +913,8 @@ bool check_kings(register square_t square,
 }
 
 static inline
-move_t* gen_pawns_white(move_t* moves) {
+move_t* gen_pawns_white(move_t* moves, register uint64_t mask) {
 	register piece_t piece = Piece_Pawn0;
-	register uint64_t mask = state.piecemask >> piece;
 	for (uint8_t i = 0; i < Count_Pawns; ++i, ++piece, mask >>= 1) {
 		if (mask & 1) {
 			moves = gen_pawn_white(moves, pieces[piece]);
@@ -925,9 +924,8 @@ move_t* gen_pawns_white(move_t* moves) {
 }
 
 static inline
-move_t* gen_pawns_black(move_t* moves) {
+move_t* gen_pawns_black(move_t* moves, register uint64_t mask) {
 	register piece_t piece = Piece_Pawn0 | Piece_Black;
-	register uint64_t mask = state.piecemask >> piece;
 	for (uint8_t i = 0; i < Count_Pawns; ++i, ++piece, mask >>= 1) {
 		if (mask & 1) {
 			moves = gen_pawn_black(moves, pieces[piece]);
@@ -937,11 +935,10 @@ move_t* gen_pawns_black(move_t* moves) {
 }
 
 static inline
-move_t* gen_knights(move_t* moves,
+move_t* gen_knights(move_t* moves, register uint64_t mask,
 	const uint8_t color)
 {
 	register piece_t piece = (Piece_Knight | color) & Piece_Index;
-	register uint64_t mask = state.piecemask >> piece;
 	for (uint8_t i = 0; i < Count_Knights; ++i, ++piece, mask >>= 1) {
 		if (mask & 1) {
 			moves = gen_knight(moves, pieces[piece], color);
@@ -951,25 +948,19 @@ move_t* gen_knights(move_t* moves,
 }
 
 static inline
-bool check_knights(register square_t square,
+bool check_knights(register square_t square, register uint64_t mask,
 	const uint8_t color)
 {
 	register piece_t piece = ((Piece_Knight + get_index2(square)) | color) & Piece_Index;
-	register uint64_t mask = state.piecemask >> piece;
-	for (uint8_t i = 0; i < Count_Knights2; ++i, ++piece, mask >>= 1) {
-		if ((mask & 1) && check_knight(pieces[piece], square)) {
-			return true;
-		}
-	}
-	return false;
+	return ((mask & 1) && check_knight(pieces[piece], square))
+		|| (((mask >>= 1) & 1) && check_knight(pieces[++piece], square));
 }
 
 static inline
-move_t* gen_bishops(move_t* moves,
+move_t* gen_bishops(move_t* moves, register uint64_t mask,
 	const uint8_t color)
 {
 	register piece_t piece = (Piece_Bishop | color) & Piece_Index;
-	register uint64_t mask = state.piecemask >> piece;
 	for (uint8_t i = 0; i < Count_Bishops; ++i, ++piece, mask >>= 1) {
 		if (mask & 1) {
 			moves = gen_bishop(moves, pieces[piece], color);
@@ -979,27 +970,20 @@ move_t* gen_bishops(move_t* moves,
 }
 
 static inline
-bool check_bishops(register square_t square,
+bool check_bishops(register square_t square, register uint64_t mask,
 	const dir_mask_t dir_mask, const uint8_t color)
 {
-	if (dir_mask & (DirMask_SW | DirMask_SE | DirMask_NW | DirMask_NE)) {
-		register piece_t piece = ((Piece_Bishop + get_index2(square)) | color) & Piece_Index;
-		register uint64_t mask = state.piecemask >> piece;
-		for (uint8_t i = 0; i < Count_Bishops2; ++i, ++piece, mask >>= 1) {
-			if ((mask & 1) && check_bishop(pieces[piece], square, dir_mask)) {
-				return true;
-			}
-		}
-	}
-	return false;
+	register piece_t piece = ((Piece_Bishop + get_index2(square)) | color) & Piece_Index;
+	return (dir_mask & (DirMask_SW | DirMask_SE | DirMask_NW | DirMask_NE))
+		&& (((mask & 1) && check_bishop(pieces[piece], square, dir_mask))
+			|| (((mask >>= 1) & 1) && check_bishop(pieces[++piece], square, dir_mask)));
 }
 
 static inline
-move_t* gen_rooks(move_t* moves,
+move_t* gen_rooks(move_t* moves, register uint64_t mask,
 	const uint8_t color)
 {
 	register piece_t piece = (Piece_Rook | color) & Piece_Index;
-	register uint64_t mask = state.piecemask >> piece;
 	for (uint8_t i = 0; i < Count_Rooks; ++i, ++piece, mask >>= 1) {
 		if (mask & 1) {
 			moves = gen_rook(moves, pieces[piece], color);
@@ -1009,12 +993,11 @@ move_t* gen_rooks(move_t* moves,
 }
 
 static inline
-bool check_rooks(register square_t square,
+bool check_rooks(register square_t square, register uint64_t mask,
 	const dir_mask_t dir_mask, const uint8_t color)
 {
 	if (dir_mask & (DirMask_S | DirMask_W | DirMask_E | DirMask_N)) {
 		register piece_t piece = (Piece_Rook | color) & Piece_Index;
-		register uint64_t mask = state.piecemask >> piece;
 		for (uint8_t i = 0; i < Count_Rooks; ++i, ++piece, mask >>= 1) {
 			if ((mask & 1) && check_rook(pieces[piece], square, dir_mask)) {
 				return true;
@@ -1025,11 +1008,10 @@ bool check_rooks(register square_t square,
 }
 
 static inline
-move_t* gen_queens(move_t* moves,
+move_t* gen_queens(move_t* moves, register uint64_t mask,
 	const uint8_t color)
 {
 	register piece_t piece = (Piece_Queen | color) & Piece_Index;
-	register uint64_t mask = state.piecemask >> piece;
 	for (uint8_t i = 0; i < Count_Queens; ++i, ++piece, mask >>= 1) {
 		if (mask & 1) {
 			moves = gen_queen(moves, pieces[piece], color);
@@ -1039,12 +1021,11 @@ move_t* gen_queens(move_t* moves,
 }
 
 static inline
-bool check_queens(register square_t square,
+bool check_queens(register square_t square, register uint64_t mask,
 	const dir_mask_t dir_mask, const uint8_t color)
 {
 	if (dir_mask) {
 		register piece_t piece = (Piece_Queen | color) & Piece_Index;
-		register uint64_t mask = state.piecemask >> piece;
 		for (uint8_t i = 0; i < Count_Queens; ++i, ++piece, mask >>= 1) {
 			if ((mask & 1) && check_queen(pieces[piece], square, dir_mask)) {
 				return true;
@@ -1055,34 +1036,42 @@ bool check_queens(register square_t square,
 }
 
 static inline
+bool check_sliders(register square_t square, register uint64_t mask, register dir_mask_t dir_mask,
+	const uint8_t color)
+{
+	return check_bishops(square, mask >>= Count_Knights, dir_mask, color)
+		|| check_rooks(square, mask >>= (Count_Bishops - get_index2(square)), dir_mask, color)
+		|| check_queens(square, mask >>= Count_Rooks, dir_mask, color);
+}
+
+static inline
 bool check_to_white(register square_t square) {
 	dir_mask_t dir_mask = 0;
+	register uint64_t mask = state.piecemask >> (Piece_Knight + get_index2(square));
 	return check_neighbors_white(square, &dir_mask)
-		|| check_knights(square, Piece_White)
-		|| check_bishops(square, dir_mask, Piece_White)
-		|| check_rooks(square, dir_mask, Piece_White)
-		|| check_queens(square, dir_mask, Piece_White);
+		|| check_knights(square, mask, Piece_White)
+		|| check_sliders(square, mask, dir_mask, Piece_White);
 }
 
 static inline
 bool check_to_black(register square_t square) {
 	dir_mask_t dir_mask = 0;
+	register uint64_t mask = state.piecemask >> (Piece_Knight + Piece_Black + get_index2(square));
 	return check_neighbors_black(square, &dir_mask)
-		|| check_knights(square, Piece_Black)
-		|| check_bishops(square, dir_mask, Piece_Black)
-		|| check_rooks(square, dir_mask, Piece_Black)
-		|| check_queens(square, dir_mask, Piece_Black);
+		|| check_knights(square, mask, Piece_Black)
+		|| check_sliders(square, mask, dir_mask, Piece_Black);
 }
 
 static inline
 move_t* gen_white(move_t* moves) {
+	register uint64_t mask = state.piecemask >> Piece_Pawn0;
 	moves = gen_kings(moves, Piece_White);
-	moves = gen_pawns_white(moves);
-	moves = gen_knights(moves, Piece_White);
-	moves = gen_bishops(moves, Piece_White);
-	moves = gen_rooks(moves, Piece_White);
-	moves = gen_queens(moves, Piece_White);
-	moves = gen_ep_white(moves);
+	moves = gen_pawns_white(moves, mask);
+	moves = gen_knights(moves, mask >>= Count_Pawns, Piece_White);
+	moves = gen_bishops(moves, mask >>= Count_Knights, Piece_White);
+	moves = gen_rooks(moves, mask >>= Count_Bishops, Piece_White);
+	moves = gen_queens(moves, mask >>= Count_Rooks, Piece_White);
+	moves = gen_ep_white(moves, mask >>= Count_Queens);
 #if !NDEBUG
 	moves = gen_null(moves);
 #endif
@@ -1091,13 +1080,14 @@ move_t* gen_white(move_t* moves) {
 
 static inline
 move_t* gen_black(move_t* moves) {
-	moves = gen_ep_black(moves);
+	register uint64_t mask = state.piecemask >> Piece_Black;
+	moves = gen_ep_black(moves, mask);
 	moves = gen_kings(moves, Piece_Black);
-	moves = gen_pawns_black(moves);
-	moves = gen_knights(moves, Piece_Black);
-	moves = gen_bishops(moves, Piece_Black);
-	moves = gen_rooks(moves, Piece_Black);
-	moves = gen_queens(moves, Piece_Black);
+	moves = gen_pawns_black(moves, mask >>= Piece_Pawn0);
+	moves = gen_knights(moves, mask >>= Count_Pawns, Piece_Black);
+	moves = gen_bishops(moves, mask >>= Count_Knights, Piece_Black);
+	moves = gen_rooks(moves, mask >>= Count_Bishops, Piece_Black);
+	moves = gen_queens(moves, mask >>= Count_Rooks, Piece_Black);
 #if !NDEBUG
 	moves = gen_null(moves);
 #endif
