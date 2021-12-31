@@ -974,9 +974,8 @@ bool check_bishops(register square_t square, register uint64_t mask,
 	const dir_mask_t dir_mask, const uint8_t color)
 {
 	register piece_t piece = ((Piece_Bishop + get_index2(square)) | color) & Piece_Index;
-	return (dir_mask & (DirMask_SW | DirMask_SE | DirMask_NW | DirMask_NE))
-		&& (((mask & 1) && check_bishop(pieces[piece], square, dir_mask))
-			|| (((mask >>= 1) & 1) && check_bishop(pieces[++piece], square, dir_mask)));
+	return ((mask & 1) && check_bishop(pieces[piece], square, dir_mask))
+		|| (((mask >>= 1) & 1) && check_bishop(pieces[++piece], square, dir_mask));
 }
 
 static inline
@@ -996,12 +995,10 @@ static inline
 bool check_rooks(register square_t square, register uint64_t mask,
 	const dir_mask_t dir_mask, const uint8_t color)
 {
-	if (dir_mask & (DirMask_S | DirMask_W | DirMask_E | DirMask_N)) {
-		register piece_t piece = (Piece_Rook | color) & Piece_Index;
-		for (uint8_t i = 0; i < Count_Rooks; ++i, ++piece, mask >>= 1) {
-			if ((mask & 1) && check_rook(pieces[piece], square, dir_mask)) {
-				return true;
-			}
+	register piece_t piece = (Piece_Rook | color) & Piece_Index;
+	for (uint8_t i = 0; i < Count_Rooks; ++i, ++piece, mask >>= 1) {
+		if ((mask & 1) && check_rook(pieces[piece], square, dir_mask)) {
+			return true;
 		}
 	}
 	return false;
@@ -1024,24 +1021,23 @@ static inline
 bool check_queens(register square_t square, register uint64_t mask,
 	const dir_mask_t dir_mask, const uint8_t color)
 {
-	if (dir_mask) {
-		register piece_t piece = (Piece_Queen | color) & Piece_Index;
-		for (uint8_t i = 0; i < Count_Queens; ++i, ++piece, mask >>= 1) {
-			if ((mask & 1) && check_queen(pieces[piece], square, dir_mask)) {
-				return true;
-			}
+	register piece_t piece = (Piece_Queen | color) & Piece_Index;
+	for (uint8_t i = 0; i < Count_Queens; ++i, ++piece, mask >>= 1) {
+		if ((mask & 1) && check_queen(pieces[piece], square, dir_mask)) {
+			return true;
 		}
 	}
 	return false;
 }
 
 static inline
-bool check_sliders(register square_t square, register uint64_t mask, register dir_mask_t dir_mask,
-	const uint8_t color)
+bool check_sliders(register square_t square, register uint64_t mask,
+	const dir_mask_t dir_mask, const uint8_t color)
 {
-	return check_bishops(square, mask >>= Count_Knights, dir_mask, color)
+	return (dir_mask)
+		&& (check_bishops(square, mask >>= Count_Knights, dir_mask, color)
 		|| check_rooks(square, mask >>= (Count_Bishops - get_index2(square)), dir_mask, color)
-		|| check_queens(square, mask >>= Count_Rooks, dir_mask, color);
+		|| check_queens(square, mask >>= Count_Rooks, dir_mask, color));
 }
 
 static inline
