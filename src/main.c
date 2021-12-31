@@ -143,8 +143,7 @@ typedef struct {
 
 piece_t squares[Count_Squares];
 piece_square_t pieces[Count_Pieces];
-uint64_t piecemask;
-ep_state_t ep;
+state_t state;
 piece_t color;
 
 char piece_chars[] = ":KPPNBRQ;kppnbrq";
@@ -176,7 +175,7 @@ void board_init() {
 	squares[0x77] = Piece_Rook   + Piece_Black;
 
 	color = Piece_White;
-	piecemask = 0;
+	state.piecemask = 0;
 }
 
 uint8_t get_index2_knight(square_t square) {
@@ -188,7 +187,7 @@ uint8_t get_index2(square_t square) {
 }
 
 piece_square_t find_index_to(piece_square_t ps) {
-	for (uint64_t mask = piecemask >> (ps.value & Piece_Index);
+	for (uint64_t mask = state.piecemask >> (ps.value & Piece_Index);
 		mask & 1;
 		++ps.value, mask >>= 1);
 	return ps;
@@ -226,7 +225,7 @@ piece_square_t find_index_king(piece_square_t ps) {
 
 piece_square_t find_index_unmoved_pawn(piece_square_t ps) {
 	ps.piece |= (ps.square & Square_File);
-	return (piecemask & (1ull << (ps.value & Piece_Index)))
+	return (state.piecemask & (1ull << (ps.value & Piece_Index)))
 		? find_index_error(ps)
 		: ps;
 }
@@ -241,7 +240,7 @@ piece_square_t find_index_pawn(piece_square_t ps) {
 
 piece_square_t find_index_knight(piece_square_t ps) {
 	piece_square_t ps2 = find_index_to_knight(ps);
-	return (piecemask & (1ull << (ps2.value & Piece_Index)))
+	return (state.piecemask & (1ull << (ps2.value & Piece_Index)))
 		? find_index_error(ps2)
 		: ps2;
 }
@@ -255,8 +254,8 @@ piece_square_t find_index_bishop(piece_square_t ps) {
 }
 
 piece_square_t find_index_rook(piece_square_t ps) {
-	ps.piece |= (piecemask >> (Piece_King | (ps.piece & Piece_Black))) & 1;
-	return (piecemask & (1ull << (ps.value & Piece_Index)))
+	ps.piece |= (state.piecemask >> (Piece_King | (ps.piece & Piece_Black))) & 1;
+	return (state.piecemask & (1ull << (ps.value & Piece_Index)))
 		? find_index_error(ps)
 		: ps;
 }
@@ -422,7 +421,7 @@ bool check_vector_pawn(square_t square, vector_t vector) {
 
 move_t* gen_vector_ep(move_t* moves, vector_t vector) {
 	piece_square_t to = {
-		.square = ep.square & ~Square_FileInvalid
+		.square = state.ep.square & ~Square_FileInvalid
 	};
 	piece_square_t from = to;
 	if (!((from.square += vector) & Square_Invalid)
@@ -607,7 +606,7 @@ bool check_pawns(square_t dest) {
 }
 
 move_t* gen_ep(move_t* moves) {
-	return piecemask & (1ull << Piece_EP)
+	return state.piecemask & (1ull << Piece_EP)
 		? color == Piece_White
 			? gen_ep_white(moves)
 			: gen_ep_black(moves)
@@ -686,7 +685,7 @@ bool check_kings(square_t dest) {
 
 move_t* gen_pawns(move_t* moves) {
 	piece_t piece = (Piece_Pawn0 | color) & Piece_Index;
-	uint64_t mask = piecemask >> piece;
+	uint64_t mask = state.piecemask >> piece;
 	for (uint8_t i = 0; i < Count_Pawns; ++i, ++piece, mask >>= 1) {
 		if (mask & 1) {
 			moves = gen_pawn(moves, pieces[piece]);
@@ -697,7 +696,7 @@ move_t* gen_pawns(move_t* moves) {
 
 move_t* gen_knights(move_t* moves) {
 	piece_t piece = (Piece_Knight | color) & Piece_Index;
-	uint64_t mask = piecemask >> piece;
+	uint64_t mask = state.piecemask >> piece;
 	for (uint8_t i = 0; i < Count_Knights; ++i, ++piece, mask >>= 1) {
 		if (mask & 1) {
 			moves = gen_knight(moves, pieces[piece]);
@@ -708,7 +707,7 @@ move_t* gen_knights(move_t* moves) {
 
 bool check_knights(square_t dest) {
 	piece_t piece = ((Piece_Knight + get_index2(dest)) | color) & Piece_Index;
-	uint64_t mask = piecemask >> piece;
+	uint64_t mask = state.piecemask >> piece;
 	for (uint8_t i = 0; i < Count_Knights2; ++i, ++piece, mask >>= 1) {
 		if ((mask & 1) && check_knight(pieces[piece], dest)) {
 			return true;
@@ -719,7 +718,7 @@ bool check_knights(square_t dest) {
 
 move_t* gen_bishops(move_t* moves) {
 	piece_t piece = (Piece_Bishop | color) & Piece_Index;
-	uint64_t mask = piecemask >> piece;
+	uint64_t mask = state.piecemask >> piece;
 	for (uint8_t i = 0; i < Count_Bishops; ++i, ++piece, mask >>= 1) {
 		if (mask & 1) {
 			moves = gen_bishop(moves, pieces[piece]);
@@ -730,7 +729,7 @@ move_t* gen_bishops(move_t* moves) {
 
 bool check_bishops(square_t dest) {
 	piece_t piece = ((Piece_Bishop + get_index2(dest)) | color) & Piece_Index;
-	uint64_t mask = piecemask >> piece;
+	uint64_t mask = state.piecemask >> piece;
 	for (uint8_t i = 0; i < Count_Bishops2; ++i, ++piece, mask >>= 1) {
 		if ((mask & 1) && check_bishop(pieces[piece], dest)) {
 			return true;
@@ -741,7 +740,7 @@ bool check_bishops(square_t dest) {
 
 move_t* gen_rooks(move_t* moves) {
 	piece_t piece = (Piece_Rook | color) & Piece_Index;
-	uint64_t mask = piecemask >> piece;
+	uint64_t mask = state.piecemask >> piece;
 	for (uint8_t i = 0; i < Count_Rooks; ++i, ++piece, mask >>= 1) {
 		if (mask & 1) {
 			moves = gen_rook(moves, pieces[piece]);
@@ -752,7 +751,7 @@ move_t* gen_rooks(move_t* moves) {
 
 bool check_rooks(square_t dest) {
 	piece_t piece = (Piece_Rook | color) & Piece_Index;
-	uint64_t mask = piecemask >> piece;
+	uint64_t mask = state.piecemask >> piece;
 	for (uint8_t i = 0; i < Count_Rooks; ++i, ++piece, mask >>= 1) {
 		if ((mask & 1) && check_rook(pieces[piece], dest)) {
 			return true;
@@ -763,7 +762,7 @@ bool check_rooks(square_t dest) {
 
 move_t* gen_queens(move_t* moves) {
 	piece_t piece = (Piece_Queen | color) & Piece_Index;
-	uint64_t mask = piecemask >> piece;
+	uint64_t mask = state.piecemask >> piece;
 	for (uint8_t i = 0; i < Count_Queens; ++i, ++piece, mask >>= 1) {
 		if (mask & 1) {
 			moves = gen_queen(moves, pieces[piece]);
@@ -774,7 +773,7 @@ move_t* gen_queens(move_t* moves) {
 
 bool check_queens(square_t dest) {
 	piece_t piece = (Piece_Queen | color) & Piece_Index;
-	uint64_t mask = piecemask >> piece;
+	uint64_t mask = state.piecemask >> piece;
 	for (uint8_t i = 0; i < Count_Queens; ++i, ++piece, mask >>= 1) {
 		if ((mask & 1) && check_queen(pieces[piece], dest)) {
 			return true;
@@ -821,13 +820,13 @@ void set_square(piece_square_t ps) {
 
 void clear_piece(piece_square_t ps) {
 	piece_t piece = ps.piece & Piece_Index;
-	piecemask &= ~(1ull << piece);
+	state.piecemask &= ~(1ull << piece);
 }
 
 void set_piece(piece_square_t ps) {
 	piece_t piece = ps.piece & Piece_Index;
 	pieces[piece] = ps;
-	piecemask |= (1ull << piece);
+	state.piecemask |= (1ull << piece);
 }
 
 void clear_prim_from(piece_square_t from) {
@@ -862,7 +861,7 @@ void set_sec(piece_square_t ps) {
 }
 
 void clear_ep() {
-	piecemask &= ~(1ull << Piece_EP);
+	state.piecemask &= ~(1ull << Piece_EP);
 }
 
 void move_make(move_t move) {
@@ -875,7 +874,7 @@ void move_make(move_t move) {
 
 	color ^= Piece_Color;
 
-	ep.square = move.sec.to.square;
+	state.ep.square = move.sec.to.square;
 }
 
 void move_unmake(move_t move) {
@@ -890,14 +889,12 @@ void move_unmake(move_t move) {
 uint64_t perft(move_t* moves, uint8_t depth) {
 	move_t *pEnd, *pCurr;
 	uint64_t count = 0;
+	state_t state2;
 	if (!depth)
 		return 1;
 	pEnd = gen(moves);
 	for (pCurr = moves; pCurr != pEnd; ++pCurr) {
-		state_t state = {
-			.piecemask = piecemask,
-			.ep = ep
-		};
+		state2 = state;
 		move_make(*pCurr);
 #if !NDEBUG
 		if (pCurr->prim.from.piece)
@@ -905,8 +902,7 @@ uint64_t perft(move_t* moves, uint8_t depth) {
 		if (!check())
 			count += perft(pEnd, depth - 1);
 		move_unmake(*pCurr);
-		piecemask = state.piecemask;
-		ep = state.ep;
+		state = state2;
 	}
 	return count;
 }
