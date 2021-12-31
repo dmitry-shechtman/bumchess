@@ -550,9 +550,7 @@ bool check_square(register square_t square,
 	if (piece & color) {
 		return type_mask & (1 << (piece & Piece_Type));
 	}
-	if (!piece) {
-		*dir_mask |= (1 << dir);
-	}
+	*dir_mask |= (!piece ? (1 << dir) : 0);
 	return 0;
 }
 
@@ -560,7 +558,7 @@ static inline
 bool check_square_knight(register square_t square,
 	const uint8_t color)
 {
-	register piece_t piece = squares[square];
+	register piece_t piece = (square & Square_Invalid) ? 0 : squares[square];
 	return (piece & (Piece_Type | Piece_Color)) == (Piece_Knight | color);
 }
 
@@ -576,8 +574,7 @@ static inline
 bool check_vector_knight(register square_t square,
 	const vector_t vector, const uint8_t color)
 {
-	return !((square += vector) & Square_Invalid)
-		&& check_square_knight(square, color);
+	return check_square_knight(square += vector, color);
 }
 
 static inline
