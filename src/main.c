@@ -860,7 +860,7 @@ void clear_ep() {
 	piecemask &= ~(1ull << Piece_EP);
 }
 
-void move_make(move_t move) {
+square_t move_make(move_t move) {
 	clear_ep();
 
 	clear_sec(move.sec.from);
@@ -869,6 +869,8 @@ void move_make(move_t move) {
 	set_prim_to(move.prim.to);
 
 	color ^= Piece_Color;
+
+	return move.sec.to.square;
 }
 
 void move_unmake(move_t move) {
@@ -889,9 +891,8 @@ uint64_t perft(move_t* moves, uint8_t depth) {
 	for (pCurr = moves; pCurr != pEnd; ++pCurr) {
 		state_t state = {
 			.piecemask = piecemask,
-			.ep = pieces[Piece_EP].square
+			.ep = move_make(*pCurr)
 		};
-		move_make(*pCurr);
 #if !NDEBUG
 		if (pCurr->prim.from.piece)
 #endif
