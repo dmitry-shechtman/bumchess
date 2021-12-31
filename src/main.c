@@ -133,13 +133,18 @@ typedef struct {
 } move_t;
 
 typedef struct {
+	square_t square;
+} ep_state_t;
+
+typedef struct {
 	uint64_t piecemask;
-	square_t ep;
+	ep_state_t ep;
 } state_t;
 
 piece_t squares[Count_Squares];
 piece_square_t pieces[Count_Pieces];
 uint64_t piecemask;
+ep_state_t ep;
 piece_t color;
 
 char piece_chars[] = ":KPPNBRQ;kppnbrq";
@@ -417,7 +422,7 @@ bool check_vector_pawn(square_t square, vector_t vector) {
 
 move_t* gen_vector_ep(move_t* moves, vector_t vector) {
 	piece_square_t to = {
-		.square = pieces[Piece_EP].square & ~Square_FileInvalid
+		.square = ep.square & ~Square_FileInvalid
 	};
 	piece_square_t from = to;
 	if (!((from.square += vector) & Square_Invalid)
@@ -860,7 +865,7 @@ void clear_ep() {
 	piecemask &= ~(1ull << Piece_EP);
 }
 
-square_t move_make(move_t move) {
+void move_make(move_t move) {
 	clear_ep();
 
 	clear_sec(move.sec.from);
@@ -870,7 +875,7 @@ square_t move_make(move_t move) {
 
 	color ^= Piece_Color;
 
-	return move.sec.to.square;
+	ep.square = move.sec.to.square;
 }
 
 void move_unmake(move_t move) {
@@ -891,8 +896,9 @@ uint64_t perft(move_t* moves, uint8_t depth) {
 	for (pCurr = moves; pCurr != pEnd; ++pCurr) {
 		state_t state = {
 			.piecemask = piecemask,
-			.ep = move_make(*pCurr)
+			.ep = ep
 		};
+		move_make(*pCurr);
 #if !NDEBUG
 		if (pCurr->prim.from.piece)
 #endif
@@ -900,7 +906,7 @@ uint64_t perft(move_t* moves, uint8_t depth) {
 			count += perft(pEnd, depth - 1);
 		move_unmake(*pCurr);
 		piecemask = state.piecemask;
-		pieces[Piece_EP].square = state.ep;
+		ep = state.ep;
 	}
 	return count;
 }
