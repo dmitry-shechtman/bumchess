@@ -160,13 +160,17 @@ typedef struct {
 } move_t;
 
 typedef struct {
+	square_t square;
+} ep_state_t;
+
+typedef struct {
 	uint64_t piecemask;
-	square_t ep;
+	ep_state_t ep;
 } state_t;
 
 piece_t squares[Count_Squares];
 piece_square_t pieces[Count_Pieces];
-uint64_t piecemask;
+state_t state;
 piece_t color;
 
 char piece_chars[] = ":KPPNBRQ;kppnbrq";
@@ -198,7 +202,7 @@ void board_init() {
 	squares[0x77] = Piece_Rook   + Piece_Black;
 
 	color = Piece_White;
-	piecemask = 0;
+	state.piecemask = 0;
 }
 
 static inline
@@ -213,7 +217,7 @@ uint8_t get_index2(register square_t square) {
 
 static inline
 piece_square_t find_index_to(register piece_square_t ps) {
-	for (uint64_t mask = piecemask >> (ps.value & Piece_Index);
+	for (uint64_t mask = state.piecemask >> (ps.value & Piece_Index);
 		mask & 1;
 		++ps.value, mask >>= 1);
 	return ps;
@@ -253,7 +257,7 @@ piece_square_t find_index_king(piece_square_t ps) {
 
 piece_square_t find_index_unmoved_pawn(piece_square_t ps) {
 	ps.piece |= (ps.square & Square_File);
-	return (piecemask & (1ull << (ps.value & Piece_Index)))
+	return (state.piecemask & (1ull << (ps.value & Piece_Index)))
 		? find_index_error(ps)
 		: ps;
 }
@@ -268,7 +272,7 @@ piece_square_t find_index_pawn(piece_square_t ps) {
 
 piece_square_t find_index_knight(piece_square_t ps) {
 	piece_square_t ps2 = find_index_to_knight(ps);
-	return (piecemask & (1ull << (ps2.value & Piece_Index)))
+	return (state.piecemask & (1ull << (ps2.value & Piece_Index)))
 		? find_index_error(ps2)
 		: ps2;
 }
@@ -282,8 +286,8 @@ piece_square_t find_index_bishop(piece_square_t ps) {
 }
 
 piece_square_t find_index_rook(piece_square_t ps) {
-	ps.piece |= (piecemask >> (Piece_King | (ps.piece & Piece_Black))) & 1;
-	return (piecemask & (1ull << (ps.value & Piece_Index)))
+	ps.piece |= (state.piecemask >> (Piece_King | (ps.piece & Piece_Black))) & 1;
+	return (state.piecemask & (1ull << (ps.value & Piece_Index)))
 		? find_index_error(ps)
 		: ps;
 }
@@ -469,7 +473,7 @@ move_t* gen_vector_ep(move_t* moves,
 	const vector_t vector, const uint8_t color, const uint8_t color2)
 {
 	register piece_square_t to = {
-		.square = pieces[Piece_EP].square & ~Square_FileInvalid
+		.square = state.ep.square & ~Square_FileInvalid
 	};
 	register piece_square_t from = to;
 	if (!((from.square += vector) & Square_Invalid)
@@ -702,7 +706,7 @@ move_t* gen_pawn_white(move_t* moves, register piece_square_t from) {
 
 static inline
 move_t* gen_ep_white(move_t* moves) {
-	if (piecemask & (1ull << Piece_EP)) {
+	if (state.piecemask & (1ull << Piece_EP)) {
 		moves = gen_vector_ep(moves, Vec_SW, Piece_White, Piece_Black);
 		moves = gen_vector_ep(moves, Vec_SE, Piece_White, Piece_Black);
 	}
@@ -747,7 +751,7 @@ move_t* gen_pawn_black(move_t* moves, register piece_square_t from) {
 
 static inline
 move_t* gen_ep_black(move_t* moves) {
-	if (piecemask & (1ull << Piece_EP)) {
+	if (state.piecemask & (1ull << Piece_EP)) {
 		moves = gen_vector_ep(moves, Vec_NW, Piece_Black, Piece_White);
 		moves = gen_vector_ep(moves, Vec_NE, Piece_Black, Piece_White);
 	}
@@ -914,7 +918,7 @@ bool check_kings(register square_t square,
 static inline
 move_t* gen_pawns_white(move_t* moves) {
 	register piece_t piece = Piece_Pawn0;
-	register uint64_t mask = piecemask >> piece;
+	register uint64_t mask = state.piecemask >> piece;
 	for (uint8_t i = 0; i < Count_Pawns; ++i, ++piece, mask >>= 1) {
 		if (mask & 1) {
 			moves = gen_pawn_white(moves, pieces[piece]);
@@ -926,7 +930,7 @@ move_t* gen_pawns_white(move_t* moves) {
 static inline
 move_t* gen_pawns_black(move_t* moves) {
 	register piece_t piece = Piece_Pawn0 | Piece_Black;
-	register uint64_t mask = piecemask >> piece;
+	register uint64_t mask = state.piecemask >> piece;
 	for (uint8_t i = 0; i < Count_Pawns; ++i, ++piece, mask >>= 1) {
 		if (mask & 1) {
 			moves = gen_pawn_black(moves, pieces[piece]);
@@ -940,7 +944,7 @@ move_t* gen_knights(move_t* moves,
 	const uint8_t color)
 {
 	register piece_t piece = (Piece_Knight | color) & Piece_Index;
-	register uint64_t mask = piecemask >> piece;
+	register uint64_t mask = state.piecemask >> piece;
 	for (uint8_t i = 0; i < Count_Knights; ++i, ++piece, mask >>= 1) {
 		if (mask & 1) {
 			moves = gen_knight(moves, pieces[piece], color);
@@ -954,7 +958,7 @@ bool check_knights(register square_t square,
 	const uint8_t color)
 {
 	register piece_t piece = ((Piece_Knight + get_index2(square)) | color) & Piece_Index;
-	register uint64_t mask = piecemask >> piece;
+	register uint64_t mask = state.piecemask >> piece;
 	for (uint8_t i = 0; i < Count_Knights2; ++i, ++piece, mask >>= 1) {
 		if ((mask & 1) && check_knight(pieces[piece], square)) {
 			return true;
@@ -968,7 +972,7 @@ move_t* gen_bishops(move_t* moves,
 	const uint8_t color)
 {
 	register piece_t piece = (Piece_Bishop | color) & Piece_Index;
-	register uint64_t mask = piecemask >> piece;
+	register uint64_t mask = state.piecemask >> piece;
 	for (uint8_t i = 0; i < Count_Bishops; ++i, ++piece, mask >>= 1) {
 		if (mask & 1) {
 			moves = gen_bishop(moves, pieces[piece], color);
@@ -983,7 +987,7 @@ bool check_bishops(register square_t square,
 {
 	if (dir_mask & (DirMask_SW | DirMask_SE | DirMask_NW | DirMask_NE)) {
 		register piece_t piece = ((Piece_Bishop + get_index2(square)) | color) & Piece_Index;
-		register uint64_t mask = piecemask >> piece;
+		register uint64_t mask = state.piecemask >> piece;
 		for (uint8_t i = 0; i < Count_Bishops2; ++i, ++piece, mask >>= 1) {
 			if ((mask & 1) && check_bishop(pieces[piece], square, dir_mask)) {
 				return true;
@@ -998,7 +1002,7 @@ move_t* gen_rooks(move_t* moves,
 	const uint8_t color)
 {
 	register piece_t piece = (Piece_Rook | color) & Piece_Index;
-	register uint64_t mask = piecemask >> piece;
+	register uint64_t mask = state.piecemask >> piece;
 	for (uint8_t i = 0; i < Count_Rooks; ++i, ++piece, mask >>= 1) {
 		if (mask & 1) {
 			moves = gen_rook(moves, pieces[piece], color);
@@ -1013,7 +1017,7 @@ bool check_rooks(register square_t square,
 {
 	if (dir_mask & (DirMask_S | DirMask_W | DirMask_E | DirMask_N)) {
 		register piece_t piece = (Piece_Rook | color) & Piece_Index;
-		register uint64_t mask = piecemask >> piece;
+		register uint64_t mask = state.piecemask >> piece;
 		for (uint8_t i = 0; i < Count_Rooks; ++i, ++piece, mask >>= 1) {
 			if ((mask & 1) && check_rook(pieces[piece], square, dir_mask)) {
 				return true;
@@ -1028,7 +1032,7 @@ move_t* gen_queens(move_t* moves,
 	const uint8_t color)
 {
 	register piece_t piece = (Piece_Queen | color) & Piece_Index;
-	register uint64_t mask = piecemask >> piece;
+	register uint64_t mask = state.piecemask >> piece;
 	for (uint8_t i = 0; i < Count_Queens; ++i, ++piece, mask >>= 1) {
 		if (mask & 1) {
 			moves = gen_queen(moves, pieces[piece], color);
@@ -1043,7 +1047,7 @@ bool check_queens(register square_t square,
 {
 	if (dir_mask) {
 		register piece_t piece = (Piece_Queen | color) & Piece_Index;
-		register uint64_t mask = piecemask >> piece;
+		register uint64_t mask = state.piecemask >> piece;
 		for (uint8_t i = 0; i < Count_Queens; ++i, ++piece, mask >>= 1) {
 			if ((mask & 1) && check_queen(pieces[piece], square, dir_mask)) {
 				return true;
@@ -1142,14 +1146,14 @@ void set_square(register piece_square_t ps) {
 static inline
 void clear_piece(register piece_square_t ps) {
 	register piece_t piece = ps.piece & Piece_Index;
-	piecemask &= ~(1ull << piece);
+	state.piecemask &= ~(1ull << piece);
 }
 
 static inline
 void set_piece(register piece_square_t ps) {
 	register piece_t piece = ps.piece & Piece_Index;
 	pieces[piece] = ps;
-	piecemask |= (1ull << piece);
+	state.piecemask |= (1ull << piece);
 }
 
 static inline
@@ -1191,11 +1195,11 @@ void set_sec(register piece_square_t ps) {
 
 static inline
 void clear_ep() {
-	piecemask &= ~(1ull << Piece_EP);
+	state.piecemask &= ~(1ull << Piece_EP);
 }
 
 static inline
-square_t move_make(register move_t move) {
+void move_make(register move_t move) {
 	clear_ep();
 
 	clear_sec(move.sec.from);
@@ -1205,7 +1209,7 @@ square_t move_make(register move_t move) {
 
 	color ^= Piece_Color;
 
-	return move.sec.to.square;
+	state.ep.square = move.sec.to.square;
 }
 
 static inline
@@ -1221,13 +1225,12 @@ void move_unmake(register move_t move) {
 uint64_t perft_opt(move_t* moves, register uint8_t depth) {
 	move_t *pEnd, *pCurr;
 	uint64_t count = 0;
+	state_t state2;
 	pEnd = gen(moves);
 	--depth;
 	for (pCurr = moves; pCurr != pEnd; ++pCurr) {
-		state_t state = {
-			.piecemask = piecemask,
-			.ep = move_make(*pCurr)
-		};
+		state2 = state;
+		move_make(*pCurr);
 #if !NDEBUG
 		if (pCurr->prim.from.piece)
 #endif
@@ -1236,8 +1239,7 @@ uint64_t perft_opt(move_t* moves, register uint8_t depth) {
 				? perft_opt(pEnd, depth)
 				: 1;
 		move_unmake(*pCurr);
-		piecemask = state.piecemask;
-		pieces[Piece_EP].square = state.ep;
+		state = state2;
 	}
 	return count;
 }
