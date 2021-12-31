@@ -1127,82 +1127,89 @@ void set_square(register piece_square_t ps) {
 }
 
 static inline
-void clear_piece(register piece_square_t ps) {
+uint64_t clear_piece(register piece_square_t ps, register uint64_t piecemask) {
 	register piece_t piece = ps.piece & Piece_Index;
-	state.piecemask &= ~(1ull << piece);
+	return piecemask &= ~(1ull << piece);
 }
 
 static inline
-void set_piece(register piece_square_t ps) {
+uint64_t set_piece(register piece_square_t ps, register uint64_t piecemask) {
 	register piece_t piece = ps.piece & Piece_Index;
 	pieces[piece] = ps;
-	state.piecemask |= (1ull << piece);
+	return piecemask |= (1ull << piece);
 }
 
 static inline
-void clear_prim_from(register piece_square_t from) {
+uint64_t clear_prim_from(register piece_square_t from, register uint64_t piecemask) {
 	clear_square(from);
-	clear_piece(from);
+	return clear_piece(from, piecemask);
 }
 
 static inline
-void set_prim_from(register piece_square_t from) {
+uint64_t set_prim_from(register piece_square_t from, register uint64_t piecemask) {
 	set_square(from);
-	set_piece(from);
+	return set_piece(from, piecemask);
 }
 
 static inline
-void clear_prim_to(register piece_square_t to) {
+uint64_t clear_prim_to(register piece_square_t to, register uint64_t piecemask) {
 	clear_square(to);
-	clear_piece(to);
+	return clear_piece(to, piecemask);
 }
 
 static inline
-void set_prim_to(register piece_square_t to) {
+uint64_t set_prim_to(register piece_square_t to, register uint64_t piecemask) {
 	to.piece |= Piece_Moved;
 	set_square(to);
-	set_piece(to);
+	return set_piece(to, piecemask);
 }
 
 static inline
-void clear_sec(register piece_square_t ps) {
+uint64_t clear_sec(register piece_square_t ps, register uint64_t piecemask) {
 	clear_square(ps);
-	clear_piece(ps);
+	return clear_piece(ps, piecemask);
 }
 
 static inline
-void set_sec(register piece_square_t ps) {
+uint64_t set_sec(register piece_square_t ps, register uint64_t piecemask) {
 	set_square(ps);
-	set_piece(ps);
+	return set_piece(ps, piecemask);
 }
 
 static inline
-void clear_ep() {
-	state.piecemask &= ~(1ull << Piece_EP);
+uint64_t clear_ep(register uint64_t piecemask) {
+	return piecemask &= ~(1ull << Piece_EP);
 }
 
 static inline
 void move_make(register move_t move) {
-	clear_ep();
+	register uint64_t piecemask = state.piecemask;
 
-	clear_sec(move.sec.from);
-	set_sec(move.sec.to);
-	clear_prim_from(move.prim.from);
-	set_prim_to(move.prim.to);
+	piecemask = clear_ep(piecemask);
+
+	piecemask = clear_sec(move.sec.from, piecemask);
+	piecemask = set_sec(move.sec.to, piecemask);
+	piecemask = clear_prim_from(move.prim.from, piecemask);
+	piecemask = set_prim_to(move.prim.to, piecemask);
 
 	color ^= Piece_Color;
 
+	state.piecemask = piecemask;
 	state.ep.square = move.sec.to.square;
 }
 
 static inline
 void move_unmake(register move_t move) {
+	register uint64_t piecemask = state.piecemask;
+
 	color ^= Piece_Color;
 
-	clear_prim_to(move.prim.to);
-	set_prim_from(move.prim.from);
-	clear_sec(move.sec.to);
-	set_sec(move.sec.from);
+	piecemask = clear_prim_to(move.prim.to, piecemask);
+	piecemask = set_prim_from(move.prim.from, piecemask);
+	piecemask = clear_sec(move.sec.to, piecemask);
+	piecemask = set_sec(move.sec.from, piecemask);
+
+	state.piecemask = piecemask;
 }
 
 uint64_t perft_opt(move_t* moves, register uint8_t depth) {
@@ -1248,7 +1255,7 @@ bool set_pieces_unmoved() {
 					return false;
 				}
 				set_square(ps2);
-				set_piece(ps2);
+				state.piecemask = set_piece(ps2, state.piecemask);
 			}
 		}
 	}
@@ -1266,7 +1273,7 @@ bool set_pieces_moved() {
 					return false;
 				}
 				set_square(ps2);
-				set_piece(ps2);
+				state.piecemask = set_piece(ps2, state.piecemask);
 			}
 		}
 	}
