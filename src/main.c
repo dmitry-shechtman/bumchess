@@ -212,7 +212,7 @@ void set_piece(piece_square_t ps) {
 }
 
 uint8_t get_index2_knight(square_t square) {
-	return (((square ^ (square >> Shift_Rank)) & 1) ^ 1) * 3;
+	return (((square ^ (square >> Shift_Rank)) & 1) ^ 1) << Shift_Odd;
 }
 
 uint8_t get_index2(square_t square) {
@@ -228,6 +228,8 @@ piece_square_t find_index_to(piece_square_t ps) {
 
 piece_square_t find_index_to_knight(piece_square_t ps) {
 	ps.value += get_index2_knight(ps.square);
+	if (state.piecemask & ((1ull << (ps.piece & Piece_Index)) | (1ull << ((ps.piece ^ Piece_Odd) & Piece_Index))))
+		++ps.value;
 	return ps;
 }
 
@@ -273,9 +275,10 @@ piece_square_t find_index_pawn(piece_square_t ps) {
 
 piece_square_t find_index_knight(piece_square_t ps) {
 	piece_square_t ps2 = find_index_to_knight(ps);
-	return (state.piecemask & (1ull << (ps2.value & Piece_Index)))
-		? find_index_error(ps2)
-		: ps2;
+	return ((ps.value ^ ps2.value) & Piece_Type)
+		|| (state.piecemask & ((1ull << (ps2.piece & Piece_Index)) | (1ull << ((ps2.piece ^ Piece_Odd) & Piece_Index))))
+			? find_index_error(ps2)
+			: ps2;
 }
 
 piece_square_t find_index_bishop(piece_square_t ps) {
