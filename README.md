@@ -10,7 +10,7 @@ Branchless Unmake/Make Chess Move Generator
 * 2 knights per side
 * 2 bishops per shade per side
 * 4 rooks per side
-* 4 queens per side
+* 3 queens per side
 * 8 pawns per side
 
 ## License
