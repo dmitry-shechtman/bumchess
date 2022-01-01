@@ -196,6 +196,21 @@ void set_square(piece_square_t ps) {
 	squares[ps.square] = ps.piece;
 }
 
+piece_square_t get_piece(piece_t piece) {
+	return pieces[piece];
+}
+
+void clear_piece(piece_square_t ps) {
+	piece_t piece = ps.piece & Piece_Index;
+	state.piecemask &= ~(1ull << piece);
+}
+
+void set_piece(piece_square_t ps) {
+	piece_t piece = ps.piece & Piece_Index;
+	pieces[piece] = ps;
+	state.piecemask |= (1ull << piece);
+}
+
 uint8_t get_index2_knight(square_t square) {
 	return (((square ^ (square >> Shift_Rank)) & 1) ^ 1) * 3;
 }
@@ -693,12 +708,12 @@ bool check_queen(piece_square_t from, square_t dest) {
 
 move_t* gen_kings(move_t* moves) {
 	piece_t piece = (Piece_King | color) & Piece_Index;
-	return gen_king(moves, pieces[piece]);
+	return gen_king(moves, get_piece(piece));
 }
 
 bool check_kings(square_t dest) {
 	piece_t piece = (Piece_King | color) & Piece_Index;
-	return check_king(pieces[piece], dest);
+	return check_king(get_piece(piece), dest);
 }
 
 move_t* gen_pawns(move_t* moves) {
@@ -706,7 +721,7 @@ move_t* gen_pawns(move_t* moves) {
 	uint64_t mask = state.piecemask >> piece;
 	for (uint8_t i = 0; i < Count_Pawns; ++i, ++piece, mask >>= 1) {
 		if (mask & 1) {
-			moves = gen_pawn(moves, pieces[piece]);
+			moves = gen_pawn(moves, get_piece(piece));
 		}
 	}
 	return moves;
@@ -717,7 +732,7 @@ move_t* gen_knights(move_t* moves) {
 	uint64_t mask = state.piecemask >> piece;
 	for (uint8_t i = 0; i < Count_Knights; ++i, ++piece, mask >>= 1) {
 		if (mask & 1) {
-			moves = gen_knight(moves, pieces[piece]);
+			moves = gen_knight(moves, get_piece(piece));
 		}
 	}
 	return moves;
@@ -727,7 +742,7 @@ bool check_knights(square_t dest) {
 	piece_t piece = ((Piece_Knight + get_index2(dest)) | color) & Piece_Index;
 	uint64_t mask = state.piecemask >> piece;
 	for (uint8_t i = 0; i < Count_Knights2; ++i, ++piece, mask >>= 1) {
-		if ((mask & 1) && check_knight(pieces[piece], dest)) {
+		if ((mask & 1) && check_knight(get_piece(piece), dest)) {
 			return true;
 		}
 	}
@@ -739,7 +754,7 @@ move_t* gen_bishops(move_t* moves) {
 	uint64_t mask = state.piecemask >> piece;
 	for (uint8_t i = 0; i < Count_Bishops; ++i, ++piece, mask >>= 1) {
 		if (mask & 1) {
-			moves = gen_bishop(moves, pieces[piece]);
+			moves = gen_bishop(moves, get_piece(piece));
 		}
 	}
 	return moves;
@@ -749,7 +764,7 @@ bool check_bishops(square_t dest) {
 	piece_t piece = ((Piece_Bishop + get_index2(dest)) | color) & Piece_Index;
 	uint64_t mask = state.piecemask >> piece;
 	for (uint8_t i = 0; i < Count_Bishops2; ++i, ++piece, mask >>= 1) {
-		if ((mask & 1) && check_bishop(pieces[piece], dest)) {
+		if ((mask & 1) && check_bishop(get_piece(piece), dest)) {
 			return true;
 		}
 	}
@@ -761,7 +776,7 @@ move_t* gen_rooks(move_t* moves) {
 	uint64_t mask = state.piecemask >> piece;
 	for (uint8_t i = 0; i < Count_Rooks; ++i, ++piece, mask >>= 1) {
 		if (mask & 1) {
-			moves = gen_rook(moves, pieces[piece]);
+			moves = gen_rook(moves, get_piece(piece));
 		}
 	}
 	return moves;
@@ -771,7 +786,7 @@ bool check_rooks(square_t dest) {
 	piece_t piece = (Piece_Rook | color) & Piece_Index;
 	uint64_t mask = state.piecemask >> piece;
 	for (uint8_t i = 0; i < Count_Rooks; ++i, ++piece, mask >>= 1) {
-		if ((mask & 1) && check_rook(pieces[piece], dest)) {
+		if ((mask & 1) && check_rook(get_piece(piece), dest)) {
 			return true;
 		}
 	}
@@ -783,7 +798,7 @@ move_t* gen_queens(move_t* moves) {
 	uint64_t mask = state.piecemask >> piece;
 	for (uint8_t i = 0; i < Count_Queens; ++i, ++piece, mask >>= 1) {
 		if (mask & 1) {
-			moves = gen_queen(moves, pieces[piece]);
+			moves = gen_queen(moves, get_piece(piece));
 		}
 	}
 	return moves;
@@ -793,7 +808,7 @@ bool check_queens(square_t dest) {
 	piece_t piece = (Piece_Queen | color) & Piece_Index;
 	uint64_t mask = state.piecemask >> piece;
 	for (uint8_t i = 0; i < Count_Queens; ++i, ++piece, mask >>= 1) {
-		if ((mask & 1) && check_queen(pieces[piece], dest)) {
+		if ((mask & 1) && check_queen(get_piece(piece), dest)) {
 			return true;
 		}
 	}
@@ -825,18 +840,7 @@ move_t* gen(move_t* moves) {
 
 bool check() {
 	piece_t piece = (Piece_King | (color ^ Piece_Color)) & Piece_Index;
-	return check_to(pieces[piece].square);
-}
-
-void clear_piece(piece_square_t ps) {
-	piece_t piece = ps.piece & Piece_Index;
-	state.piecemask &= ~(1ull << piece);
-}
-
-void set_piece(piece_square_t ps) {
-	piece_t piece = ps.piece & Piece_Index;
-	pieces[piece] = ps;
-	state.piecemask |= (1ull << piece);
+	return check_to(get_piece(piece).square);
 }
 
 void clear_prim_from(piece_square_t from) {
