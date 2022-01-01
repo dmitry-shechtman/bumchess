@@ -7,7 +7,7 @@ Branchless Unmake/Make Chess Move Generator
 
 ## Known Limits
 * 1 king per side
-* 1 knight per shade per side
+* 2 knights per side
 * 2 bishops per shade per side
 * 4 rooks per side
 * 4 queens per side
@@ -17,7 +17,7 @@ Branchless Unmake/Make Chess Move Generator
 
 ### BSD 3-Clause License
 
-Copyright (c) 2021 Dmitry Shechtman
+Copyright (c) 2022 Dmitry Shechtman
 
 All rights reserved.
 
