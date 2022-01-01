@@ -967,22 +967,16 @@ bool check_kings(register square_t square,
 
 static inline
 move_t* gen_pawns_white(move_t* moves, register const uint64_t piecemask, uint64_t* mask, piece_t* piece) {
-	*mask = piecemask & 0x00000000FFFFFF00;
-	*piece = find_next(mask);
-	while (*piece < Piece_Pawn0 + Count_Pawns) {
+	for (; *piece < Piece_Pawn0 + Count_Pawns; *piece = find_next(mask)) {
 		moves = gen_pawn_white(moves, get_piece(*piece), piecemask);
-		*piece = find_next(mask);
 	}
 	return moves;
 }
 
 static inline
 move_t* gen_pawns_black(move_t* moves, register const uint64_t piecemask, uint64_t* mask, piece_t* piece) {
-	*mask = piecemask & 0xFFFFFF0000000000;
-	*piece = find_next(mask);
-	while (*piece < Piece_Pawn0 + Count_Pawns + Piece_Black) {
+	for (; *piece < Piece_Pawn0 + Count_Pawns + Piece_Black; *piece = find_next(mask)) {
 		moves = gen_pawn_black(moves, get_piece(*piece), piecemask);
-		*piece = find_next(mask);
 	}
 	return moves;
 }
@@ -991,9 +985,8 @@ static inline
 move_t* gen_knights(move_t* moves, uint64_t* mask, piece_t* piece,
 	const uint8_t color)
 {
-	while (*piece < (Piece_Knight + Count_Knights + (color & Piece_Black))) {
+	for (; *piece < (Piece_Knight + Count_Knights + (color & Piece_Black)); *piece = find_next(mask)) {
 		moves = gen_knight(moves, get_piece(*piece), color);
-		*piece = find_next(mask);
 	}
 	return moves;
 }
@@ -1002,11 +995,10 @@ static inline
 bool check_knights(register square_t square, uint64_t* mask, piece_t* piece,
 	const uint8_t color)
 {
-	while (*piece < (Piece_Knight + Count_Knights + (color & Piece_Black))) {
+	for (; *piece < (Piece_Knight + Count_Knights + (color & Piece_Black)); *piece = find_next(mask)) {
 		if (check_knight(get_piece(*piece), square)) {
 			return true;
 		}
-		*piece = find_next(mask);
 	}
 	return false;
 }
@@ -1015,9 +1007,8 @@ static inline
 move_t* gen_bishops(move_t* moves, uint64_t* mask, piece_t* piece,
 	const uint8_t color)
 {
-	while (*piece < (Piece_Bishop + Count_Bishops + (color & Piece_Black))) {
+	for (; *piece < (Piece_Bishop + Count_Bishops + (color & Piece_Black)); *piece = find_next(mask)) {
 		moves = gen_bishop(moves, get_piece(*piece), color);
-		*piece = find_next(mask);
 	}
 	return moves;
 }
@@ -1026,11 +1017,10 @@ static inline
 bool check_bishops(register square_t square, uint64_t* mask, piece_t* piece,
 	register const dir_mask_t dir_mask, const uint8_t color)
 {
-	while (*piece < (Piece_Bishop + Count_Bishops + (color & Piece_Black))) {
+	for (; *piece < (Piece_Bishop + Count_Bishops + (color & Piece_Black)); *piece = find_next(mask)) {
 		if (check_bishop(get_piece(*piece), square, dir_mask)) {
 			return true;
 		}
-		*piece = find_next(mask);
 	}
 	return false;
 }
@@ -1039,9 +1029,8 @@ static inline
 move_t* gen_rooks(move_t* moves, uint64_t* mask, piece_t* piece,
 	const uint8_t color)
 {
-	while (*piece < (Piece_Rook + Count_Rooks + (color & Piece_Black))) {
+	for (; *piece < (Piece_Rook + Count_Rooks + (color & Piece_Black)); *piece = find_next(mask)) {
 		moves = gen_rook(moves, get_piece(*piece), color);
-		*piece = find_next(mask);
 	}
 	return moves;
 }
@@ -1050,11 +1039,10 @@ static inline
 bool check_rooks(register square_t square, uint64_t* mask, piece_t* piece,
 	register const dir_mask_t dir_mask, const uint8_t color)
 {
-	while (*piece < (Piece_Rook + Count_Rooks + (color & Piece_Black))) {
+	for (; *piece < (Piece_Rook + Count_Rooks + (color & Piece_Black)); *piece = find_next(mask)) {
 		if (check_rook(get_piece(*piece), square, dir_mask)) {
 			return true;
 		}
-		*piece = find_next(mask);
 	}
 	return false;
 }
@@ -1063,9 +1051,8 @@ static inline
 move_t* gen_queens(move_t* moves, uint64_t* mask, piece_t* piece,
 	const uint8_t color)
 {
-	while (*piece < (Piece_Queen + Count_Queens + (color & Piece_Black))) {
+	for (; *piece < (Piece_Queen + Count_Queens + (color & Piece_Black)); *piece = find_next(mask)) {
 		moves = gen_queen(moves, get_piece(*piece), color);
-		*piece = find_next(mask);
 	}
 	return moves;
 }
@@ -1074,11 +1061,10 @@ static inline
 bool check_queens(register square_t square, uint64_t* mask, piece_t* piece,
 	register const dir_mask_t dir_mask, const uint8_t color)
 {
-	while (*piece < (Piece_Queen + Count_Queens + (color & Piece_Black))) {
+	for (; *piece < (Piece_Queen + Count_Queens + (color & Piece_Black)); *piece = find_next(mask)) {
 		if (check_queen(get_piece(*piece), square, dir_mask)) {
 			return true;
 		}
-		*piece = find_next(mask);
 	}
 	return false;
 }
@@ -1135,8 +1121,8 @@ bool check_to_black(register square_t square, register const uint64_t piecemask)
 
 static inline
 move_t* gen_white(move_t* moves, register const uint64_t piecemask) {
-	uint64_t mask;
-	piece_t piece;
+	uint64_t mask = piecemask & 0x00000000FFFFFF00;
+	piece_t piece = find_next(&mask);
 	moves = gen_kings(moves, Piece_White);
 	moves = gen_pawns_white(moves, piecemask, &mask, &piece);
 	moves = gen_pieces(moves, &mask, &piece, Piece_White);
@@ -1149,8 +1135,8 @@ move_t* gen_white(move_t* moves, register const uint64_t piecemask) {
 
 static inline
 move_t* gen_black(move_t* moves, register const uint64_t piecemask) {
-	uint64_t mask;
-	piece_t piece;
+	uint64_t mask = piecemask & 0xFFFFFF0000000000;
+	piece_t piece = find_next(&mask);
 	moves = gen_ep_black(moves, piecemask);
 	moves = gen_kings(moves, Piece_Black);
 	moves = gen_pawns_black(moves, piecemask, &mask, &piece);
