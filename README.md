@@ -17,7 +17,7 @@ Branchless Unmake/Make Chess Move Generator
 
 ### BSD 3-Clause License
 
-Copyright (c) 2021 Dmitry Shechtman
+Copyright (c) 2022 Dmitry Shechtman
 
 All rights reserved.
 
