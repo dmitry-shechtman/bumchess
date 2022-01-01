@@ -1,3 +1,9 @@
+// bumchess
+// Branchless Unmake/Make Chess Move Generator
+// 
+// Copyright (c) 2022 Dmitry Shechtman
+// All rights reserved.
+
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdint.h>
