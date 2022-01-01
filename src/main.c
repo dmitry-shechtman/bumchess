@@ -151,6 +151,18 @@ void board_init() {
 	state.ep = Square_Rank6 | Square_FileInvalid;
 }
 
+piece_t get_square(square_t square) {
+	return squares[square];
+}
+
+void clear_square(piece_square_t ps) {
+	squares[ps.square] = 0x00;
+}
+
+void set_square(piece_square_t ps) {
+	squares[ps.square] = ps.piece;
+}
+
 move_t* gen_promo_pawn(move_t* moves, move_t move, piece_square_t to, uint8_t promo) {
 	if ((to.square & Square_Rank) == promo) {
 		move.prim.to.piece = Piece_Queen | color | Piece_Moved;
@@ -162,7 +174,7 @@ move_t* gen_promo_pawn(move_t* moves, move_t move, piece_square_t to, uint8_t pr
 move_t* gen_push_pawn(move_t* moves, piece_square_t from, vector_t vector, uint8_t promo) {
 	piece_square_t to = from;
 	piece_square_t from2;
-	if (!(from2.piece = squares[from2.square = to.square += vector])) {
+	if (!(from2.piece = get_square(from2.square = to.square += vector))) {
 		move_t move = {
 			.prim = {
 				.from = from,
@@ -174,7 +186,7 @@ move_t* gen_push_pawn(move_t* moves, piece_square_t from, vector_t vector, uint8
 		};
 		moves = gen_promo_pawn(moves, move, to, promo);
 		if (!(from.piece & Piece_Moved)
-			&& !squares[to.square += vector]) {
+			&& !get_square(to.square += vector)) {
 				move.prim.to.value = to.value | 0x0800;
 				*moves++ = move;
 		}
@@ -186,7 +198,7 @@ move_t* gen_vector_pawn(move_t* moves, piece_square_t from, vector_t vector, uin
 	piece_square_t to = from;
 	piece_square_t from2;
 	if (!((to.square += vector) & Square_Invalid)
-		&& (from2.piece = squares[from2.square = to.square]) & (color ^ Piece_Color)) {
+		&& (from2.piece = get_square(from2.square = to.square)) & (color ^ Piece_Color)) {
 			move_t move = {
 				.prim = {
 					.from = from,
@@ -207,7 +219,7 @@ move_t* gen_vector_ep(move_t* moves, vector_t vector) {
 	};
 	piece_square_t from = to;
 	if (!((from.square += vector) & Square_Invalid)
-		&& ((to.piece = from.piece = squares[from.square]) & (Piece_Type | Piece_Color)) == (Piece_Pawn | color)) {
+		&& ((to.piece = from.piece = get_square(from.square)) & (Piece_Type | Piece_Color)) == (Piece_Pawn | color)) {
 			move_t move = {
 				.prim = {
 					.from = from,
@@ -229,7 +241,7 @@ move_t* gen_vector_leaper(move_t* moves, piece_square_t from, vector_t vector) {
 	piece_square_t to = from;
 	piece_square_t from2;
 	if (!((to.square += vector) & Square_Invalid)
-		&& !((from2.piece = squares[from2.square = to.square]) & color)) {
+		&& !((from2.piece = get_square(from2.square = to.square)) & color)) {
 			move_t move = {
 				.prim = {
 					.from = from,
@@ -246,7 +258,7 @@ move_t* gen_vector_leaper(move_t* moves, piece_square_t from, vector_t vector) {
 
 bool check_vector_leaper(square_t square, piece_t type, vector_t vector) {
 	return !((square += vector) & Square_Invalid)
-		&& (squares[square] & (Piece_Type | Piece_Color)) == (type | color);
+		&& (get_square(square) & (Piece_Type | Piece_Color)) == (type | color);
 }
 
 move_t* gen_vector_slider(move_t* moves, piece_square_t from, vector_t vector) {
@@ -254,7 +266,7 @@ move_t* gen_vector_slider(move_t* moves, piece_square_t from, vector_t vector) {
 	piece_square_t from2 = {0};
 	while (!from2.piece
 		&& !((to.square += vector) & Square_Invalid)
-		&& !((from2.piece = squares[from2.square = to.square]) & color)) {
+		&& !((from2.piece = get_square(from2.square = to.square)) & color)) {
 			move_t move = {
 				.prim = {
 					.from = from,
@@ -272,7 +284,7 @@ move_t* gen_vector_slider(move_t* moves, piece_square_t from, vector_t vector) {
 bool check_vector_slider(square_t square, piece_t type, vector_t vector) {
 	piece_t piece = 0;
 	while (!((square += vector) & Square_Invalid)
-		&& !(piece = squares[square]));
+		&& !(piece = get_square(square)));
 	return (piece & (type | Piece_Color)) == (type | color);
 }
 
@@ -430,7 +442,7 @@ move_t* gen(move_t* moves) {
 	for (uint8_t rank = 0; rank < Count_Ranks; ++rank) {
 		square = rank << 4;
 		for (uint8_t file = 0; file < Count_Files; ++file, ++square) {
-			piece = squares[square];
+			piece = get_square(square);
 			if (piece & color) {
 				piece_square_t from = {
 					.piece = piece,
@@ -445,14 +457,6 @@ move_t* gen(move_t* moves) {
 
 bool check() {
 	return check_to(state.king);
-}
-
-void clear_square(piece_square_t ps) {
-	squares[ps.square] = 0x00;
-}
-
-void set_square(piece_square_t ps) {
-	squares[ps.square] = ps.piece;
 }
 
 void clear_prim_from(piece_square_t from) {
@@ -542,7 +546,7 @@ char* board_write(char* str) {
 		square = rank << 4;
 		*str++ = rank + '1';
 		for (uint8_t file = 0; file < Count_Files; ++file, ++square) {
-			piece = squares[square];
+			piece = get_square(square);
 			*str++ = ' ';
 			*str++ = piece
 				? get_piece_char(piece)
