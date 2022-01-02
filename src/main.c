@@ -151,6 +151,17 @@ piece_square_t pieces[Count_Pieces];
 state_t state;
 piece_t color;
 
+const move_t nullmove = {
+	.prim = {
+		.from = { 0x0800 },
+		.to = { 0x0800 }
+	},
+	.sec = {
+		.from = { 0x0800 },
+		.to = { 0x0800 }
+	}
+};
+
 char piece_chars[] = ":KPPNBRQ;kppnbrq";
 
 void board_init() {
@@ -314,22 +325,6 @@ piece_square_t find_index_moved(piece_square_t ps) {
 	default:
 		return find_index_other(ps);
 	}
-}
-
-move_t* gen_null(move_t* moves) {
-	piece_square_t nullps = { 0x0800 };
-	move_t move = {
-		.prim = {
-			.from = nullps,
-			.to = nullps
-		},
-		.sec = {
-			.from = nullps,
-			.to = nullps
-		}
-	};
-	*moves++ = move;
-	return moves;
 }
 
 move_t* gen_promo(move_t* moves, move_t move, piece_square_t to, piece_t piece) {
@@ -766,7 +761,7 @@ move_t* gen(move_t* moves) {
 	moves = gen_queens(moves);
 	moves = gen_ep(moves);
 #if !NDEBUG
-	moves = gen_null(moves);
+	*moves++ = nullmove;
 #endif
 	return moves;
 }
