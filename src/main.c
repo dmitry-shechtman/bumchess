@@ -29,14 +29,19 @@ enum Type {
 };
 
 enum Shift {
-	Shift_Odd         = 1,
-	Shift_Type        = 2,
-	Shift_Rank        = 4,
+	Shift_Odd         =  1,
+	Shift_Type        =  2,
+	Shift_Rank        =  4,
+
+	Shift_EP_Index    =  4,
+	Shift_Square      =  8,
+	Shift_Piece_EP    = 15,
 };
 
 enum Piece {
 	Piece_Odd      = 0x02,
 	Piece_Index2   = 0x03,
+	Piece_Index3   = 0x07,
 
 	Piece_King     = Type_King   << Shift_Type,
 	Piece_Pawn0    = Type_Pawn0  << Shift_Type,
@@ -165,18 +170,20 @@ typedef struct {
 	} sec;
 } move_t;
 
-typedef struct {
-	square_t square;
-} ep_state_t;
-
-typedef struct {
-	ep_state_t ep;
-} state_t;
-
 piece_t squares[Count_Squares];
 piece_square_t pieces[Count_Pieces];
-state_t state;
 piece_t color;
+
+const move_t nullmove = {
+	.prim = {
+		.from = { 0x0800 },
+		.to = { 0x0800 }
+	},
+	.sec = {
+		.from = { 0x0800 },
+		.to = { 0x0800 }
+	}
+};
 
 char piece_chars[] = ":KPPNBRQ;kppnbrq";
 
@@ -192,7 +199,7 @@ piece_t find_next(uint64_t* mask) {
 	return index;
 }
 
-uint64_t board_init() {
+uint64_t board_init(move_t* move) {
 	memset(squares, 0, Count_Squares);
 
 	squares[0x00] = Piece_Rook   + Piece_White;
@@ -219,6 +226,7 @@ uint64_t board_init() {
 	squares[0x77] = Piece_Rook   + Piece_Black;
 
 	color = Piece_White;
+	*move = nullmove;
 	return (1ull << Piece_Guard) | (1ull << (Piece_Guard + Piece_Black));
 }
 
@@ -365,23 +373,6 @@ piece_square_t find_index_moved(piece_square_t ps, const uint64_t piecemask) {
 }
 
 static inline
-move_t* gen_null(move_t* moves) {
-	register piece_square_t nullps = { 0x0800 };
-	register move_t move = {
-		.prim = {
-			.from = nullps,
-			.to = nullps
-		},
-		.sec = {
-			.from = nullps,
-			.to = nullps
-		}
-	};
-	*moves++ = move;
-	return moves;
-}
-
-static inline
 move_t* gen_promo(move_t* moves, register move_t move, register piece_square_t to,
 	register const uint64_t piecemask, const piece_t piece, const uint8_t color)
 {
@@ -417,6 +408,28 @@ move_t* gen_promo_pawn(move_t* moves, move_t move, piece_square_t to,
 }
 
 static inline
+move_t* gen_push2_pawn(move_t* moves, register piece_square_t from, register piece_square_t to, register piece_square_t from2,
+	const uint8_t color2)
+{
+	register piece_t left = get_square(to.square - 1);
+	register piece_t right = get_square(to.square + 1);
+	register move_t move = {
+		.prim = {
+			.from = { from.value | ((~((to.square - 1) & Square_FileInvalid)
+				& ((left & (Piece_TypePawn | Piece_Color)) == (Piece_Pawn0 | color2))) << Shift_Piece_EP) },
+			.to = { to.value | ((~((to.square + 1) & Square_FileInvalid)
+				& ((right & (Piece_TypePawn | Piece_Color)) == (Piece_Pawn0 | color2))) << Shift_Piece_EP) }
+		},
+		.sec = {
+			.from = { (((left & Piece_Index3) | ((right & Piece_Index3) << Shift_EP_Index)) << Shift_Square) | 0x0800 },
+			.to = { from2.value | Piece_EP | 0x0800 }
+		}
+	};
+	*moves++ = move;
+	return moves;
+}
+
+static inline
 move_t* gen_push_pawn(move_t* moves, register piece_square_t from, register const uint64_t piecemask,
 	const vector_t vector, const uint8_t promo, const uint8_t color, const uint8_t color2)
 {
@@ -436,9 +449,7 @@ move_t* gen_push_pawn(move_t* moves, register piece_square_t from, register cons
 		moves = gen_promo_pawn(moves, move, to, piecemask, promo, color);
 		if (!(from.piece & Piece_Moved)
 			&& !get_square(to.square += vector)) {
-				move.prim.to = to;
-				move.sec.to.value = from2.value | Piece_EP | 0x0800;
-				*moves++ = move;
+				moves = gen_push2_pawn(moves, from, to, from2, color2);
 		}
 	}
 	return moves;
@@ -468,27 +479,29 @@ move_t* gen_vector_pawn(move_t* moves, register piece_square_t from, register co
 }
 
 static inline
-move_t* gen_vector_ep(move_t* moves,
+move_t* gen_vector_ep(move_t* moves, register piece_square_t ps, register uint8_t piece, register square_t square,
 	const vector_t vector, const uint8_t color, const uint8_t color2)
 {
-	register piece_square_t to = {
-		.square = state.ep.square & ~Square_FileInvalid
-	};
-	register piece_square_t from = to;
-	if (!((from.square += vector) & Square_Invalid)
-		&& ((to.piece = from.piece = get_square(from.square)) & (Piece_TypePawn | Piece_Color)) == (Piece_Pawn0 | color)) {
-			register move_t move = {
-				.prim = {
-					.from = from,
-					.to = to
+	if (ps.value & 0x8000) {
+		register piece_square_t to = {
+			.piece = (piece & Piece_Index3) | Piece_Pawn0 | color | Piece_Moved,
+			.square = square & ~Square_FileInvalid
+		};
+		register move_t move = {
+			.prim = {
+				.from = {
+					.piece = to.piece,
+					.square = to.square + vector
 				},
-				.sec = {
-					.from = {
-						.piece = (to.square & Square_File) | Piece_Pawn0 | (color2) | Piece_Moved,
-						.square = to.square ^ Square_Rank2
-					},
-					.to = { 0x0800 }
-				}
+				.to = to
+			},
+			.sec = {
+				.from = {
+					.piece = (to.square & Piece_Index3) | Piece_Pawn0 | color2 | Piece_Moved,
+					.square = to.square ^ Square_Rank2
+				},
+				.to = { 0x0800 }
+			}
 		};
 		*moves++ = move;
 	}
@@ -678,11 +691,11 @@ move_t* gen_pawn_white(move_t* moves, register piece_square_t from, register con
 }
 
 static inline
-move_t* gen_ep_white(move_t* moves, register const uint64_t piecemask) {
-	if (piecemask & (1ull << Piece_EP)) {
-		moves = gen_vector_ep(moves, Vec_SW, Piece_White, Piece_Black);
-		moves = gen_vector_ep(moves, Vec_SE, Piece_White, Piece_Black);
-	}
+move_t* gen_ep_white(move_t* moves, register const move_t move) {
+	moves = gen_vector_ep(moves, move.prim.from,
+		move.sec.from.square, move.sec.to.square, Vec_SW, Piece_White, Piece_Black);
+	moves = gen_vector_ep(moves, move.prim.to,
+		move.sec.from.square >> Shift_EP_Index, move.sec.to.square, Vec_SE, Piece_White, Piece_Black);
 	return moves;
 }
 
@@ -743,11 +756,11 @@ move_t* gen_pawn_black(move_t* moves, register piece_square_t from, register con
 }
 
 static inline
-move_t* gen_ep_black(move_t* moves, register const uint64_t piecemask) {
-	if (piecemask & (1ull << Piece_EP)) {
-		moves = gen_vector_ep(moves, Vec_NW, Piece_Black, Piece_White);
-		moves = gen_vector_ep(moves, Vec_NE, Piece_Black, Piece_White);
-	}
+move_t* gen_ep_black(move_t* moves, register const move_t move) {
+	moves = gen_vector_ep(moves, move.prim.from,
+		move.sec.from.square, move.sec.to.square, Vec_NW, Piece_Black, Piece_White);
+	moves = gen_vector_ep(moves, move.prim.to,
+		move.sec.from.square >> Shift_EP_Index, move.sec.to.square, Vec_NE, Piece_Black, Piece_White);
 	return moves;
 }
 
@@ -1037,29 +1050,29 @@ bool check_to_black(register square_t square, register const uint64_t piecemask)
 }
 
 static inline
-move_t* gen_white(move_t* moves, register const uint64_t piecemask) {
+move_t* gen_white(move_t* moves, register const uint64_t piecemask, register const move_t move) {
 	uint64_t mask = piecemask & 0x00000000FFFFFF00;
 	piece_t piece = find_next(&mask);
 	moves = gen_kings(moves, Piece_White);
 	moves = gen_pawns_white(moves, piecemask, &mask, &piece);
 	moves = gen_pieces(moves, &mask, &piece, Piece_White);
-	moves = gen_ep_white(moves, piecemask);
+	moves = gen_ep_white(moves, move);
 #if !NDEBUG
-	moves = gen_null(moves);
+	*moves++ = nullmove;
 #endif
 	return moves;
 }
 
 static inline
-move_t* gen_black(move_t* moves, register const uint64_t piecemask) {
+move_t* gen_black(move_t* moves, register const uint64_t piecemask, register const move_t move) {
 	uint64_t mask = piecemask & 0xFFFFFF0000000000;
 	piece_t piece = find_next(&mask);
-	moves = gen_ep_black(moves, piecemask);
 	moves = gen_kings(moves, Piece_Black);
 	moves = gen_pawns_black(moves, piecemask, &mask, &piece);
 	moves = gen_pieces(moves, &mask, &piece, Piece_Black);
+	moves = gen_ep_black(moves, move);
 #if !NDEBUG
-	moves = gen_null(moves);
+	*moves++ = nullmove;
 #endif
 	return moves;
 }
@@ -1077,10 +1090,10 @@ bool check_black(register const uint64_t piecemask) {
 }
 
 static inline
-move_t* gen(move_t* moves, register const uint64_t piecemask) {
+move_t* gen(move_t* moves, register const uint64_t piecemask, register const move_t move) {
 	return color == Piece_White
-		? gen_white(moves, piecemask)
-		: gen_black(moves, piecemask);
+		? gen_white(moves, piecemask, move)
+		: gen_black(moves, piecemask, move);
 }
 
 static inline
@@ -1092,24 +1105,28 @@ bool check(register const uint64_t piecemask) {
 
 static inline
 uint64_t clear_prim_from(register piece_square_t from, register uint64_t piecemask) {
+	from.square &= ~Square_RankInvalid;
 	clear_square(from);
 	return clear_piece(from, piecemask);
 }
 
 static inline
 uint64_t set_prim_from(register piece_square_t from, register uint64_t piecemask) {
+	from.square &= ~Square_RankInvalid;
 	set_square(from);
 	return set_piece(from, piecemask);
 }
 
 static inline
 uint64_t clear_prim_to(register piece_square_t to, register uint64_t piecemask) {
+	to.square &= ~Square_RankInvalid;
 	clear_square(to);
 	return clear_piece(to, piecemask);
 }
 
 static inline
 uint64_t set_prim_to(register piece_square_t to, register uint64_t piecemask) {
+	to.square &= ~Square_RankInvalid;
 	to.piece |= Piece_Moved;
 	set_square(to);
 	return set_piece(to, piecemask);
@@ -1128,22 +1145,13 @@ uint64_t set_sec(register piece_square_t ps, register uint64_t piecemask) {
 }
 
 static inline
-uint64_t clear_ep(register uint64_t piecemask) {
-	return piecemask &= ~(1ull << Piece_EP);
-}
-
-static inline
 uint64_t move_make(register move_t move, register uint64_t piecemask) {
-	piecemask = clear_ep(piecemask);
-
 	piecemask = clear_sec(move.sec.from, piecemask);
 	piecemask = set_sec(move.sec.to, piecemask);
 	piecemask = clear_prim_from(move.prim.from, piecemask);
 	piecemask = set_prim_to(move.prim.to, piecemask);
 
 	color ^= Piece_Color;
-
-	state.ep.square = move.sec.to.square;
 
 	return piecemask;
 }
@@ -1160,31 +1168,29 @@ uint64_t move_unmake(register move_t move, register uint64_t piecemask) {
 	return piecemask;
 }
 
-uint64_t perft_opt(move_t* moves, const register uint64_t piecemask, register uint8_t depth) {
+uint64_t perft_opt(move_t* moves, register uint64_t piecemask, register const move_t move, register uint8_t depth) {
 	move_t *pEnd, *pCurr;
 	uint64_t count = 0;
-	pEnd = gen(moves, piecemask);
+	pEnd = gen(moves, piecemask, move);
 	--depth;
 	for (pCurr = moves; pCurr != pEnd; ++pCurr) {
-		register state_t state2 = state;
-		register uint64_t piecemask2 = move_make(*pCurr, piecemask);
+		piecemask = move_make(*pCurr, piecemask);
 #if !NDEBUG
 		if (pCurr->prim.from.piece)
 #endif
-		if (!check(piecemask2)) {
+		if (!check(piecemask)) {
 			count += depth
-				? perft_opt(pEnd, piecemask2, depth)
+				? perft_opt(pEnd, piecemask, *pCurr, depth)
 				: 1;
 		}
-		move_unmake(*pCurr, piecemask2);
-		state = state2;
+		piecemask = move_unmake(*pCurr, piecemask);
 	}
 	return count;
 }
 
-uint64_t perft(move_t* moves, uint64_t piecemask, uint8_t depth) {
+uint64_t perft(move_t* moves, uint64_t piecemask, move_t move, uint8_t depth) {
 	return depth
-		? perft_opt(moves, piecemask, depth)
+		? perft_opt(moves, piecemask, move, depth)
 		: 1;
 }
 
@@ -1266,7 +1272,8 @@ int main(int argc, const char* argv[]) {
 			return -1;
 	}
 
-	uint64_t piecemask = board_init();
+	move_t move;
+	uint64_t piecemask = board_init(&move);
 	if (!(piecemask = set_pieces(piecemask))) {
 		return 1;
 	}
@@ -1275,7 +1282,7 @@ int main(int argc, const char* argv[]) {
 	printf("%s\n", buffer);
 
 	for (uint8_t depth = 0; depth <= max; ++depth) {
-		uint64_t count = perft(moves, piecemask, depth);
+		uint64_t count = perft(moves, piecemask, move, depth);
 		printf("perft(%3d)=%11" PRIu64 "\n", depth, count);
 	}
 	
