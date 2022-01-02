@@ -188,7 +188,7 @@ piece_t find_next(uint64_t* mask) {
 #else
 	uint8_t index = __builtin_ctzl(*mask);
 #endif
-	*mask &= ~(1ull << index);
+	*mask &= (*mask - 1);
 	return index;
 }
 
