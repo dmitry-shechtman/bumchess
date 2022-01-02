@@ -100,7 +100,6 @@ enum Count {
 
 	Count_Pawns    =   8,
 	Count_Knights  =   4,
-	Count_Knights2 =   2,
 	Count_Bishops  =   4,
 	Count_Bishops2 =   2,
 	Count_Rooks    =   4,
@@ -211,10 +210,6 @@ void set_piece(piece_square_t ps) {
 	state.piecemask |= (1ull << piece);
 }
 
-uint8_t get_index2_knight(square_t square) {
-	return (((square ^ (square >> Shift_Rank)) & 1) ^ 1) << Shift_Odd;
-}
-
 uint8_t get_index2(square_t square) {
 	return ((square ^ (square >> Shift_Rank)) & 1) << Shift_Odd;
 }
@@ -223,13 +218,6 @@ piece_square_t find_index_to(piece_square_t ps) {
 	for (uint64_t mask = state.piecemask >> (ps.value & Piece_Index);
 		mask & 1;
 		++ps.value, mask >>= 1);
-	return ps;
-}
-
-piece_square_t find_index_to_knight(piece_square_t ps) {
-	ps.value += get_index2_knight(ps.square);
-	if (state.piecemask & ((1ull << (ps.piece & Piece_Index)) | (1ull << ((ps.piece ^ Piece_Odd) & Piece_Index))))
-		++ps.value;
 	return ps;
 }
 
@@ -273,14 +261,6 @@ piece_square_t find_index_pawn(piece_square_t ps) {
 	return find_index_unmoved_pawn(ps);
 }
 
-piece_square_t find_index_knight(piece_square_t ps) {
-	piece_square_t ps2 = find_index_to_knight(ps);
-	return ((ps.value ^ ps2.value) & Piece_Type)
-		|| (state.piecemask & ((1ull << (ps2.piece & Piece_Index)) | (1ull << ((ps2.piece ^ Piece_Odd) & Piece_Index))))
-			? find_index_error(ps2)
-			: ps2;
-}
-
 piece_square_t find_index_bishop(piece_square_t ps) {
 	ps = find_index_to_bishop(ps);
 	piece_square_t ps2 = find_index_to(ps);
@@ -296,13 +276,6 @@ piece_square_t find_index_rook(piece_square_t ps) {
 		: ps;
 }
 
-piece_square_t find_index_queen(piece_square_t ps) {
-	piece_square_t ps2 = find_index_to(ps);
-	return ((ps.value ^ ps2.value) & Piece_Type)
-		? find_index_error(ps2)
-		: ps2;
-}
-
 piece_square_t find_index_moved_pawn(piece_square_t ps) {
 	piece_square_t ps2 = find_index_to(ps);
 	return ((ps.value ^ ps2.value) & Piece_TypePawn)
@@ -310,7 +283,7 @@ piece_square_t find_index_moved_pawn(piece_square_t ps) {
 		: ps2;
 }
 
-piece_square_t find_index_moved_rook(piece_square_t ps) {
+piece_square_t find_index_other(piece_square_t ps) {
 	piece_square_t ps2 = find_index_to(ps);
 	return ((ps.value ^ ps2.value) & Piece_Type)
 		? find_index_error(ps2)
@@ -336,16 +309,10 @@ piece_square_t find_index_moved(piece_square_t ps) {
 		return find_index_moved_king(ps);
 	case Piece_Pawn0:
 		return find_index_moved_pawn(ps);
-	case Piece_Knight:
-		return find_index_knight(ps);
 	case Piece_Bishop:
 		return find_index_bishop(ps);
-	case Piece_Rook:
-		return find_index_moved_rook(ps);
-	case Piece_Queen:
-		return find_index_queen(ps);
 	default:
-		return find_index_error(ps);
+		return find_index_other(ps);
 	}
 }
 
@@ -365,9 +332,9 @@ move_t* gen_null(move_t* moves) {
 	return moves;
 }
 
-move_t* gen_promo_knight(move_t* moves, move_t move, piece_square_t to) {
-	to.piece = Piece_Knight | color | Piece_Moved;
-	move.prim.to = find_index_to_knight(to);
+move_t* gen_promo(move_t* moves, move_t move, piece_square_t to, piece_t piece) {
+	to.piece = piece | color | Piece_Moved;
+	move.prim.to = find_index_to(to);
 	*moves++ = move;
 	return moves;
 }
@@ -379,26 +346,12 @@ move_t* gen_promo_bishop(move_t* moves, move_t move, piece_square_t to) {
 	return moves;
 }
 
-move_t* gen_promo_rook(move_t* moves, move_t move, piece_square_t to) {
-	to.piece = Piece_Rook | color | Piece_Moved;
-	move.prim.to = find_index_to(to);
-	*moves++ = move;
-	return moves;
-}
-
-move_t* gen_promo_queen(move_t* moves, move_t move, piece_square_t to) {
-	to.piece = Piece_Queen | color | Piece_Moved;
-	move.prim.to = find_index_to(to);
-	*moves++ = move;
-	return moves;
-}
-
 move_t* gen_promo_pawn(move_t* moves, move_t move, piece_square_t to, uint8_t promo) {
 	if ((to.square & Square_Rank) == promo) {
-		moves = gen_promo_knight(moves, move, to);
+		moves = gen_promo(moves, move, to, Piece_Knight);
 		moves = gen_promo_bishop(moves, move, to);
-		moves = gen_promo_rook(moves, move, to);
-		moves = gen_promo_queen(moves, move, to);
+		moves = gen_promo(moves, move, to, Piece_Rook);
+		moves = gen_promo(moves, move, to, Piece_Queen);
 		return moves;
 	}
 	*moves++ = move;
@@ -480,7 +433,7 @@ move_t* gen_vector_ep(move_t* moves, vector_t vector) {
 	return moves;
 }
 
-move_t* gen_vector_king(move_t* moves, piece_square_t from, vector_t vector) {
+move_t* gen_vector_leaper(move_t* moves, piece_square_t from, vector_t vector) {
 	piece_square_t to = from;
 	piece_square_t from2;
 	if (!((to.square += vector) & Square_Invalid)
@@ -500,24 +453,9 @@ move_t* gen_vector_king(move_t* moves, piece_square_t from, vector_t vector) {
 	return moves;
 }
 
-move_t* gen_vector_knight(move_t* moves, piece_square_t from, vector_t vector) {
-	piece_square_t to = from;
-	piece_square_t from2;
-	if (!((to.square += vector) & Square_Invalid)
-		&& !((from2.piece = get_square(from2.square = to.square)) & color)) {
-			move_t move = {
-				.prim = {
-					.from = from,
-					.to = { to.value ^ Piece_Odd }
-				},
-				.sec = {
-					.from = from2,
-					.to = { 0x0800 }
-				}
-			};
-			*moves++ = move;
-	}
-	return moves;
+bool check_vector_knight(square_t square, vector_t vector) {
+	return !((square += vector) & Square_Invalid)
+		&& (get_square(square) & (Piece_Type | Piece_Color)) == (Piece_Knight | color);
 }
 
 move_t* gen_vector_slider(move_t* moves, piece_square_t from, vector_t vector) {
@@ -651,7 +589,7 @@ move_t* gen_ep(move_t* moves) {
 
 move_t* gen_king(move_t* moves, piece_square_t from) {
 	for (uint8_t i = 0; i < 8; ++i) {
-		moves = gen_vector_king(moves, from, vectors[i]);
+		moves = gen_vector_leaper(moves, from, vectors[i]);
 	}
 	return moves;
 }
@@ -664,15 +602,18 @@ bool check_king(piece_square_t from, square_t dest) {
 
 move_t* gen_knight(move_t* moves, piece_square_t from) {
 	for (uint8_t i = 8; i < 16; ++i) {
-		moves = gen_vector_knight(moves, from, vectors[i]);
+		moves = gen_vector_leaper(moves, from, vectors[i]);
 	}
 	return moves;
 }
 
-bool check_knight(piece_square_t from, square_t dest) {
-	square_t src = from.square;
-	uint8_t delta = abs(dest - src);
-	return delta == Vec_NWW || delta == Vec_NEE || delta == Vec_NNW || delta == Vec_NNE;
+bool check_knights(square_t dest) {
+	for (uint8_t i = 8; i < 16; ++i) {
+		if (check_vector_knight(dest, vectors[i])) {
+			return true;
+		}
+	}
+	return false;
 }
 
 move_t* gen_bishop(move_t* moves, piece_square_t from) {
@@ -739,17 +680,6 @@ move_t* gen_knights(move_t* moves) {
 		}
 	}
 	return moves;
-}
-
-bool check_knights(square_t dest) {
-	piece_t piece = ((Piece_Knight + get_index2(dest)) | color) & Piece_Index;
-	uint64_t mask = state.piecemask >> piece;
-	for (uint8_t i = 0; i < Count_Knights2; ++i, ++piece, mask >>= 1) {
-		if ((mask & 1) && check_knight(get_piece(piece), dest)) {
-			return true;
-		}
-	}
-	return false;
 }
 
 move_t* gen_bishops(move_t* moves) {
