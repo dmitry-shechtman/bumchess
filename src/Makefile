@@ -1,5 +1,5 @@
 CC = gcc
-FLAGS = -std=c11 -pedantic -Wall -O3 -DNDEBUG
+FLAGS = -std=c11 -pedantic -Wall -Ofast -flto -DNDEBUG
 EXE = main
 
 $(EXE): main.c
