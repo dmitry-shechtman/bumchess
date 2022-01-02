@@ -853,13 +853,6 @@ move_t* gen_king(move_t* moves, register piece_square_t from,
 }
 
 static inline
-bool check_king(register piece_square_t from, register square_t src) {
-	register square_t dest = from.square;
-	register uint8_t delta = abs(dest - src);
-	return delta == Vec_E || delta == Vec_NW || delta == Vec_N || delta == Vec_NE;
-}
-
-static inline
 move_t* gen_knight(move_t* moves, register piece_square_t from,
 	const uint8_t color)
 {
@@ -955,14 +948,6 @@ move_t* gen_kings(move_t* moves,
 {
 	register piece_t piece = Piece_King + (color & Piece_Black);
 	return gen_king(moves, get_piece(piece), color);
-}
-
-static inline
-bool check_kings(register square_t square,
-	const uint8_t color)
-{
-	register piece_t piece = Piece_King + (color & Piece_Black);
-	return check_king(get_piece(piece), square);
 }
 
 static inline
