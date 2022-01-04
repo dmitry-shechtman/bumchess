@@ -8,21 +8,21 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <string.h>
-
-#ifdef _MSC_VER
-#define sscanf sscanf_s
-#endif
 
 enum Type {
 	Type_None,
 	Type_King,
-	Type_Pawn   = 3,
-	Type_Knight,
+	Type_Pawn,
+	Type_Knight = 4,
 	Type_Bishop,
 	Type_Rook,
 	Type_Queen,
 	Type_Count
+};
+
+enum Shift {
+	Shift_Castling    =  1,
+	Shift_Rank        =  4,
 };
 
 enum Piece {
@@ -42,6 +42,8 @@ enum Piece {
 };
 
 enum Square {
+	Square_FileA       = 0x00,
+	Square_FileH       = 0x07,
 	Square_File        = 0x07,
 	Square_FileInvalid = 0x08,
 
@@ -49,6 +51,7 @@ enum Square {
 	Square_Rank2       = 0x10,
 	Square_Rank3       = 0x20,
 	Square_Rank6       = 0x50,
+	Square_Rank7       = 0x60,
 	Square_Rank8       = 0x70,
 	Square_Rank        = 0x70,
 	Square_RankInvalid = 0x80,
@@ -76,9 +79,13 @@ enum Vec {
 };
 
 enum Count {
-	Count_Ranks    =   8,
-	Count_Files    =   8,
-	Count_Squares  = 128,
+	Count_Colors    =   2,
+	Count_Castlings =   4,
+	Count_Type4     =  16,
+
+	Count_Ranks     =   8,
+	Count_Files     =   8,
+	Count_Squares   = 128,
 };
 
 typedef uint8_t piece_t;
@@ -115,41 +122,38 @@ typedef struct {
 	square_t king;
 } state_t;
 
+enum Char {
+	Char_Zero = '0',
+	Char_Nine = '9',
+
+	Char_Rank = '1',
+	Char_File = 'a',
+};
+
 piece_t squares[Count_Squares];
 piece_t color;
 state_t state;
 
-char piece_chars[] = ":KPPNBRQ;kppnbrq";
+char piece_chars[Count_Type4] = ":KPPNBRQ;kppnbrq";
 
-void board_init() {
-	memset(squares, 0, Count_Squares);
+uint8_t piece_ranks[Count_Type4] = {
+	Square_RankInvalid, Square_Rank1,       Square_Rank2,       Square_RankInvalid,
+	Square_RankInvalid, Square_RankInvalid, Square_RankInvalid, Square_RankInvalid,
+	Square_RankInvalid, Square_Rank8,       Square_Rank7,       Square_RankInvalid,
+	Square_RankInvalid, Square_RankInvalid, Square_RankInvalid, Square_RankInvalid
+};
 
-	squares[0x00] = Piece_Rook   + Piece_White;
-	squares[0x01] = Piece_Knight + Piece_White + Piece_Moved;
-	squares[0x02] = Piece_Bishop + Piece_White + Piece_Moved;
-	squares[0x03] = Piece_Queen  + Piece_White + Piece_Moved;
-	squares[0x04] = Piece_King   + Piece_White;
-	squares[0x05] = Piece_Bishop + Piece_White + Piece_Moved;
-	squares[0x06] = Piece_Knight + Piece_White + Piece_Moved;
-	squares[0x07] = Piece_Rook   + Piece_White;
+char color_chars[Count_Colors]  = "wb";
 
-	for (uint8_t i = 0; i < Count_Files; ++i) {
-		squares[i + 0x10] = Piece_Pawn + Piece_White;
-		squares[i + 0x60] = Piece_Pawn + Piece_Black;
-	}
+piece_t  color_values[Count_Colors] = { Piece_White,  Piece_Black  };
+square_t color_ranks[Count_Colors]  = { Square_Rank6, Square_Rank3 };
 
-	squares[0x70] = Piece_Rook   + Piece_Black;
-	squares[0x71] = Piece_Knight + Piece_Black + Piece_Moved;
-	squares[0x72] = Piece_Bishop + Piece_Black + Piece_Moved;
-	squares[0x73] = Piece_Queen  + Piece_Black + Piece_Moved;
-	squares[0x74] = Piece_King   + Piece_Black;
-	squares[0x75] = Piece_Bishop + Piece_Black + Piece_Moved;
-	squares[0x76] = Piece_Knight + Piece_Black + Piece_Moved;
-	squares[0x77] = Piece_Rook   + Piece_Black;
+char castling_chars[Count_Castlings] = "KQkq";
 
-	color = Piece_White;
-	state.ep = Square_Rank6 | Square_FileInvalid;
-}
+square_t castling_squares[Count_Castlings] = {
+	Square_FileH | Square_Rank1, Square_FileA | Square_Rank1,
+	Square_FileH | Square_Rank8, Square_FileA | Square_Rank8
+};
 
 piece_t get_square(square_t square) {
 	return squares[square];
@@ -440,7 +444,7 @@ move_t* gen(move_t* moves) {
 	square_t square;
 	piece_t piece;
 	for (uint8_t rank = 0; rank < Count_Ranks; ++rank) {
-		square = rank << 4;
+		square = rank << Shift_Rank;
 		for (uint8_t file = 0; file < Count_Files; ++file, ++square) {
 			piece = get_square(square);
 			if (piece & color) {
@@ -539,12 +543,180 @@ char get_piece_char(piece_t piece) {
 	return piece_chars[piece & (Piece_Type | Piece_Black)];
 }
 
+uint8_t find_char(char c, const char chars[], uint8_t count) {
+	uint8_t i;
+	for (i = 0; i < count && c != chars[i]; ++i);
+	return i;
+}
+
+uint8_t find_type4(char c) {
+	return find_char(c, piece_chars, Count_Type4);
+}
+
+uint8_t find_color(char c) {
+	return find_char(c, color_chars, Count_Colors);
+}
+
+uint8_t find_castling(char c) {
+	return find_char(c, castling_chars, Count_Castlings);
+}
+
+uint8_t get_moved(uint8_t type4, square_t square) {
+	return (square & Square_Rank) == piece_ranks[type4]
+		? 0
+		: Piece_Moved;
+}
+
+const char* fen_read_error(char c) {
+	fprintf(stderr, "Unexpected character %c\n", c);
+	return 0;
+}
+
+const char* fen_read_char(const char* str, char e) {
+	char c = *str++;
+	return c == e
+		? str
+		: fen_read_error(c);
+}
+
+const char* fen_read_piece_clear(const char* str, piece_square_t* ps) {
+	char c = *str++;
+	for (uint8_t i = 0; i < c - Char_Zero; ++i) {
+		clear_square(*ps);
+	}
+	ps->square += c - Char_Zero;
+	return !(ps->square & Square_File) || !(ps->square & Square_FileInvalid)
+		? str
+		: fen_read_error(c);
+}
+
+const char* fen_read_piece_set(const char* str, piece_square_t* ps) {
+	char c = *str++;
+	uint8_t type4;
+	if (!((type4 = find_type4(c)) & (Type_Count - 1))) {
+		return fen_read_error(c);
+	}
+	ps->piece = type4 | get_moved(type4, ps->square);
+	if (!(ps->piece & Piece_Black)) {
+		ps->piece |= Piece_White;
+	}
+	set_square(*ps);
+	++ps->square;
+	return str;
+}
+
+const char* fen_read_piece(const char* str, piece_square_t* ps) {
+	char c;
+	return ((c = *str) > Char_Zero && c <= Char_Zero + Count_Files)
+		? fen_read_piece_clear(str, ps)
+		: fen_read_piece_set(str, ps);
+}
+
+const char* fen_read_file(const char* str, square_t* square) {
+	char c;
+	if ((c = *str++) < Char_File || c >= Char_File + Count_Files) {
+		return fen_read_error(c);
+	}
+	*square |= (c - Char_File);
+	return str;
+}
+
+const char* fen_read_rank(const char* str, square_t* square) {
+	char c;
+	if ((c = *str++) < Char_Rank || c >= Char_Rank + Count_Ranks) {
+		return fen_read_error(c);
+	}
+	*square |= (c - Char_Rank) << Shift_Rank;
+	return str;
+}
+
+const char* fen_read_square(const char* str, square_t* square) {
+	*square = 0;
+	return (str = fen_read_file(str, square)) && (str = fen_read_rank(str, square))
+		? str
+		: 0;
+}
+
+const char* fen_read_squares(const char* str) {
+	piece_square_t ps;
+	for (int8_t rank = Count_Ranks - 1; rank >= 0; --rank) {
+		for (ps.square = rank << Shift_Rank; !(ps.square & Square_FileInvalid); ) {
+			if (!(str = fen_read_piece(str, &ps))) {
+				return 0;
+			}
+		}
+		if (rank && !(str = fen_read_char(str, '/'))) {
+			return 0;
+		}
+	}
+	return str;
+}
+
+const char* fen_read_color(const char* str) {
+	char c = *str++;
+	uint8_t i;
+	if ((i = find_color(c)) == Count_Colors) {
+		return fen_read_error(c);
+	}
+	color = color_values[i];
+	state.ep = color_ranks[i] | Square_FileInvalid;
+	return str;
+}
+
+const char* fen_read_castling(const char* str) {
+	char c = *str++;
+	uint8_t i;
+	piece_square_t ps;
+	if ((i = find_castling(c)) == Count_Castlings
+		|| (ps.piece = get_square(ps.square = castling_squares[i])) != (Piece_Rook | Piece_Moved | color_values[i >> Shift_Castling])) {
+			return fen_read_error(c);
+	}
+	ps.piece &= ~Piece_Moved;
+	set_square(ps);
+	return str;
+}
+
+const char* fen_read_castling_chars(const char* str) {
+	do {
+		if (!(str = fen_read_castling(str))) {
+			return 0;
+		}
+	} while (*str && *str != ' ');
+	return str;
+}
+
+const char* fen_read_ep_square(const char* str) {
+	return fen_read_square(str, &state.ep);
+}
+
+const char* fen_read_castlings(const char* str) {
+	return *str != '-'
+		? fen_read_castling_chars(str)
+		: ++str;
+}
+
+const char* fen_read_ep(const char* str) {
+	return *str != '-'
+		? fen_read_ep_square(str)
+		: ++str;
+}
+
+const char* fen_read(const char* str) {
+	if (!(str = fen_read_squares(str))
+		|| !(str = fen_read_char(str, ' ')) || !(str = fen_read_color(str))
+		|| ((*str && (!(str = fen_read_char(str, ' ')) || !(str = fen_read_castlings(str))
+		|| (*str && (!(str = fen_read_char(str, ' ')) || !(str = fen_read_ep(str)))))))) {
+		return 0;
+	}
+	return str;
+}
+
 char* board_write(char* str) {
 	square_t square;
 	piece_t piece;
 	for (int8_t rank = Count_Ranks - 1; rank >= 0; --rank) {
-		square = rank << 4;
-		*str++ = rank + '1';
+		square = rank << Shift_Rank;
+		*str++ = rank + Char_Rank;
 		for (uint8_t file = 0; file < Count_Files; ++file, ++square) {
 			piece = get_square(square);
 			*str++ = ' ';
@@ -561,17 +733,57 @@ char* board_write(char* str) {
 char buffer[1024];
 move_t moves[1024];
 
-int main(int argc, const char* argv[]) {
-	uint8_t max = 255;
+const char* read_uint8(const char* str, uint8_t* result) {
+	unsigned int i = 0;
+	char c;
+	while ((c = *str++)) {
+		if (c < Char_Zero || c > Char_Nine) {
+			return 0;
+		}
+		i = i * 10 + c - Char_Zero;
+	}
+	*result = i;
+	return i <= UINT8_MAX
+		? str
+		: 0;
+}
 
-	if (argc > 1
-		&& (!sscanf(argv[1], "%hhu", &max) || !max)) {
-			printf("Usage: perft <depth>\n");
-			return -1;
+uint8_t read_args(int argc, const char* argv[], const char** fen) {
+	uint8_t max = UINT8_MAX;
+	*fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -";
+	
+	switch (argc) {
+	case 1:
+		return max;
+	case 2:
+		if (!read_uint8(argv[1], &max)) {
+			*fen = argv[1];
+		}
+		return max;
+	case 3:
+		if (!read_uint8(argv[argc - 1], &max)) {
+			return 0;
+		}
+		*fen = argv[1];
+		return max;
+	default:
+		return 0;
+	}
+}
+
+int main(int argc, const char* argv[]) {
+	uint8_t max;
+	const char* fen;
+
+	if (!(max = read_args(argc, argv, &fen))) {
+		printf("Usage: perft [<fen>] [<depth>]\n");
+		return -1;
 	}
 
-	board_init();
-	
+	if (!fen_read(fen)) {
+		return 1;
+	}
+
 	board_write(buffer);
 	printf("%s\n", buffer);
 
