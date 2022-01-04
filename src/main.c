@@ -1042,9 +1042,25 @@ bool set_pieces_moved() {
 	return true;
 }
 
+bool validate() {
+	for (uint8_t i = 0; i < Count_Colors; ++i) {
+		piece_t piece = Piece_King | color_values[i];
+		if (!(state.piecemask & (1ull << (piece & Piece_Index)))) {
+			fprintf(stderr, "Missing %c.\n", get_piece_char(piece));
+			return false;
+		}
+	}
+	if (check()) {
+		fprintf(stderr, "Illegal position.\n");
+		return false;
+	}
+	return true;
+}
+
 bool set_pieces() {
 	return set_pieces_unmoved()
-		&& set_pieces_moved();
+		&& set_pieces_moved()
+		&& validate();
 }
 
 char* board_write(char* str) {
