@@ -157,6 +157,7 @@ square_t castling_squares[Count_Castlings] = {
 
 typedef struct {
 	const char* fen;
+	uint8_t  min;
 	uint8_t  max;
 	uint64_t result;
 } params_t;
@@ -767,6 +768,7 @@ const char* read_uint64(const char* str, uint64_t* result) {
 }
 
 bool read_args(int argc, const char* argv[], params_t* params) {
+	params->min = 0;
 	params->max = UINT8_MAX;
 	params->fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -";
 	params->result = 0;
@@ -777,6 +779,8 @@ bool read_args(int argc, const char* argv[], params_t* params) {
 	case 2:
 		if (!read_uint8(argv[1], &params->max)) {
 			params->fen = argv[1];
+		} else {
+			params->min = params->max;
 		}
 		return true;
 	case 4:
@@ -787,6 +791,7 @@ bool read_args(int argc, const char* argv[], params_t* params) {
 		if (!read_uint8(argv[2], &params->max)) {
 			return false;
 		}
+		params->min = params->max;
 		params->fen = argv[1];
 		return true;
 	default:
@@ -810,7 +815,7 @@ int main(int argc, const char* argv[]) {
 	board_write(buffer);
 	printf("%s\n", buffer);
 
-	for (uint8_t depth = 0; depth <= params.max; ++depth) {
+	for (uint8_t depth = params.min; depth <= params.max; ++depth) {
 		count = perft(moves, depth);
 		printf("perft(%3d)=%11" PRIu64 "\n", depth, count);
 	}
