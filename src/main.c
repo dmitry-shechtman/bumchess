@@ -155,6 +155,11 @@ square_t castling_squares[Count_Castlings] = {
 	Square_FileH | Square_Rank8, Square_FileA | Square_Rank8
 };
 
+typedef struct {
+	const char* fen;
+	uint8_t max;
+} params_t;
+
 piece_t get_square(square_t square) {
 	return squares[square];
 }
@@ -748,46 +753,45 @@ const char* read_uint8(const char* str, uint8_t* result) {
 		: 0;
 }
 
-uint8_t read_args(int argc, const char* argv[], const char** fen) {
-	uint8_t max = UINT8_MAX;
-	*fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -";
+bool read_args(int argc, const char* argv[], params_t* params) {
+	params->max = UINT8_MAX;
+	params->fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -";
 	
 	switch (argc) {
 	case 1:
-		return max;
+		return true;
 	case 2:
-		if (!read_uint8(argv[1], &max)) {
-			*fen = argv[1];
+		if (!read_uint8(argv[1], &params->max)) {
+			params->fen = argv[1];
 		}
-		return max;
+		return true;
 	case 3:
-		if (!read_uint8(argv[argc - 1], &max)) {
-			return 0;
+		if (!read_uint8(argv[2], &params->max)) {
+			return false;
 		}
-		*fen = argv[1];
-		return max;
+		params->fen = argv[1];
+		return true;
 	default:
-		return 0;
+		return false;
 	}
 }
 
 int main(int argc, const char* argv[]) {
-	uint8_t max;
-	const char* fen;
+	params_t params;
 
-	if (!(max = read_args(argc, argv, &fen))) {
+	if (!read_args(argc, argv, &params)) {
 		printf("Usage: perft [<fen>] [<depth>]\n");
 		return -1;
 	}
 
-	if (!fen_read(fen)) {
+	if (!fen_read(params.fen)) {
 		return 1;
 	}
 
 	board_write(buffer);
 	printf("%s\n", buffer);
 
-	for (uint8_t depth = 0; depth <= max; ++depth) {
+	for (uint8_t depth = 0; depth <= params.max; ++depth) {
 		uint64_t count = perft(moves, depth);
 		printf("perft(%3d)=%11" PRIu64 "\n", depth, count);
 	}
