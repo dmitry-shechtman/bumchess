@@ -916,6 +916,7 @@ bool read_args(int argc, const char* argv[], params_t* params) {
 int main(int argc, const char* argv[]) {
 	params_t params;
 	uint64_t count = 0;
+	const char* format;
 
 	if (!read_args(argc, argv, &params)) {
 		printf("Usage: perft [<fen>] [<depth> [<result>]]\n");
@@ -926,12 +927,20 @@ int main(int argc, const char* argv[]) {
 		return 1;
 	}
 
-	board_write(buffer);
-	printf("%s\n", buffer);
+	if (params.result == UINT64_MAX) {
+		board_write(buffer);
+		printf("%s\n", buffer);
+		format = "perft(%3d)=%11" PRIu64 "\n";
+	}
+	else {
+		fen_write(buffer);
+		printf("\nPosition: %s\n", buffer);
+		format = "Validating depth: %d perft: %" PRIu64 "\n";
+	}
 
 	for (uint8_t depth = params.min; depth <= params.max; ++depth) {
 		count = perft(moves, depth);
-		printf("perft(%3d)=%11" PRIu64 "\n", depth, count);
+		printf(format, depth, count);
 	}
 	
 	return params.result == UINT64_MAX || count == params.result
