@@ -607,6 +607,14 @@ const char* fen_read_piece_clear(const char* str, piece_square_t* ps) {
 		: fen_read_error(c);
 }
 
+char* fen_write_piece_clear(char* str, uint8_t* count) {
+	if (*count) {
+		*str++ = *count + Char_Zero;
+		*count = 0;
+	}
+	return str;
+}
+
 const char* fen_read_piece_set(const char* str, piece_square_t* ps) {
 	char c = *str++;
 	uint8_t type4;
@@ -622,11 +630,28 @@ const char* fen_read_piece_set(const char* str, piece_square_t* ps) {
 	return str;
 }
 
+char* fen_write_piece_set(char* str, piece_t piece, uint8_t* count) {
+	str = fen_write_piece_clear(str, count);
+	*str++ = get_piece_char(piece);
+	return str;
+}
+
 const char* fen_read_piece(const char* str, piece_square_t* ps) {
 	char c;
 	return ((c = *str) > Char_Zero && c <= Char_Zero + Count_Files)
 		? fen_read_piece_clear(str, ps)
 		: fen_read_piece_set(str, ps);
+}
+
+char* fen_write_piece(char* str, square_t square, uint8_t* count) {
+	piece_t piece;
+	if ((piece = get_square(square))) {
+		str = fen_write_piece_set(str, piece, count);
+	}
+	else {
+		++*count;
+	}
+	return str;
 }
 
 const char* fen_read_file(const char* str, square_t* square) {
@@ -635,6 +660,11 @@ const char* fen_read_file(const char* str, square_t* square) {
 		return fen_read_error(c);
 	}
 	*square |= (c - Char_File);
+	return str;
+}
+
+char* fen_write_file(char* str, square_t square) {
+	*str++ = (square & Square_File) + Char_File;
 	return str;
 }
 
@@ -647,11 +677,22 @@ const char* fen_read_rank(const char* str, square_t* square) {
 	return str;
 }
 
+char* fen_write_rank(char* str, square_t square) {
+	*str++ = (square >> Shift_Rank) + Char_Rank;
+	return str;
+}
+
 const char* fen_read_square(const char* str, square_t* square) {
 	*square = 0;
 	return (str = fen_read_file(str, square)) && (str = fen_read_rank(str, square))
 		? str
 		: 0;
+}
+
+char* fen_write_square(char* str, square_t square) {
+	str = fen_write_file(str, square);
+	str = fen_write_rank(str, square);
+	return str;
 }
 
 const char* fen_read_squares(const char* str) {
@@ -669,6 +710,21 @@ const char* fen_read_squares(const char* str) {
 	return str;
 }
 
+char* fen_write_squares(char* str) {
+	square_t square;
+	uint8_t count = 0;
+	for (int8_t rank = Count_Ranks - 1; rank >= 0; --rank) {
+		for (square = rank << Shift_Rank; !(square & Square_FileInvalid); ++square) {
+			str = fen_write_piece(str, square, &count);
+		}
+		str = fen_write_piece_clear(str, &count);
+		if (rank) {
+			*str++ = '/';
+		}
+	}
+	return str;
+}
+
 const char* fen_read_color(const char* str) {
 	char c = *str++;
 	uint8_t i;
@@ -677,6 +733,11 @@ const char* fen_read_color(const char* str) {
 	}
 	color = color_values[i];
 	state.ep = color_ranks[i] | Square_FileInvalid;
+	return str;
+}
+
+char* fen_write_color(char* str) {
+	*str++ = color_chars[color == Piece_White ? 0 : 1];
 	return str;
 }
 
@@ -693,6 +754,14 @@ const char* fen_read_castling(const char* str) {
 	return str;
 }
 
+char* fen_write_castling(char* str, uint8_t i) {
+	piece_t piece = get_square(castling_squares[i]);
+	if (piece && !(piece & Piece_Moved)) {
+		*str++ = castling_chars[i];
+	}
+	return str;
+}
+
 const char* fen_read_castling_chars(const char* str) {
 	do {
 		if (!(str = fen_read_castling(str))) {
@@ -706,16 +775,40 @@ const char* fen_read_ep_square(const char* str) {
 	return fen_read_square(str, &state.ep);
 }
 
+char* fen_write_ep_square(char* str) {
+	return fen_write_square(str, state.ep);
+}
+
 const char* fen_read_castlings(const char* str) {
 	return *str != '-'
 		? fen_read_castling_chars(str)
 		: ++str;
 }
 
+char* fen_write_castlings(char* str) {
+	char* start = str;
+	for (uint8_t i = 0; i < Count_Castlings; ++i) {
+		str = fen_write_castling(str, i);
+	}
+	if (str == start) {
+		*str++ = '-';
+	}
+	return str;
+}
+
 const char* fen_read_ep(const char* str) {
 	return *str != '-'
 		? fen_read_ep_square(str)
 		: ++str;
+}
+
+char* fen_write_ep(char* str) {
+	if (state.ep & Square_FileInvalid) {
+		*str++ = '-';
+	} else {
+		str = fen_write_ep_square(str);
+	}
+	return str;
 }
 
 const char* fen_read(const char* str) {
@@ -725,6 +818,17 @@ const char* fen_read(const char* str) {
 		|| (*str && (!(str = fen_read_char(str, ' ')) || !(str = fen_read_ep(str)))))))) {
 		return 0;
 	}
+	return str;
+}
+
+char* fen_write(char* str) {
+	str = fen_write_squares(str);
+	*str++ = ' ';
+	str = fen_write_color(str);
+	*str++ = ' ';
+	str = fen_write_castlings(str);
+	*str++ = ' ';
+	str = fen_write_ep(str);
 	return str;
 }
 
