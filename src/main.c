@@ -157,7 +157,8 @@ square_t castling_squares[Count_Castlings] = {
 
 typedef struct {
 	const char* fen;
-	uint8_t max;
+	uint8_t  max;
+	uint64_t result;
 } params_t;
 
 piece_t get_square(square_t square) {
@@ -753,9 +754,22 @@ const char* read_uint8(const char* str, uint8_t* result) {
 		: 0;
 }
 
+const char* read_uint64(const char* str, uint64_t* result) {
+	char c;
+	*result = 0;
+	while ((c = *str++)) {
+		if (c < Char_Zero || c > Char_Nine) {
+			return 0;
+		}
+		*result = *result * 10 + c - Char_Zero;
+	}
+	return str;
+}
+
 bool read_args(int argc, const char* argv[], params_t* params) {
 	params->max = UINT8_MAX;
 	params->fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -";
+	params->result = 0;
 	
 	switch (argc) {
 	case 1:
@@ -765,6 +779,10 @@ bool read_args(int argc, const char* argv[], params_t* params) {
 			params->fen = argv[1];
 		}
 		return true;
+	case 4:
+		if (!read_uint64(argv[3], &params->result)) {
+			return false;
+		}
 	case 3:
 		if (!read_uint8(argv[2], &params->max)) {
 			return false;
@@ -778,9 +796,10 @@ bool read_args(int argc, const char* argv[], params_t* params) {
 
 int main(int argc, const char* argv[]) {
 	params_t params;
+	uint64_t count = 0;
 
 	if (!read_args(argc, argv, &params)) {
-		printf("Usage: perft [<fen>] [<depth>]\n");
+		printf("Usage: perft [<fen>] [<depth> [<result>]]\n");
 		return -1;
 	}
 
@@ -792,9 +811,11 @@ int main(int argc, const char* argv[]) {
 	printf("%s\n", buffer);
 
 	for (uint8_t depth = 0; depth <= params.max; ++depth) {
-		uint64_t count = perft(moves, depth);
+		count = perft(moves, depth);
 		printf("perft(%3d)=%11" PRIu64 "\n", depth, count);
 	}
 	
-	return 0;
+	return !params.result || count == params.result
+		? 0
+		: 2;
 }
