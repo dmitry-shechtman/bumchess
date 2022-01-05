@@ -159,6 +159,7 @@ typedef struct {
 	const char* fen;
 	uint8_t  min;
 	uint8_t  max;
+	uint8_t  div;
 	uint64_t result;
 } params_t;
 
@@ -538,7 +539,21 @@ void move_unmake(move_t move) {
 	set_sec(move.sec.from);
 }
 
-uint64_t perft(move_t* moves, uint8_t depth) {
+extern char buffer[1024];
+
+uint64_t perft(move_t* moves, uint8_t depth, int8_t div, char* str);
+char* move_write(char* str, move_t move);
+
+uint64_t perft_divide(move_t* moves, move_t move, uint8_t depth, int8_t div, char* str) {
+	str = move_write(str, move);
+	*str++ = ' ';
+	uint64_t count = perft(moves, depth, div, str);
+	*str = 0;
+	printf("%s%11" PRIu64 "\n", buffer, count);
+	return count;
+}
+
+uint64_t perft(move_t* moves, uint8_t depth, int8_t div, char* str) {
 	move_t *pEnd, *pCurr;
 	uint64_t count = 0;
 	state_t state2;
@@ -549,7 +564,9 @@ uint64_t perft(move_t* moves, uint8_t depth) {
 		state2 = state;
 		move_make(*pCurr);
 		if (!check())
-			count += perft(pEnd, depth - 1);
+			count += !div
+				? perft(pEnd, depth - 1, div, str)
+				: perft_divide(pEnd, *pCurr, depth - 1, div - 1, str);
 		move_unmake(*pCurr);
 		state = state2;
 	}
@@ -663,7 +680,7 @@ const char* fen_read_file(const char* str, square_t* square) {
 	return str;
 }
 
-char* fen_write_file(char* str, square_t square) {
+char* file_write(char* str, square_t square) {
 	*str++ = (square & Square_File) + Char_File;
 	return str;
 }
@@ -677,7 +694,7 @@ const char* fen_read_rank(const char* str, square_t* square) {
 	return str;
 }
 
-char* fen_write_rank(char* str, square_t square) {
+char* rank_write(char* str, square_t square) {
 	*str++ = (square >> Shift_Rank) + Char_Rank;
 	return str;
 }
@@ -689,9 +706,9 @@ const char* fen_read_square(const char* str, square_t* square) {
 		: 0;
 }
 
-char* fen_write_square(char* str, square_t square) {
-	str = fen_write_file(str, square);
-	str = fen_write_rank(str, square);
+char* square_write(char* str, square_t square) {
+	str = file_write(str, square);
+	str = rank_write(str, square);
 	return str;
 }
 
@@ -776,7 +793,7 @@ const char* fen_read_ep_square(const char* str) {
 }
 
 char* fen_write_ep_square(char* str) {
-	return fen_write_square(str, state.ep);
+	return square_write(str, state.ep);
 }
 
 const char* fen_read_castlings(const char* str) {
@@ -837,7 +854,7 @@ char* board_write(char* str) {
 	piece_t piece;
 	for (int8_t rank = Count_Ranks - 1; rank >= 0; --rank) {
 		square = rank << Shift_Rank;
-		*str++ = rank + Char_Rank;
+		str = rank_write(str, square);
 		for (uint8_t file = 0; file < Count_Files; ++file, ++square) {
 			piece = get_square(square);
 			*str++ = ' ';
@@ -846,6 +863,16 @@ char* board_write(char* str) {
 				: '.';
 		}
 		*str++ = '\n';
+	}
+	*str = 0;
+	return str;
+}
+
+char* move_write(char* str, move_t move) {
+	str = square_write(str, move.prim.from.square);
+	str = square_write(str, move.prim.to.square);
+	if (move.prim.from.piece != move.prim.to.piece) {
+		*str++ = get_piece_char(move.prim.to.piece);
 	}
 	*str = 0;
 	return str;
@@ -881,45 +908,58 @@ const char* read_uint64(const char* str, uint64_t* result) {
 	return str;
 }
 
-bool read_args(int argc, const char* argv[], params_t* params) {
-	params->min = 0;
-	params->max = UINT8_MAX;
-	params->fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -";
-	params->result = UINT64_MAX;
-	
-	switch (argc) {
-	case 1:
-		return true;
-	case 2:
-		if (!read_uint8(argv[1], &params->max)) {
-			params->fen = argv[1];
-		} else {
-			params->min = params->max;
-		}
-		return true;
-	case 4:
-		if (!read_uint64(argv[3], &params->result)) {
-			return false;
-		}
-	case 3:
-		if (!read_uint8(argv[2], &params->max)) {
-			return false;
-		}
-		params->min = params->max;
-		params->fen = argv[1];
-		return true;
+bool args_read_max(const char* arg, params_t* params) {
+	return read_uint8(arg, &params->max) && params->max;
+}
+
+bool args_read_div(const char* arg, params_t* params) {
+	return read_uint8(arg, &params->div) && params->div;
+}
+
+bool args_read_result(const char* arg, params_t* params) {
+	return read_uint64(arg, &params->result);
+}
+
+bool args_read_flag(const char* arg, params_t* params) {
+	switch (arg[1]) {
+	case 'd':
+		return args_read_div(&arg[2], params);
 	default:
 		return false;
 	}
 }
 
+bool args_read(int argc, const char* argv[], params_t* params) {
+	params->min = 0;
+	params->max = UINT8_MAX;
+	params->div = 0;
+	params->fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -";
+	params->result = UINT64_MAX;
+	
+	for (uint8_t i = 1; i < argc; ++i) {
+		if (argv[i][0] == '-') {
+			if (!args_read_flag(argv[i], params)) {
+				return false;
+			}
+		} else if (params->max == UINT8_MAX) {
+			if (!args_read_max(argv[i], params)) {
+				params->fen = argv[i];
+			} else {
+				params->min = params->max;
+			}
+		} else if (!args_read_result(argv[i], params)) {
+			return false;
+		}
+	}
+	return true;
+}
+
 int main(int argc, const char* argv[]) {
 	params_t params;
 	uint64_t count = 0;
-	const char* format;
 
-	if (!read_args(argc, argv, &params)) {
-		printf("Usage: perft [<fen>] [<depth> [<result>]]\n");
+	if (!args_read(argc, argv, &params)) {
+		printf("Usage: perft [<fen> [<depth> [<result>]]] [-d<divide>]\n");
 		return -1;
 	}
 
@@ -930,17 +970,14 @@ int main(int argc, const char* argv[]) {
 	if (params.result == UINT64_MAX) {
 		board_write(buffer);
 		printf("%s\n", buffer);
-		format = "perft(%3d)=%11" PRIu64 "\n";
-	}
-	else {
+	} else {
 		fen_write(buffer);
 		printf("\nPosition: %s\n", buffer);
-		format = "Validating depth: %d perft: %" PRIu64 "\n";
 	}
 
 	for (uint8_t depth = params.min; depth <= params.max; ++depth) {
-		count = perft(moves, depth);
-		printf(format, depth, count);
+		count = perft(moves, depth, params.div, buffer);
+		printf("perft(%3d)=%11" PRIu64 "\n", depth, count);
 	}
 	
 	return params.result == UINT64_MAX || count == params.result
