@@ -754,6 +754,11 @@ bool check() {
 	return check_to(get_piece(piece).square);
 }
 
+void set_init(piece_square_t ps) {
+	set_square(ps);
+	set_piece(ps);
+}
+
 void clear_prim_from(piece_square_t from) {
 	clear_square(from);
 	clear_piece(from);
@@ -1016,8 +1021,7 @@ bool set_pieces_unmoved() {
 					fprintf(stderr, "Invalid %c.\n", get_piece_char(ps.piece));
 					return false;
 				}
-				set_square(ps2);
-				set_piece(ps2);
+				set_init(ps2);
 			}
 		}
 	}
@@ -1034,8 +1038,7 @@ bool set_pieces_moved() {
 					fprintf(stderr, "Too many %c's.\n", get_piece_char(ps.piece));
 					return false;
 				}
-				set_square(ps2);
-				set_piece(ps2);
+				set_init(ps2);
 			}
 		}
 	}
