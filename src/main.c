@@ -771,7 +771,7 @@ bool read_args(int argc, const char* argv[], params_t* params) {
 	params->min = 0;
 	params->max = UINT8_MAX;
 	params->fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -";
-	params->result = 0;
+	params->result = UINT64_MAX;
 	
 	switch (argc) {
 	case 1:
@@ -820,7 +820,7 @@ int main(int argc, const char* argv[]) {
 		printf("perft(%3d)=%11" PRIu64 "\n", depth, count);
 	}
 	
-	return !params.result || count == params.result
+	return params.result == UINT64_MAX || count == params.result
 		? 0
 		: 2;
 }
