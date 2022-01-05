@@ -174,9 +174,19 @@ void set_square(piece_square_t ps) {
 	squares[ps.square] = ps.piece;
 }
 
+move_t* gen_promo(move_t* moves, move_t move, piece_t piece) {
+	move.prim.to.piece = piece | color | Piece_Moved;
+	*moves++ = move;
+	return moves;
+}
+
 move_t* gen_promo_pawn(move_t* moves, move_t move, piece_square_t to, uint8_t promo) {
 	if ((to.square & Square_Rank) == promo) {
-		move.prim.to.piece = Piece_Queen | color | Piece_Moved;
+		moves = gen_promo(moves, move, Piece_Knight);
+		moves = gen_promo(moves, move, Piece_Bishop);
+		moves = gen_promo(moves, move, Piece_Rook);
+		moves = gen_promo(moves, move, Piece_Queen);
+		return moves;
 	}
 	*moves++ = move;
 	return moves;
