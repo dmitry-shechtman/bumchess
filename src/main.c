@@ -193,6 +193,12 @@ square_t castling_squares[Count_Castlings] = {
 	Square_FileH | Square_Rank8, Square_FileA | Square_Rank8
 };
 
+typedef struct {
+	const char* fen;
+	uint8_t  max;
+	uint64_t result;
+} params_t;
+
 piece_t get_square(square_t square) {
 	return squares[square];
 }
@@ -1103,39 +1109,56 @@ const char* read_uint8(const char* str, uint8_t* result) {
 		: 0;
 }
 
-uint8_t read_args(int argc, const char* argv[], const char** fen) {
-	uint8_t max = UINT8_MAX;
-	*fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -";
+const char* read_uint64(const char* str, uint64_t* result) {
+	char c;
+	*result = 0;
+	while ((c = *str++)) {
+		if (c < Char_Zero || c > Char_Nine) {
+			return 0;
+		}
+		*result = *result * 10 + c - Char_Zero;
+	}
+	return str;
+}
+
+bool read_args(int argc, const char* argv[], params_t* params) {
+	params->max = UINT8_MAX;
+	params->fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -";
+	params->result = 0;
 	
 	switch (argc) {
 	case 1:
-		return max;
+		return true;
 	case 2:
-		if (!read_uint8(argv[1], &max)) {
-			*fen = argv[1];
+		if (!read_uint8(argv[1], &params->max)) {
+			params->fen = argv[1];
 		}
-		return max;
+		return true;
+	case 4:
+		if (!read_uint64(argv[3], &params->result)) {
+			return false;
+		}
 	case 3:
-		if (!read_uint8(argv[argc - 1], &max)) {
-			return 0;
+		if (!read_uint8(argv[2], &params->max)) {
+			return false;
 		}
-		*fen = argv[1];
-		return max;
+		params->fen = argv[1];
+		return true;
 	default:
-		return 0;
+		return false;
 	}
 }
 
 int main(int argc, const char* argv[]) {
-	uint8_t max;
-	const char* fen;
+	params_t params;
+	uint64_t count = 0;
 
-	if (!(max = read_args(argc, argv, &fen))) {
-		printf("Usage: perft [<fen>] [<depth>]\n");
+	if (!read_args(argc, argv, &params)) {
+		printf("Usage: perft [<fen>] [<depth> [<result>]]\n");
 		return -1;
 	}
 
-	if (!fen_read(fen)
+	if (!fen_read(params.fen)
 		|| !set_pieces()) {
 			return 1;
 	}
@@ -1143,10 +1166,12 @@ int main(int argc, const char* argv[]) {
 	board_write(buffer);
 	printf("%s\n", buffer);
 
-	for (uint8_t depth = 0; depth <= max; ++depth) {
-		uint64_t count = perft(moves, depth);
+	for (uint8_t depth = 0; depth <= params.max; ++depth) {
+		count = perft(moves, depth);
 		printf("perft(%3d)=%11" PRIu64 "\n", depth, count);
 	}
 	
-	return 0;
+	return !params.result || count == params.result
+		? 0
+		: 2;
 }
