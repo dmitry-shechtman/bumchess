@@ -240,7 +240,7 @@ piece_square_t find_index_to(piece_square_t ps) {
 
 piece_square_t find_index_to_bishop(piece_square_t ps) {
 	ps.value += get_index2(ps.square);
-	return ps;
+	return find_index_to(ps);
 }
 
 piece_square_t find_index_error(piece_square_t ps) {
@@ -263,7 +263,7 @@ piece_square_t find_index_pawn(piece_square_t ps) {
 }
 
 piece_square_t find_index_bishop(piece_square_t ps) {
-	ps = find_index_to_bishop(ps);
+	ps.value += get_index2(ps.square);
 	piece_square_t ps2 = find_index_to(ps);
 	return ((ps.value ^ ps2.value) & (Piece_Type | Piece_Odd))
 		? find_index_error(ps2)
