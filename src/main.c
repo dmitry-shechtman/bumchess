@@ -1139,38 +1139,66 @@ char* fen_write(char* str) {
 	return str;
 }
 
-bool set_pieces_unmoved(square_t ep_pawn) {
+bool set_pieces_unmoved() {
 	piece_square_t ps, ps2;
 	for (uint8_t rank = 0; rank < Count_Ranks; ++rank) {
 		ps.square = rank << Shift_Rank;
 		for (uint8_t file = 0; file < Count_Files; ++file, ++ps.square) {
-			if ((ps.piece = get_square(ps.square))
-				&& (!(ps.piece & Piece_Moved) || ps.square == ep_pawn)) {
-					if (!(ps2 = find_index(ps)).value) {
-						fprintf(stderr, "Invalid %c.\n", get_piece_char(ps.piece));
-						return false;
-					}
-					set_init(ps2);
+			if ((ps.piece = get_square(ps.square)) && !(ps.piece & Piece_Moved)) {
+				if (!(ps2 = find_index(ps)).value) {
+					fprintf(stderr, "Invalid %c.\n", get_piece_char(ps.piece));
+					return false;
+				}
+				set_init(ps2);
 			}
 		}
 	}
 	return true;
 }
 
-bool set_pieces_moved(square_t ep_pawn) {
+bool set_pieces_moved() {
 	piece_square_t ps, ps2;
 	for (uint8_t rank = 0; rank < Count_Ranks; ++rank) {
 		ps.square = rank << Shift_Rank;
 		for (uint8_t file = 0; file < Count_Files; ++file, ++ps.square) {
-			if (((ps.piece = get_square(ps.square)) & Piece_Moved)
-				&& ps.square != ep_pawn) {
-					if (!(ps2 = find_index_moved(ps)).value) {
-						fprintf(stderr, "Too many %c's.\n", get_piece_char(ps.piece));
-						return false;
-					}
-					set_init(ps2);
+			if ((ps.piece = get_square(ps.square)) & Piece_Moved) {
+				if (!(ps2 = find_index_moved(ps)).value) {
+					fprintf(stderr, "Too many %c's.\n", get_piece_char(ps.piece));
+					return false;
+				}
+				set_init(ps2);
 			}
 		}
+	}
+	return true;
+}
+
+bool set_pieces_ep_get(piece_square_t* ep_pawn) {
+	ep_pawn->square = state.ep.square ^ Square_Rank2;
+	if (((state.ep.square & Square_Rank) != color_ranks[color == Piece_Black]
+		|| get_square(state.ep.square))
+		|| (ep_pawn->piece = get_square(ep_pawn->square)) != (Piece_Pawn0 | Piece_Moved | (color ^ Piece_Color))) {
+			fprintf(stderr, "Invalid e.p. square.\n");
+			return false;
+	}
+	return true;
+}
+
+bool set_pieces_ep_clear(piece_square_t* ep_pawn) {
+	if (state.piecemask & (1ull << Piece_EP)) {
+		if (!set_pieces_ep_get(ep_pawn)) {
+			return false;
+		}
+		*ep_pawn = find_index(*ep_pawn);
+		set_piece(*ep_pawn);
+		clear_square(*ep_pawn);
+	}
+	return true;
+}
+
+bool set_pieces_ep_set(piece_square_t* ep_pawn) {
+	if (state.piecemask & (1ull << Piece_EP)) {
+		set_square(*ep_pawn);
 	}
 	return true;
 }
@@ -1186,17 +1214,6 @@ bool validate_kings() {
 	return true;
 }
 
-bool validate_ep(square_t ep_pawn) {
-	if ((state.piecemask & (1ull << Piece_EP))
-		&& ((state.ep.square & Square_Rank) != color_ranks[color == Piece_Black]
-			|| get_square(state.ep.square)
-			|| (get_square(ep_pawn) & (Piece_TypePawn | Piece_Color)) != (Piece_Pawn0 | (color ^ Piece_Color)))) {
-				fprintf(stderr, "Invalid e.p. square.\n");
-				return false;
-	}
-	return true;
-}
-
 bool validate_check() {
 	if (check()) {
 		fprintf(stderr, "Illegal position.\n");
@@ -1205,19 +1222,18 @@ bool validate_check() {
 	return true;
 }
 
-bool validate(square_t ep_pawn) {
+bool validate() {
 	return validate_kings()
-		&& validate_ep(ep_pawn)
 		&& validate_check();
 }
 
 bool set_pieces() {
-	square_t ep_pawn = state.piecemask & (1ull << Piece_EP)
-		? state.ep.square ^ Square_Rank2
-		: Square_FileInvalid;
-	return set_pieces_unmoved(ep_pawn)
-		&& set_pieces_moved(ep_pawn)
-		&& validate(ep_pawn);
+	piece_square_t ep_pawn;
+	return set_pieces_ep_clear(&ep_pawn)
+		&& set_pieces_unmoved()
+		&& set_pieces_moved()
+		&& set_pieces_ep_set(&ep_pawn)
+		&& validate();
 }
 
 char* board_write(char* str) {
