@@ -1403,7 +1403,7 @@ const char* fen_read_color(const char* str) {
 }
 
 char* fen_write_color(char* str) {
-	*str++ = color_chars[color == Piece_White ? 0 : 1];
+	*str++ = color_chars[color == Piece_Black];
 	return str;
 }
 
@@ -1701,7 +1701,7 @@ int main(int argc, const char* argv[]) {
 	uint64_t count = 0;
 
 	if (!args_read(argc, argv, &params)) {
-		printf("Usage: perft [<fen> [<depth> [<result>]]] [-d<divide>] [-l]\n");
+		printf("Usage: perft [<fen>] [<depth> [<result>]] [-d<divide>] [-l]\n");
 		return -1;
 	}
 
