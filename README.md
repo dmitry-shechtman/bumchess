@@ -1,9 +1,17 @@
-# bumchess
+ï»¿# bumchess
 Branchless Unmake/Make Chess Move Generator
+
+## Usage
+`perft [<fen>] [<depth> [<result>]] [-d<divide>] [-l]`
+
+- `<fen>`      - Specifies the position in FEN format (castlings and e.p. square are optional)
+- `<depth>`    - Specifies the depth
+- `<result>`   - Specifies the expected leaf count
+- `-d<divide>` - Divide from depth 1 to `<divide>`
+- `-l`         - Loop from depth 0 to `<depth>`
 
 ## Not Yet Implemented
 * Castling
-* Read FEN
 
 ## Known Limits
 * 1 king per side
@@ -16,8 +24,8 @@ Branchless Unmake/Make Chess Move Generator
 ## Thanks
 * Harm Geert Muller
 * Rasmus Althoff
-* Daniel Inführ
-* Sven Schüle
+* Daniel InfÃ¼hr
+* Sven SchÃ¼le
 * Marcel Vanthoor
 
 ## License
