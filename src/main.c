@@ -754,7 +754,7 @@ const char* fen_read_color(const char* str) {
 }
 
 char* fen_write_color(char* str) {
-	*str++ = color_chars[color == Piece_White ? 0 : 1];
+	*str++ = color_chars[color == Piece_Black];
 	return str;
 }
 
