@@ -409,9 +409,12 @@ move_t* gen_promo_pawn(move_t* moves, move_t move, piece_square_t to,
 }
 
 static inline
-move_t* gen_push2_pawn(move_t* moves, register piece_square_t from, register piece_square_t to, register piece_square_t from2,
+move_t* gen_push2_pawn(move_t* moves, register const move_t move,
 	const uint8_t color2)
 {
+	register piece_square_t from = move.prim.from;
+	register piece_square_t to = move.prim.to;
+	register piece_square_t from2 = move.sec.from;
 	register uint64_t row = board.rows[to.square >> Shift_Row];
 	register piece_t left = !((to.square - 1) & Square_FileInvalid)
 		? (piece_t)(row >> (((to.square - 1) & Square_File) << Shift_File))
@@ -457,8 +460,8 @@ move_t* gen_push_pawn(move_t* moves, register piece_square_t from, register cons
 		};
 		moves = gen_promo_pawn(moves, move, to, piecemask, promo, color);
 		if (!(from.piece & Piece_Moved)) {
-			to.square += vector;
-			moves = gen_push2_pawn(moves, from, to, from2, color2);
+			move.prim.to.square += vector;
+			moves = gen_push2_pawn(moves, move, color2);
 		}
 	}
 	return moves;
@@ -1459,7 +1462,7 @@ const char* fen_read_castling_chars(const char* str) {
 
 const char* fen_read_ep_square(const char* str, uint64_t* piecemask, move_t* move) {
 	*piecemask |= (1ull << Piece_EP);
-	return fen_read_square(str, &move->sec.to.square);
+	return fen_read_square(str, &move->sec.from.square);
 }
 
 char* fen_write_ep_square(char* str, move_t move) {
@@ -1568,11 +1571,11 @@ uint64_t set_pieces_moved(uint64_t piecemask) {
 }
 
 uint64_t set_pieces_ep_get(uint64_t piecemask, move_t* move) {
-	move->prim.to.square = move->sec.to.square ^ Square_Rank2;
+	move->prim.to.square = move->sec.from.square ^ Square_Rank2;
 	move->prim.from.square = move->prim.to.square ^ Square_Rank3;
-	if (((move->sec.to.square & Square_Rank) != color_ranks[board.color == Piece_Black]
+	if (((move->sec.from.square & Square_Rank) != color_ranks[board.color == Piece_Black]
 		|| get_square(move->prim.from.square)
-		|| get_square(move->sec.to.square))
+		|| get_square(move->sec.from.square))
 		|| (move->prim.to.piece = get_square(move->prim.to.square)) != (Piece_Pawn0 | Piece_Moved | (board.color ^ Piece_Color))) {
 			fprintf(stderr, "Invalid e.p. square.\n");
 			return 0;
@@ -1595,7 +1598,7 @@ uint64_t set_pieces_ep_moved(uint64_t piecemask, move_t* move) {
 	if (piecemask & (1ull << Piece_EP)) {
 		move->prim.to.piece = get_square(move->prim.to.square) | Piece_Moved;
 		clear_square(move->prim.to);
-		gen_push2_pawn(move, move->prim.from, move->prim.to, move->sec.to, board.color);
+		gen_push2_pawn(move, *move, board.color);
 		piecemask = set_init(move->prim.to, piecemask);
 	}
 	return piecemask;
