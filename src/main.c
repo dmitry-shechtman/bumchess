@@ -1191,21 +1191,21 @@ bool set_pieces_ep_get(piece_square_t* ep_pawn) {
 	return true;
 }
 
-bool set_pieces_ep_clear(piece_square_t* ep_pawn) {
+bool set_pieces_ep_unmoved(piece_square_t* ep_pawn) {
 	if (state.piecemask & (1ull << Piece_EP)) {
 		if (!set_pieces_ep_get(ep_pawn)) {
 			return false;
 		}
-		*ep_pawn = find_index(*ep_pawn);
-		set_piece(*ep_pawn);
-		clear_square(*ep_pawn);
+		ep_pawn->piece &= ~Piece_Moved;
+		set_square(*ep_pawn);
 	}
 	return true;
 }
 
-bool set_pieces_ep_set(piece_square_t* ep_pawn) {
+bool set_pieces_ep_moved(piece_square_t* ep_pawn) {
 	if (state.piecemask & (1ull << Piece_EP)) {
-		set_square(*ep_pawn);
+		ep_pawn->piece = get_square(ep_pawn->square) | Piece_Moved;
+		set_init(*ep_pawn);
 	}
 	return true;
 }
@@ -1236,10 +1236,10 @@ bool validate() {
 
 bool set_pieces() {
 	piece_square_t ep_pawn;
-	return set_pieces_ep_clear(&ep_pawn)
+	return set_pieces_ep_unmoved(&ep_pawn)
 		&& set_pieces_unmoved()
 		&& set_pieces_moved()
-		&& set_pieces_ep_set(&ep_pawn)
+		&& set_pieces_ep_moved(&ep_pawn)
 		&& validate();
 }
 
