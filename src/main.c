@@ -1144,17 +1144,34 @@ char* fen_write(char* str) {
 	return str;
 }
 
+bool set_piece_unmoved(piece_square_t ps) {
+	piece_square_t ps2 = find_index(ps);
+	if (!ps2.value) {
+		fprintf(stderr, "Invalid %c.\n", get_piece_char(ps.piece));
+		return false;
+	}
+	set_init(ps2);
+	return true;
+}
+
+bool set_piece_moved(piece_square_t ps) {
+	piece_square_t ps2 = find_index_moved(ps);
+	if (!ps2.value) {
+		fprintf(stderr, "Too many %c's.\n", get_piece_char(ps.piece));
+		return false;
+	}
+	set_init(ps2);
+	return true;
+}
+
 bool set_pieces_unmoved() {
-	piece_square_t ps, ps2;
+	piece_square_t ps;
 	for (uint8_t rank = 0; rank < Count_Ranks; ++rank) {
 		ps.square = rank << Shift_Rank;
 		for (uint8_t file = 0; file < Count_Files; ++file, ++ps.square) {
-			if ((ps.piece = get_square(ps.square)) && !(ps.piece & Piece_Moved)) {
-				if (!(ps2 = find_index(ps)).value) {
-					fprintf(stderr, "Invalid %c.\n", get_piece_char(ps.piece));
+			if ((ps.piece = get_square(ps.square)) && !(ps.piece & Piece_Moved)
+				&& !set_piece_unmoved(ps)) {
 					return false;
-				}
-				set_init(ps2);
 			}
 		}
 	}
@@ -1162,16 +1179,13 @@ bool set_pieces_unmoved() {
 }
 
 bool set_pieces_moved() {
-	piece_square_t ps, ps2;
+	piece_square_t ps;
 	for (uint8_t rank = 0; rank < Count_Ranks; ++rank) {
 		ps.square = rank << Shift_Rank;
 		for (uint8_t file = 0; file < Count_Files; ++file, ++ps.square) {
-			if ((ps.piece = get_square(ps.square)) & Piece_Moved) {
-				if (!(ps2 = find_index_moved(ps)).value) {
-					fprintf(stderr, "Too many %c's.\n", get_piece_char(ps.piece));
+			if (((ps.piece = get_square(ps.square)) & Piece_Moved)
+				&& !set_piece_moved(ps)) {
 					return false;
-				}
-				set_init(ps2);
 			}
 		}
 	}
