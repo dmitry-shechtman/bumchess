@@ -1167,7 +1167,7 @@ uint64_t move_unmake(register move_t move, register uint64_t piecemask) {
 	return piecemask;
 }
 
-uint64_t perft_opt(move_t* moves, register uint64_t piecemask, register const move_t move, register uint8_t depth, char* str) {
+uint64_t perft_opt(move_t* moves, register uint64_t piecemask, register const move_t move, register uint8_t depth) {
 	move_t *pEnd, *pCurr;
 	uint64_t count = 0;
 	pEnd = gen(moves, piecemask, move);
@@ -1179,7 +1179,7 @@ uint64_t perft_opt(move_t* moves, register uint64_t piecemask, register const mo
 #endif
 		if (!check(piecemask)) {
 			count += depth
-				? perft_opt(pEnd, piecemask, *pCurr, depth, str)
+				? perft_opt(pEnd, piecemask, *pCurr, depth)
 				: 1;
 		}
 		piecemask = move_unmake(*pCurr, piecemask);
@@ -1207,7 +1207,7 @@ uint64_t perft(move_t* moves, uint64_t piecemask, move_t move, uint8_t depth, ui
 	if (!depth)
 		return 1;
 	if (!div)
-		return perft_opt(moves, piecemask, move, depth, str);
+		return perft_opt(moves, piecemask, move, depth);
 	pEnd = gen(moves, piecemask, move);
 	--depth;
 	--div;
@@ -1584,8 +1584,8 @@ uint64_t set_pieces(uint64_t piecemask, move_t move) {
 	return (piecemask = set_pieces_unmoved(ep_pawn, piecemask))
 		&& (piecemask = set_pieces_moved(ep_pawn, piecemask))
 		&& validate(ep_pawn, piecemask, move)
-		? piecemask
-		: 0;
+			? piecemask
+			: 0;
 }
 
 char* board_write(char* str) {
