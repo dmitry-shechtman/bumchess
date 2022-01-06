@@ -1295,6 +1295,9 @@ bool args_read_flag(const char* arg, params_t* params) {
 	switch (arg[1]) {
 	case 'd':
 		return args_read_div(&arg[2], params);
+	case 'l':
+		params->min = 0;
+		return true;
 	default:
 		return false;
 	}
@@ -1330,7 +1333,7 @@ int main(int argc, const char* argv[]) {
 	uint64_t count = 0;
 
 	if (!args_read(argc, argv, &params)) {
-		printf("Usage: perft [<fen> [<depth> [<result>]]] [-d<divide>]\n");
+		printf("Usage: perft [<fen> [<depth> [<result>]]] [-d<divide>] [-l]\n");
 		return -1;
 	}
 
