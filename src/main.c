@@ -1216,11 +1216,8 @@ uint64_t perft(move_t* moves, uint64_t piecemask, move_t move, uint8_t depth, ui
 #if !NDEBUG
 		if (pCurr->prim.from.piece)
 #endif
-		if (!check(piecemask)) {
-			count += depth
-				? perft_divide(pEnd, piecemask, *pCurr, depth, div, str)
-				: 1;
-		}
+		if (!check(piecemask))
+			count += perft_divide(pEnd, piecemask, *pCurr, depth, div, str);
 		piecemask = move_unmake(*pCurr, piecemask);
 	}
 	return count;
