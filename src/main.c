@@ -30,6 +30,7 @@ enum Shift {
 };
 
 enum Piece {
+	Piece_Castling = 0x01,
 	Piece_Odd      = 0x02,
 	Piece_Index2   = 0x03,
 
@@ -272,7 +273,7 @@ piece_square_t find_index_bishop(piece_square_t ps) {
 }
 
 piece_square_t find_index_rook(piece_square_t ps) {
-	ps.piece |= (state.piecemask >> (Piece_King | (ps.piece & Piece_Black))) & 1;
+	ps.piece |= (state.piecemask >> (Piece_King | (ps.piece & Piece_Black))) & Piece_Castling;
 	return (state.piecemask & (1ull << (ps.value & Piece_Index)))
 		? find_index_error(ps)
 		: ps;
@@ -1060,9 +1061,13 @@ const char* fen_read_castling(const char* str) {
 }
 
 char* fen_write_castling(char* str, uint8_t i) {
-	piece_t piece = get_square(castling_squares[i]);
-	if (piece && !(piece & Piece_Moved)) {
-		*str++ = castling_chars[i];
+	piece_t color = color_values[i >> Shift_Castling];
+	piece_t rook = Piece_Rook | color | ((i & Piece_Castling) ^ Piece_Castling);
+	piece_t king = Piece_King | color;
+	if ((state.piecemask & (1ull << rook))
+		&& !(get_piece(rook & Piece_Index).piece & Piece_Moved)
+		&& !(get_piece(king & Piece_Index).piece & Piece_Moved)) {
+			*str++ = castling_chars[i];
 	}
 	return str;
 }
