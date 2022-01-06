@@ -1139,34 +1139,36 @@ char* fen_write(char* str) {
 	return str;
 }
 
-bool set_pieces_unmoved() {
+bool set_pieces_unmoved(square_t ep_pawn) {
 	piece_square_t ps, ps2;
 	for (uint8_t rank = 0; rank < Count_Ranks; ++rank) {
 		ps.square = rank << Shift_Rank;
 		for (uint8_t file = 0; file < Count_Files; ++file, ++ps.square) {
-			if ((ps.piece = get_square(ps.square)) && !(ps.piece & Piece_Moved)) {
-				if (!(ps2 = find_index(ps)).value) {
-					fprintf(stderr, "Invalid %c.\n", get_piece_char(ps.piece));
-					return false;
-				}
-				set_init(ps2);
+			if ((ps.piece = get_square(ps.square))
+				&& (!(ps.piece & Piece_Moved) || ps.square == ep_pawn)) {
+					if (!(ps2 = find_index(ps)).value) {
+						fprintf(stderr, "Invalid %c.\n", get_piece_char(ps.piece));
+						return false;
+					}
+					set_init(ps2);
 			}
 		}
 	}
 	return true;
 }
 
-bool set_pieces_moved() {
+bool set_pieces_moved(square_t ep_pawn) {
 	piece_square_t ps, ps2;
 	for (uint8_t rank = 0; rank < Count_Ranks; ++rank) {
 		ps.square = rank << Shift_Rank;
 		for (uint8_t file = 0; file < Count_Files; ++file, ++ps.square) {
-			if ((ps.piece = get_square(ps.square)) & Piece_Moved) {
-				if (!(ps2 = find_index_moved(ps)).value) {
-					fprintf(stderr, "Too many %c's.\n", get_piece_char(ps.piece));
-					return false;
-				}
-				set_init(ps2);
+			if (((ps.piece = get_square(ps.square)) & Piece_Moved)
+				&& ps.square != ep_pawn) {
+					if (!(ps2 = find_index_moved(ps)).value) {
+						fprintf(stderr, "Too many %c's.\n", get_piece_char(ps.piece));
+						return false;
+					}
+					set_init(ps2);
 			}
 		}
 	}
@@ -1189,8 +1191,11 @@ bool validate() {
 }
 
 bool set_pieces() {
-	return set_pieces_unmoved()
-		&& set_pieces_moved()
+	square_t ep_pawn = state.piecemask & (1ull << Piece_EP)
+		? state.ep.square ^ Square_Rank2
+		: Square_FileInvalid;
+	return set_pieces_unmoved(ep_pawn)
+		&& set_pieces_moved(ep_pawn)
 		&& validate();
 }
 
