@@ -541,10 +541,10 @@ void move_unmake(move_t move) {
 
 extern char buffer[1024];
 
-uint64_t perft(move_t* moves, uint8_t depth, int8_t div, char* str);
+uint64_t perft(move_t* moves, uint8_t depth, uint8_t div, char* str);
 char* move_write(char* str, move_t move);
 
-uint64_t perft_divide(move_t* moves, move_t move, uint8_t depth, int8_t div, char* str) {
+uint64_t perft_divide(move_t* moves, move_t move, uint8_t depth, uint8_t div, char* str) {
 	str = move_write(str, move);
 	*str++ = ' ';
 	uint64_t count = perft(moves, depth, div, str);
@@ -553,7 +553,7 @@ uint64_t perft_divide(move_t* moves, move_t move, uint8_t depth, int8_t div, cha
 	return count;
 }
 
-uint64_t perft(move_t* moves, uint8_t depth, int8_t div, char* str) {
+uint64_t perft(move_t* moves, uint8_t depth, uint8_t div, char* str) {
 	move_t *pEnd, *pCurr;
 	uint64_t count = 0;
 	state_t state2;
