@@ -183,9 +183,14 @@ enum Char {
 	Char_File = 'a',
 };
 
-piece_t squares[Count_Squares];
-piece_square_t pieces[Count_Pieces];
-piece_t color;
+struct {
+	union {
+		piece_t squares[Count_Squares];
+		uint64_t rows[16];
+	};
+	piece_square_t pieces[Count_Pieces];
+	piece_t color;
+} board;
 
 const move_t nullmove = {
 	.prim = {
@@ -241,22 +246,22 @@ piece_t find_next(uint64_t* mask) {
 
 static inline
 piece_t get_square(register square_t square) {
-	return squares[square];
+	return board.squares[square];
 }
 
 static inline
 void clear_square(register piece_square_t ps) {
-	squares[ps.square] = 0x00;
+	board.squares[ps.square] = 0x00;
 }
 
 static inline
 void set_square(register piece_square_t ps) {
-	squares[ps.square] = ps.piece;
+	board.squares[ps.square] = ps.piece;
 }
 
 static inline
 piece_square_t get_piece(register piece_t piece) {
-	return pieces[piece];
+	return board.pieces[piece];
 }
 
 static inline
@@ -268,7 +273,7 @@ uint64_t clear_piece(register piece_square_t ps, register uint64_t piecemask) {
 static inline
 uint64_t set_piece(register piece_square_t ps, register uint64_t piecemask) {
 	register piece_t piece = ps.piece & Piece_Index;
-	pieces[piece] = ps;
+	board.pieces[piece] = ps;
 	return piecemask |= (1ull << piece);
 }
 
@@ -456,7 +461,7 @@ move_t* gen_vector_pawn(move_t* moves, register piece_square_t from, register co
 	register piece_square_t from2;
 	if (!((to.square += vector) & Square_Invalid)
 		&& ((from2.piece = get_square(from2.square = to.square)) & color2)) {
-		register move_t move = {
+			register move_t move = {
 				.prim = {
 					.from = from,
 					.to = to
@@ -1084,14 +1089,14 @@ bool check_black(register const uint64_t piecemask) {
 
 static inline
 move_t* gen(move_t* moves, register const uint64_t piecemask, register const move_t move) {
-	return color == Piece_White
+	return board.color == Piece_White
 		? gen_white(moves, piecemask, move)
 		: gen_black(moves, piecemask, move);
 }
 
 static inline
 bool check(register const uint64_t piecemask) {
-	return color == Piece_White
+	return board.color == Piece_White
 		? check_white(piecemask)
 		: check_black(piecemask);
 }
@@ -1150,14 +1155,14 @@ uint64_t move_make(register move_t move, register uint64_t piecemask) {
 	piecemask = clear_prim_from(move.prim.from, piecemask);
 	piecemask = set_prim_to(move.prim.to, piecemask);
 
-	color ^= Piece_Color;
+	board.color ^= Piece_Color;
 
 	return piecemask;
 }
 
 static inline
 uint64_t move_unmake(register move_t move, register uint64_t piecemask) {
-	color ^= Piece_Color;
+	board.color ^= Piece_Color;
 
 	piecemask = clear_prim_to(move.prim.to, piecemask);
 	piecemask = set_prim_from(move.prim.from, piecemask);
@@ -1398,12 +1403,12 @@ const char* fen_read_color(const char* str) {
 	if ((i = find_color(c)) == Count_Colors) {
 		return fen_read_error(c);
 	}
-	color = color_values[i];
+	board.color = color_values[i];
 	return str;
 }
 
 char* fen_write_color(char* str) {
-	*str++ = color_chars[color == Piece_Black];
+	*str++ = color_chars[board.color == Piece_Black];
 	return str;
 }
 
@@ -1440,8 +1445,8 @@ const char* fen_read_castling_chars(const char* str) {
 const char* fen_read_ep_square(const char* str, uint64_t* piecemask, move_t* move) {
 	*piecemask |= (1ull << Piece_EP);
 	str = fen_read_square(str, &move->sec.to.square);
-	move->prim.to.square = move->sec.to.square + (color == Piece_White ? Vec_S : Vec_N);
-	gen_push2_pawn(move, move->prim.from, move->prim.to, move->sec.to, color);
+	move->prim.to.square = move->sec.to.square ^ Square_Rank2;
+	gen_push2_pawn(move, move->prim.from, move->prim.to, move->sec.to, board.color);
 	return str;
 }
 
@@ -1553,9 +1558,9 @@ bool validate_kings(uint64_t piecemask) {
 
 bool validate_ep(square_t ep_pawn, uint64_t piecemask, move_t move) {
 	if ((piecemask & (1ull << Piece_EP))
-		&& ((move.sec.to.square & Square_Rank) != color_ranks[color == Piece_Black]
+		&& ((move.sec.to.square & Square_Rank) != color_ranks[board.color == Piece_Black]
 			|| get_square(move.sec.to.square)
-			|| (get_square(ep_pawn) & (Piece_TypePawn | Piece_Color)) != (Piece_Pawn0 | (color ^ Piece_Color)))) {
+			|| (get_square(ep_pawn) & (Piece_TypePawn | Piece_Color)) != (Piece_Pawn0 | (board.color ^ Piece_Color)))) {
 				fprintf(stderr, "Invalid e.p. square.\n");
 				return false;
 	}
