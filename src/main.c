@@ -30,6 +30,8 @@ enum Shift {
 	Shift_Castling    =  1,
 	Shift_Odd         =  1,
 	Shift_Type        =  2,
+	Shift_Row         =  3,
+	Shift_File        =  3,
 	Shift_Rank        =  4,
 
 	Shift_EP_Index    =  4,
@@ -409,21 +411,29 @@ static inline
 move_t* gen_push2_pawn(move_t* moves, register piece_square_t from, register piece_square_t to, register piece_square_t from2,
 	const uint8_t color2)
 {
-	register piece_t left = get_square(to.square - 1);
-	register piece_t right = get_square(to.square + 1);
-	register move_t move = {
-		.prim = {
-			.from = { from.value | ((~((to.square - 1) & Square_FileInvalid)
-				& ((left & (Piece_TypePawn | Piece_Color)) == (Piece_Pawn0 | color2))) << Shift_Piece_EP) },
-			.to = { to.value | ((~((to.square + 1) & Square_FileInvalid)
-				& ((right & (Piece_TypePawn | Piece_Color)) == (Piece_Pawn0 | color2))) << Shift_Piece_EP) }
-		},
-		.sec = {
-			.from = { (((left & Piece_Index3) | ((right & Piece_Index3) << Shift_EP_Index)) << Shift_Square) | 0x0800 },
-			.to = { from2.value | Piece_EP | 0x0800 }
-		}
-	};
-	*moves++ = move;
+	register uint64_t row = board.rows[to.square >> Shift_Row];
+	register piece_t left = !((to.square - 1) & Square_FileInvalid)
+		? (piece_t)(row >> (((to.square - 1) & Square_File) << Shift_File))
+		: 0;
+	register piece_t piece = (piece_t)(row >> ((to.square & Square_File) << Shift_File));
+	register piece_t right = !((to.square + 1) & Square_FileInvalid)
+		? (piece_t)(row >> (((to.square + 1) & Square_File) << Shift_File))
+		: 0;
+	if (!piece) {
+		register move_t move = {
+			.prim = {
+				.from = { from.value |
+					(((left & (Piece_TypePawn | Piece_Color)) == (Piece_Pawn0 | color2)) << Shift_Piece_EP) },
+				.to = { to.value |
+					(((right & (Piece_TypePawn | Piece_Color)) == (Piece_Pawn0 | color2)) << Shift_Piece_EP) }
+			},
+			.sec = {
+				.from = { (((left & Piece_Index3) | ((right & Piece_Index3) << Shift_EP_Index)) << Shift_Square) | 0x0800 },
+				.to = { from2.value | Piece_EP | 0x0800 }
+			}
+		};
+		*moves++ = move;
+	}
 	return moves;
 }
 
@@ -445,9 +455,9 @@ move_t* gen_push_pawn(move_t* moves, register piece_square_t from, register cons
 			}
 		};
 		moves = gen_promo_pawn(moves, move, to, piecemask, promo, color);
-		if (!(from.piece & Piece_Moved)
-			&& !get_square(to.square += vector)) {
-				moves = gen_push2_pawn(moves, from, to, from2, color2);
+		if (!(from.piece & Piece_Moved)) {
+			to.square += vector;
+			moves = gen_push2_pawn(moves, from, to, from2, color2);
 		}
 	}
 	return moves;
@@ -1446,7 +1456,10 @@ const char* fen_read_ep_square(const char* str, uint64_t* piecemask, move_t* mov
 	*piecemask |= (1ull << Piece_EP);
 	str = fen_read_square(str, &move->sec.to.square);
 	move->prim.to.square = move->sec.to.square ^ Square_Rank2;
+	move->prim.to.piece = get_square(move->prim.to.square);
+	clear_square(move->prim.to);
 	gen_push2_pawn(move, move->prim.from, move->prim.to, move->sec.to, board.color);
+	set_square(move->prim.to);
 	return str;
 }
 
