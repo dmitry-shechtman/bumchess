@@ -1180,7 +1180,9 @@ bool set_pieces_moved() {
 
 bool set_pieces_ep_get(piece_square_t* ep_pawn) {
 	ep_pawn->square = state.ep.square ^ Square_Rank2;
+	square_t from_square = ep_pawn->square ^ Square_Rank3;
 	if (((state.ep.square & Square_Rank) != color_ranks[color == Piece_Black]
+		|| get_square(from_square)
 		|| get_square(state.ep.square))
 		|| (ep_pawn->piece = get_square(ep_pawn->square)) != (Piece_Pawn0 | Piece_Moved | (color ^ Piece_Color))) {
 			fprintf(stderr, "Invalid e.p. square.\n");
