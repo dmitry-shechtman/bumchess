@@ -13,10 +13,14 @@ Branchless Unmake/Make Chess Move Generator
 * 3 queens per side
 * 8 pawns per side
 
+## Thanks
+* Harm Geert Muller
+* Rasmus Althoff
+* Daniel Inführ
+* Sven Schüle
+* Marcel Vanthoor
+
 ## License
-
-### BSD 3-Clause License
-
 Copyright (c) 2022 Dmitry Shechtman
 
 All rights reserved.
