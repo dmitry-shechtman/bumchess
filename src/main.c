@@ -40,6 +40,7 @@ enum Shift {
 };
 
 enum Piece {
+	Piece_Castling = 0x01,
 	Piece_Odd      = 0x02,
 	Piece_Index2   = 0x03,
 	Piece_Index3   = 0x07,
@@ -326,7 +327,7 @@ piece_square_t find_index_bishop(piece_square_t ps, const uint64_t piecemask) {
 }
 
 piece_square_t find_index_rook(piece_square_t ps, const uint64_t piecemask) {
-	ps.piece |= (piecemask >> (Piece_King | (ps.piece & Piece_Black))) & 1;
+	ps.piece |= (piecemask >> (Piece_King | (ps.piece & Piece_Black))) & Piece_Castling;
 	return (piecemask & (1ull << (ps.value & Piece_Index)))
 		? find_index_error(ps)
 		: ps;
@@ -1435,10 +1436,14 @@ const char* fen_read_castling(const char* str) {
 	return str;
 }
 
-char* fen_write_castling(char* str, uint8_t i) {
-	piece_t piece = get_square(castling_squares[i]);
-	if (piece && !(piece & Piece_Moved)) {
-		*str++ = castling_chars[i];
+char* fen_write_castling(char* str, uint64_t piecemask, uint8_t i) {
+	piece_t color = color_values[i >> Shift_Castling];
+	piece_t rook = Piece_Rook | color | ((i & Piece_Castling) ^ Piece_Castling);
+	piece_t king = Piece_King | color;
+	if ((piecemask & (1ull << rook))
+		&& !(get_piece(rook & Piece_Index).piece & Piece_Moved)
+		&& !(get_piece(king & Piece_Index).piece & Piece_Moved)) {
+			*str++ = castling_chars[i];
 	}
 	return str;
 }
@@ -1467,10 +1472,10 @@ const char* fen_read_castlings(const char* str) {
 		: ++str;
 }
 
-char* fen_write_castlings(char* str) {
+char* fen_write_castlings(char* str, uint64_t piecemask) {
 	char* start = str;
 	for (uint8_t i = 0; i < Count_Castlings; ++i) {
-		str = fen_write_castling(str, i);
+		str = fen_write_castling(str, piecemask, i);
 	}
 	if (str == start) {
 		*str++ = '-';
@@ -1510,7 +1515,7 @@ char* fen_write(char* str, uint64_t piecemask, move_t move) {
 	*str++ = ' ';
 	str = fen_write_color(str);
 	*str++ = ' ';
-	str = fen_write_castlings(str);
+	str = fen_write_castlings(str, piecemask);
 	*str++ = ' ';
 	str = fen_write_ep(str, piecemask, move);
 	return str;
