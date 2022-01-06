@@ -1175,7 +1175,7 @@ bool set_pieces_moved(square_t ep_pawn) {
 	return true;
 }
 
-bool validate() {
+bool validate_kings() {
 	for (uint8_t i = 0; i < Count_Colors; ++i) {
 		piece_t piece = Piece_King | color_values[i];
 		if (!(state.piecemask & (1ull << (piece & Piece_Index)))) {
@@ -1183,11 +1183,32 @@ bool validate() {
 			return false;
 		}
 	}
+	return true;
+}
+
+bool validate_ep(square_t ep_pawn) {
+	if ((state.piecemask & (1ull << Piece_EP))
+		&& ((state.ep.square & Square_Rank) != color_ranks[color == Piece_Black]
+			|| get_square(state.ep.square)
+			|| (get_square(ep_pawn) & (Piece_TypePawn | Piece_Color)) != (Piece_Pawn0 | (color ^ Piece_Color)))) {
+				fprintf(stderr, "Invalid e.p. square.\n");
+				return false;
+	}
+	return true;
+}
+
+bool validate_check() {
 	if (check()) {
 		fprintf(stderr, "Illegal position.\n");
 		return false;
 	}
 	return true;
+}
+
+bool validate(square_t ep_pawn) {
+	return validate_kings()
+		&& validate_ep(ep_pawn)
+		&& validate_check();
 }
 
 bool set_pieces() {
@@ -1196,7 +1217,7 @@ bool set_pieces() {
 		: Square_FileInvalid;
 	return set_pieces_unmoved(ep_pawn)
 		&& set_pieces_moved(ep_pawn)
-		&& validate();
+		&& validate(ep_pawn);
 }
 
 char* board_write(char* str) {
