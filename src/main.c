@@ -320,14 +320,14 @@ piece_square_t find_index_moved(piece_square_t ps) {
 }
 
 move_t* gen_promo(move_t* moves, move_t move, piece_square_t to, piece_t piece) {
-	to.piece = piece | color | Piece_Moved;
+	to.piece = piece | color;
 	move.prim.to = find_index_to(to);
 	*moves++ = move;
 	return moves;
 }
 
 move_t* gen_promo_bishop(move_t* moves, move_t move, piece_square_t to) {
-	to.piece = Piece_Bishop | color | Piece_Moved;
+	to.piece = Piece_Bishop | color;
 	move.prim.to = find_index_to_bishop(to);
 	*moves++ = move;
 	return moves;
