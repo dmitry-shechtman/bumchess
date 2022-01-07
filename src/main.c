@@ -142,6 +142,7 @@ enum Count {
 
 	Count_Ranks     =   8,
 	Count_Files     =   8,
+	Count_Rows      =  16,
 	Count_Squares   = 128,
 
 	Count_Pawns    =    8,
@@ -189,7 +190,7 @@ enum Char {
 struct {
 	union {
 		piece_t squares[Count_Squares];
-		uint64_t rows[16];
+		uint64_t rows[Count_Rows];
 	};
 	piece_square_t pieces[Count_Pieces];
 	piece_t color;
