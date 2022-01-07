@@ -377,7 +377,7 @@ static inline
 move_t* gen_promo(move_t* moves, register move_t move, register piece_square_t to,
 	register const uint64_t piecemask, const piece_t piece, const uint8_t color)
 {
-	to.piece = piece | color | Piece_Moved;
+	to.piece = piece | color;
 	move.prim.to = find_index_to(to, piecemask);
 	*moves++ = move;
 	return moves;
@@ -387,7 +387,7 @@ static inline
 move_t* gen_promo_bishop(move_t* moves, register move_t move, register piece_square_t to,
 	register const uint64_t piecemask, const uint8_t color)
 {
-	to.piece = Piece_Bishop | color | Piece_Moved;
+	to.piece = Piece_Bishop | color;
 	move.prim.to = find_index_to_bishop(to, piecemask);
 	*moves++ = move;
 	return moves;
