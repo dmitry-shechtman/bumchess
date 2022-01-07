@@ -43,6 +43,7 @@ enum Piece {
 
 enum Square {
 	Square_FileA       = 0x00,
+	Square_FileE       = 0x04,
 	Square_FileH       = 0x07,
 	Square_File        = 0x07,
 	Square_FileInvalid = 0x08,
@@ -150,9 +151,14 @@ square_t color_ranks[Count_Colors]  = { Square_Rank6, Square_Rank3 };
 
 char castling_chars[Count_Castlings] = "KQkq";
 
-square_t castling_squares[Count_Castlings] = {
+square_t castling_rooks[Count_Castlings] = {
 	Square_FileH | Square_Rank1, Square_FileA | Square_Rank1,
 	Square_FileH | Square_Rank8, Square_FileA | Square_Rank8
+};
+
+square_t color_kings[Count_Colors] = {
+	Square_FileE | Square_Rank1,
+	Square_FileE | Square_Rank8
 };
 
 typedef struct {
@@ -763,7 +769,7 @@ const char* fen_read_castling(const char* str) {
 	uint8_t i;
 	piece_square_t ps;
 	if ((i = find_castling(c)) == Count_Castlings
-		|| (ps.piece = get_square(ps.square = castling_squares[i])) != (Piece_Rook | Piece_Moved | color_values[i >> Shift_Castling])) {
+		|| (ps.piece = get_square(ps.square = castling_rooks[i])) != (Piece_Rook | Piece_Moved | color_values[i >> Shift_Castling])) {
 			return fen_read_error(c);
 	}
 	ps.piece &= ~Piece_Moved;
@@ -772,9 +778,11 @@ const char* fen_read_castling(const char* str) {
 }
 
 char* fen_write_castling(char* str, uint8_t i) {
-	piece_t piece = get_square(castling_squares[i]);
-	if (piece && !(piece & Piece_Moved)) {
-		*str++ = castling_chars[i];
+	piece_t rook = get_square(castling_rooks[i]);
+	piece_t king = get_square(color_kings[i >> Shift_Castling]);
+	if (rook && !(rook & Piece_Moved)
+		&& king && !(king & Piece_Moved)) {
+			*str++ = castling_chars[i];
 	}
 	return str;
 }

@@ -13,9 +13,6 @@ Branchless Unmake/Make Chess Move Generator
 ## Not Yet Implemented
 * Castling
 
-## Known Issues
-* FEN output disregards moved king (main branch only)
-
 ## Thanks
 * Harm Geert Muller
 * Rasmus Althoff
