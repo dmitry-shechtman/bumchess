@@ -37,8 +37,7 @@ enum Shift {
 	Shift_EP_Index    =  4,
 	Shift_Square      =  8,
 
-	Shift_EP_Left     =  6,
-	Shift_EP_Right    =  7,
+	Shift_Moved       =  7,
 };
 
 enum Piece {
@@ -66,8 +65,6 @@ enum Piece {
 
 	Piece_Guard    = Piece_Black - 1,
 	Piece_EP       = Piece_Black,
-	Piece_EP_Left  = 0x40,
-	Piece_EP_Right = 0x80,
 
 	Piece_Moved    = 0x80
 };
@@ -431,11 +428,10 @@ move_t* gen_push2_pawn(move_t* moves, register const move_t move,
 		register move_t move2 = {
 			.prim = move.prim,
 			.sec = {
-				.from = { (((left & Piece_Index3) | ((right & Piece_Index3) << Shift_EP_Index)) << Shift_Square) | 0x0800 },
+				.from = { (((left & Piece_Index3) | ((right & Piece_Index3) << Shift_EP_Index)) << Shift_Square) | 0x0800
+					| (((left  & (Piece_TypePawn | Piece_Color)) == (Piece_Pawn0 | color2)) << Shift_Moved) },
 				.to = { move.sec.from.value | Piece_EP | 0x0800
-					| (((left  & (Piece_TypePawn | Piece_Color)) == (Piece_Pawn0 | color2)) << Shift_EP_Left)
-					| (((right & (Piece_TypePawn | Piece_Color)) == (Piece_Pawn0 | color2)) << Shift_EP_Right)
-				}
+					| (((right & (Piece_TypePawn | Piece_Color)) == (Piece_Pawn0 | color2)) << Shift_Moved) }
 			}
 		};
 		*moves++ = move2;
@@ -493,13 +489,13 @@ move_t* gen_vector_pawn(move_t* moves, register piece_square_t from, register co
 }
 
 static inline
-move_t* gen_vector_ep(move_t* moves, register piece_square_t ps, register uint8_t piece,
-	const uint8_t value, const vector_t vector, const uint8_t color, const uint8_t color2)
+move_t* gen_vector_ep(move_t* moves, register piece_square_t ps, register square_t square, register uint8_t piece,
+	const vector_t vector, const uint8_t color, const uint8_t color2)
 {
-	if ((ps.piece & (Piece_Type4 | value)) == (Piece_EP | value)) {
+	if ((ps.value & 0x0880) == 0x0880) {
 		register piece_square_t to = {
 			.piece = (piece & Piece_Index3) | Piece_Pawn0 | color | Piece_Moved,
-			.square = ps.square & ~Square_FileInvalid
+			.square = square & ~Square_FileInvalid
 		};
 		register move_t move = {
 			.prim = {
@@ -706,10 +702,10 @@ move_t* gen_pawn_white(move_t* moves, register piece_square_t from, register con
 
 static inline
 move_t* gen_ep_white(move_t* moves, register const move_t move) {
-	moves = gen_vector_ep(moves, move.sec.to,
-		move.sec.from.square, Piece_EP_Left, Vec_SW, Piece_White, Piece_Black);
-	moves = gen_vector_ep(moves, move.sec.to,
-		move.sec.from.square >> Shift_EP_Index, Piece_EP_Right, Vec_SE, Piece_White, Piece_Black);
+	moves = gen_vector_ep(moves, move.sec.from, move.sec.to.square,
+		move.sec.from.square, Vec_SW, Piece_White, Piece_Black);
+	moves = gen_vector_ep(moves, move.sec.to, move.sec.to.square,
+		move.sec.from.square >> Shift_EP_Index, Vec_SE, Piece_White, Piece_Black);
 	return moves;
 }
 
@@ -771,10 +767,10 @@ move_t* gen_pawn_black(move_t* moves, register piece_square_t from, register con
 
 static inline
 move_t* gen_ep_black(move_t* moves, register const move_t move) {
-	moves = gen_vector_ep(moves, move.sec.to,
-		move.sec.from.square, Piece_EP_Left, Vec_NW, Piece_Black, Piece_White);
-	moves = gen_vector_ep(moves, move.sec.to,
-		move.sec.from.square >> Shift_EP_Index, Piece_EP_Right, Vec_NE, Piece_Black, Piece_White);
+	moves = gen_vector_ep(moves, move.sec.from, move.sec.to.square,
+		move.sec.from.square, Vec_NW, Piece_Black, Piece_White);
+	moves = gen_vector_ep(moves, move.sec.to, move.sec.to.square,
+		move.sec.from.square >> Shift_EP_Index, Vec_NE, Piece_Black, Piece_White);
 	return moves;
 }
 
