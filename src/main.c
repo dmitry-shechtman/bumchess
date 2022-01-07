@@ -176,7 +176,7 @@ void set_square(piece_square_t ps) {
 }
 
 move_t* gen_promo(move_t* moves, move_t move, piece_t piece) {
-	move.prim.to.piece = piece | color | Piece_Moved;
+	move.prim.to.piece = piece | color;
 	*moves++ = move;
 	return moves;
 }
