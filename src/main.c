@@ -45,14 +45,13 @@ enum Piece {
 	Piece_TypePawn = Piece_Queen ^ Piece_King,
 
 	Piece_Black    = 0x20,
-	Piece_White    = 0x40,
+	Piece_Moved    = 0x40,
+	Piece_White    = 0x80,
 	Piece_Color    = Piece_Black | Piece_White,
 
 	Piece_Index    = Piece_Index2 | Piece_Type | Piece_Black,
 
 	Piece_EP       = Piece_Black,
-
-	Piece_Moved    = 0x80
 };
 
 enum Square {
