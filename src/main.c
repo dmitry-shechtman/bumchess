@@ -97,7 +97,8 @@ enum Square {
 };
 
 enum PieceSquare {
-	PieceSquare_EP      = Piece_Moved | (Square_FileInvalid << Shift_Square)
+	PieceSquare_Invalid = Square_FileInvalid << Shift_Square,
+	PieceSquare_EP      = Piece_Moved | PieceSquare_Invalid
 };
 
 enum Vec {
@@ -204,12 +205,12 @@ struct {
 
 const move_t nullmove = {
 	.prim = {
-		.from = { 0x0800 },
-		.to = { 0x0800 }
+		.from = { PieceSquare_Invalid },
+		.to = { PieceSquare_Invalid }
 	},
 	.sec = {
-		.from = { 0x0800 },
-		.to = { 0x0800 }
+		.from = { PieceSquare_Invalid },
+		.to = { PieceSquare_Invalid }
 	}
 };
 
@@ -437,9 +438,9 @@ move_t* gen_push2_pawn(move_t* moves, register const move_t move,
 		register move_t move2 = {
 			.prim = move.prim,
 			.sec = {
-				.from = { (((left & Piece_Index3) | ((right & Piece_Index3) << Shift_EP_Index)) << Shift_Square) | 0x0800
+				.from = { (((left & Piece_Index3) | ((right & Piece_Index3) << Shift_EP_Index)) << Shift_Square) | PieceSquare_Invalid
 					| (((left  & (Piece_TypePawn | Piece_Color)) == (Piece_Pawn0 | color2)) << Shift_Moved) },
-				.to = { move.sec.from.value | Piece_EP | 0x0800
+				.to = { move.sec.from.value | Piece_EP | PieceSquare_Invalid
 					| (((right & (Piece_TypePawn | Piece_Color)) == (Piece_Pawn0 | color2)) << Shift_Moved) }
 			}
 		};
@@ -462,7 +463,7 @@ move_t* gen_push_pawn(move_t* moves, register piece_square_t from, register cons
 			},
 			.sec = {
 				.from = from2,
-				.to = { 0x0800 }
+				.to = { PieceSquare_Invalid }
 			}
 		};
 		moves = gen_promo_pawn(moves, move, to, piecemask, promo, color);
@@ -489,7 +490,7 @@ move_t* gen_vector_pawn(move_t* moves, register piece_square_t from, register co
 				},
 				.sec = {
 					.from = from2,
-					.to = { 0x0800 }
+					.to = { PieceSquare_Invalid }
 				}
 			};
 			moves = gen_promo_pawn(moves, move, to, piecemask, promo, color);
@@ -519,7 +520,7 @@ move_t* gen_vector_ep(move_t* moves, register piece_square_t ps, register square
 					.piece = (to.square & Piece_Index3) | Piece_Pawn0 | color2 | Piece_Moved,
 					.square = to.square ^ Square_Rank2
 				},
-				.to = { 0x0800 }
+				.to = { PieceSquare_Invalid }
 			}
 		};
 		*moves++ = move;
@@ -542,7 +543,7 @@ move_t* gen_vector_leaper(move_t* moves, register piece_square_t from,
 				},
 				.sec = {
 					.from = from2,
-					.to = { 0x0800 }
+					.to = { PieceSquare_Invalid }
 				}
 			};
 			*moves++ = move;
@@ -625,7 +626,7 @@ move_t* gen_vector_slider(move_t* moves, register piece_square_t from,
 				},
 				.sec = {
 					.from = from2,
-					.to = { 0x0800 }
+					.to = { PieceSquare_Invalid }
 				}
 			};
 			*moves++ = move;
