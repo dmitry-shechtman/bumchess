@@ -37,7 +37,7 @@ enum Shift {
 	Shift_EP_Index    =  4,
 	Shift_Square      =  8,
 
-	Shift_Moved       =  7,
+	Shift_Moved       =  6,
 };
 
 enum Piece {
@@ -57,7 +57,8 @@ enum Piece {
 	Piece_TypePawn = Piece_Queen ^ Piece_King,
 
 	Piece_Black    = 0x20,
-	Piece_White    = 0x40,
+	Piece_Moved    = 0x40,
+	Piece_White    = 0x80,
 	Piece_Color    = Piece_Black | Piece_White,
 
 	Piece_Type4    = Piece_Type | Piece_Black,
@@ -65,8 +66,6 @@ enum Piece {
 
 	Piece_Guard    = Piece_Black - 1,
 	Piece_EP       = Piece_Black,
-
-	Piece_Moved    = 0x80
 };
 
 enum TypeMask {
@@ -95,6 +94,10 @@ enum Square {
 	Square_RankInvalid = 0x80,
 
 	Square_Invalid     = Square_FileInvalid | Square_RankInvalid
+};
+
+enum PieceSquare {
+	PieceSquare_EP      = Piece_Moved | (Square_FileInvalid << Shift_Square)
 };
 
 enum Vec {
@@ -498,7 +501,7 @@ static inline
 move_t* gen_vector_ep(move_t* moves, register piece_square_t ps, register square_t square, register uint8_t piece,
 	const vector_t vector, const uint8_t color, const uint8_t color2)
 {
-	if ((ps.value & 0x0880) == 0x0880) {
+	if ((ps.value & PieceSquare_EP) == PieceSquare_EP) {
 		register piece_square_t to = {
 			.piece = (piece & Piece_Index3) | Piece_Pawn0 | color | Piece_Moved,
 			.square = square & ~Square_FileInvalid
