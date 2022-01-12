@@ -23,6 +23,8 @@ enum Type {
 enum Shift {
 	Shift_Castling    =  1,
 	Shift_Rank        =  4,
+
+	Shift_Square      =  8,
 };
 
 enum Piece {
@@ -58,6 +60,10 @@ enum Square {
 	Square_RankInvalid = 0x80,
 
 	Square_Invalid     = Square_FileInvalid | Square_RankInvalid
+};
+
+enum PieceSquare {
+	PieceSquare_Invalid = Square_FileInvalid << Shift_Square,
 };
 
 enum Vec {
@@ -216,13 +222,13 @@ move_t* gen_push_pawn(move_t* moves, piece_square_t from, vector_t vector, uint8
 			},
 			.sec = {
 				.from = from2,
-				.to = { 0x0800 }
+				.to = { PieceSquare_Invalid }
 			}
 		};
 		moves = gen_promo_pawn(moves, move, to, promo);
 		if (!(from.piece & Piece_Moved)
 			&& !get_square(to.square += vector)) {
-				move.prim.to.value = to.value | 0x0800;
+				move.prim.to.value = to.value | PieceSquare_Invalid;
 				*moves++ = move;
 		}
 	}
@@ -241,7 +247,7 @@ move_t* gen_vector_pawn(move_t* moves, piece_square_t from, vector_t vector, uin
 				},
 				.sec = {
 					.from = from2,
-					.to = { 0x0800 }
+					.to = { PieceSquare_Invalid }
 				}
 			};
 			moves = gen_promo_pawn(moves, move, to, promo);
@@ -266,7 +272,7 @@ move_t* gen_vector_ep(move_t* moves, vector_t vector) {
 						.piece = Piece_Pawn | (color ^ Piece_Color) | Piece_Moved,
 						.square = to.square ^ Square_Rank2
 					},
-					.to = { 0x0800 }
+					.to = { PieceSquare_Invalid }
 				}
 		};
 		*moves++ = move;
@@ -286,7 +292,7 @@ move_t* gen_vector_leaper(move_t* moves, piece_square_t from, vector_t vector) {
 				},
 				.sec = {
 					.from = from2,
-					.to = { 0x0800 }
+					.to = { PieceSquare_Invalid }
 				}
 			};
 			*moves++ = move;
@@ -312,7 +318,7 @@ move_t* gen_vector_slider(move_t* moves, piece_square_t from, vector_t vector) {
 				},
 				.sec = {
 					.from = from2,
-					.to = { 0x0800 }
+					.to = { PieceSquare_Invalid }
 				}
 			};
 			*moves++ = move;
