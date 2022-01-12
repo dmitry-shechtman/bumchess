@@ -120,28 +120,6 @@ enum Vec {
 	Vec_NNE =  33
 };
 
-enum Dir {
-	Dir_SW,
-	Dir_S,
-	Dir_SE,
-	Dir_W,
-	Dir_E,
-	Dir_NW,
-	Dir_N,
-	Dir_NE
-};
-
-enum DirMask {
-	DirMask_SW = 1 << Dir_SW,
-	DirMask_S  = 1 << Dir_S,
-	DirMask_SE = 1 << Dir_SE,
-	DirMask_W  = 1 << Dir_W,
-	DirMask_E  = 1 << Dir_E,
-	DirMask_NW = 1 << Dir_NW,
-	DirMask_N  = 1 << Dir_N,
-	DirMask_NE = 1 << Dir_NE
-};
-
 enum Count {
 	Count_Colors    =   2,
 	Count_Castlings =   4,
@@ -165,7 +143,6 @@ typedef uint8_t square_t;
 typedef int8_t  vector_t;
 
 typedef uint32_t type_mask_t;
-typedef uint8_t  dir_mask_t;
 
 typedef union {
 	uint16_t value;
@@ -557,13 +534,12 @@ move_t* gen_vector_leaper(move_t* moves, register piece_square_t from,
 
 static inline
 bool check_square(register square_t square,
-	const type_mask_t type_mask, const uint8_t dir, dir_mask_t* dir_mask, const uint8_t color)
+	const type_mask_t type_mask, const uint8_t color)
 {
 	register piece_t piece = get_square(square);
 	if (piece & color) {
 		return type_mask & (1 << (piece & Piece_Type));
 	}
-	*dir_mask |= (!piece ? (1 << dir) : 0);
 	return 0;
 }
 
@@ -577,41 +553,35 @@ bool check_square_knight(register square_t square,
 
 static inline
 bool check_vector(register square_t square,
-	const type_mask_t type_mask, const vector_t vector, const uint8_t dir, dir_mask_t* dir_mask, const uint8_t color)
+	const type_mask_t type_mask, const vector_t vector, const uint8_t color)
 {
 	return !((square += vector) & Square_Invalid)
-		&& check_square(square, type_mask, dir, dir_mask, color);
+		&& check_square(square, type_mask, color);
 }
 
 static inline
 bool check_vector_knight(register square_t square,
 	const vector_t vector, const uint8_t color)
 {
-	return check_square_knight(square += vector, color);
+	return check_square_knight(square + vector, color);
 }
 
 static inline
-bool check_vector_pawn(register square_t square,
-	const vector_t vector, const uint8_t dir, dir_mask_t* dir_mask, const uint8_t color)
-{
+bool check_vector_pawn(register square_t square, const vector_t vector, const uint8_t color) {
 	return check_vector(square, TypeMask_Queen | TypeMask_Bishop | TypeMask_King | TypeMask_Pawn,
-		vector, dir, dir_mask, color);
+		vector, color);
 }
 
 static inline
-bool check_vector_diag(register square_t square,
-	const vector_t vector, const uint8_t dir, dir_mask_t* dir_mask, const uint8_t color)
-{
+bool check_vector_diag(register square_t square, const vector_t vector, const uint8_t color) {
 	return check_vector(square, TypeMask_Queen | TypeMask_Bishop | TypeMask_King,
-		vector, dir, dir_mask, color);
+		vector, color);
 }
 
 static inline
-bool check_vector_ortho(register square_t square,
-	const vector_t vector, const uint8_t dir, dir_mask_t* dir_mask, const uint8_t color)
-{
+bool check_vector_ortho(register square_t square, const vector_t vector, const uint8_t color) {
 	return check_vector(square, TypeMask_Queen | TypeMask_Rook | TypeMask_King,
-		vector, dir, dir_mask, color);
+		vector, color);
 }
 
 static inline
@@ -639,71 +609,54 @@ move_t* gen_vector_slider(move_t* moves, register piece_square_t from,
 }
 
 static inline
-bool check_vector_slider(register square_t src, register square_t dest,
-	const vector_t vector, const uint8_t dir, register const dir_mask_t dir_mask)
-{
-	if (!(dir_mask & (1 << dir))) {
-		return false;
-	}
-	for (src += vector; !get_square(src += vector); );
+bool check_vector_slider(register square_t src, register square_t dest, const vector_t vector) {
+	while (!get_square(src += vector));
 	return src == dest;
 }
 
 static inline
-bool check_vert(register square_t src, register square_t dest, register int8_t drank,
-	register const dir_mask_t dir_mask)
-{
+bool check_vert(register square_t src, register square_t dest, register int8_t drank) {
 	return !(drank & Square_FileInvalid)
-		? check_vector_slider(src, dest, Vec_N, Dir_N, dir_mask)
-		: check_vector_slider(src, dest, Vec_S, Dir_S, dir_mask);
+		? check_vector_slider(src, dest, Vec_N)
+		: check_vector_slider(src, dest, Vec_S);
 }
 
 static inline
-bool check_horiz(register square_t src, register square_t dest, register int8_t dfile,
-	register const dir_mask_t dir_mask)
-{
+bool check_horiz(register square_t src, register square_t dest, register int8_t dfile) {
 	return !(dfile & Square_FileInvalid)
-		? check_vector_slider(src, dest, Vec_E, Dir_E, dir_mask)
-		: check_vector_slider(src, dest, Vec_W, Dir_W, dir_mask);
+		? check_vector_slider(src, dest, Vec_E)
+		: check_vector_slider(src, dest, Vec_W);
 }
 
 static inline
-bool check_diag1(register square_t src, register square_t dest, register int8_t drank,
-	register const dir_mask_t dir_mask)
-{
+bool check_diag1(register square_t src, register square_t dest, register int8_t drank) {
 	return !(drank & Square_FileInvalid)
-		? check_vector_slider(src, dest, Vec_NE, Dir_NE, dir_mask)
-		: check_vector_slider(src, dest, Vec_SW, Dir_SW, dir_mask);
+		? check_vector_slider(src, dest, Vec_NE)
+		: check_vector_slider(src, dest, Vec_SW);
 }
 
 static inline
-bool check_diag2(register square_t src, register square_t dest, register int8_t dfile,
-	register const dir_mask_t dir_mask)
-{
+bool check_diag2(register square_t src, register square_t dest, register int8_t dfile) {
 	return !(dfile & Square_FileInvalid)
-		? check_vector_slider(src, dest, Vec_SE, Dir_SE, dir_mask)
-		: check_vector_slider(src, dest, Vec_NW, Dir_NW, dir_mask);
+		? check_vector_slider(src, dest, Vec_SE)
+		: check_vector_slider(src, dest, Vec_NW);
 }
 
 static inline
-bool check_ortho(register square_t src, register square_t dest, register int8_t dfile, register int8_t drank,
-	register const dir_mask_t dir_mask)
-{
+bool check_ortho(register square_t src, register square_t dest, register int8_t dfile, register int8_t drank) {
 	return !dfile
-		? check_vert(src, dest, drank, dir_mask)
+		? check_vert(src, dest, drank)
 		: !drank
-			? check_horiz(src, dest, dfile, dir_mask)
+			? check_horiz(src, dest, dfile)
 			: false;
 }
 
 static inline
-bool check_diag(register square_t src, register square_t dest, register int8_t dfile, register int8_t drank,
-	register const dir_mask_t dir_mask)
-{
+bool check_diag(register square_t src, register square_t dest, register int8_t dfile, register int8_t drank) {
 	return dfile == drank
-		? check_diag1(src, dest, drank, dir_mask)
+		? check_diag1(src, dest, drank)
 		: dfile == -drank
-			? check_diag2(src, dest, dfile, dir_mask)
+			? check_diag2(src, dest, dfile)
 			: false;
 }
 
@@ -732,52 +685,52 @@ move_t* gen_ep_white(move_t* moves, register const move_t move) {
 }
 
 static inline
-bool check_neighbors_white_ss(register square_t square, dir_mask_t* dir_mask) {
+bool check_neighbors_ss(register square_t square, const uint8_t color) {
 	return (square & Square_Rank) > Square_Rank2
-		&& (check_vector_knight(square, Vec_SSW, Piece_White)
-			|| check_vector_knight(square, Vec_SSE, Piece_White));
+		&& (check_vector_knight(square, Vec_SSW, color)
+		|| check_vector_knight(square, Vec_SSE, color));
 }
 
 static inline
-bool check_neighbors_white_s(register square_t square, dir_mask_t* dir_mask) {
+bool check_neighbors_we(register square_t square, const uint8_t color) {
+	return check_vector_ortho(square, Vec_W, color)
+		|| check_vector_ortho(square, Vec_E, color);
+}
+
+static inline
+bool check_neighbors_nn(register square_t square, const uint8_t color) {
+	return (square & Square_Rank) < Square_Rank7
+		&& (check_vector_knight(square, Vec_NNW, color)
+		|| check_vector_knight(square, Vec_NNE, color));
+}
+
+static inline
+bool check_neighbors_white_s(register square_t square) {
 	return (square & Square_Rank)
-		&& (check_vector_knight(square, Vec_SWW, Piece_White)
-			|| check_vector_pawn (square, Vec_SW, Dir_SW, dir_mask, Piece_White)
-			|| check_vector_ortho(square, Vec_S,  Dir_S,  dir_mask, Piece_White)
-			|| check_vector_pawn (square, Vec_SE, Dir_SE, dir_mask, Piece_White)
+		&&    (check_vector_knight(square, Vec_SWW, Piece_White)
+			|| check_vector_pawn  (square, Vec_SW,  Piece_White)
+			|| check_vector_ortho (square, Vec_S,   Piece_White)
+			|| check_vector_pawn  (square, Vec_SE,  Piece_White)
 			|| check_vector_knight(square, Vec_SEE, Piece_White));
 }
 
 static inline
-bool check_neighbors_white_we(register square_t square, dir_mask_t* dir_mask) {
-	return check_vector_ortho(square, Vec_W, Dir_W, dir_mask, Piece_White)
-		|| check_vector_ortho(square, Vec_E, Dir_E, dir_mask, Piece_White);
-}
-
-static inline
-bool check_neighbors_white_n(register square_t square, dir_mask_t* dir_mask) {
+bool check_neighbors_white_n(register square_t square) {
 	return (square & Square_Rank) != Square_Rank8
-		&& (check_vector_knight(square, Vec_NWW, Piece_White)
-			|| check_vector_diag (square, Vec_NW, Dir_NW, dir_mask, Piece_White)
-			|| check_vector_ortho(square, Vec_N,  Dir_N,  dir_mask, Piece_White)
-			|| check_vector_diag (square, Vec_NE, Dir_NE, dir_mask, Piece_White)
+		&&    (check_vector_knight(square, Vec_NWW, Piece_White)
+			|| check_vector_diag  (square, Vec_NW,  Piece_White)
+			|| check_vector_ortho (square, Vec_N,   Piece_White)
+			|| check_vector_diag  (square, Vec_NE,  Piece_White)
 			|| check_vector_knight(square, Vec_NEE, Piece_White));
 }
 
 static inline
-bool check_neighbors_white_nn(register square_t square, dir_mask_t* dir_mask) {
-	return (square & Square_Rank) < Square_Rank7
-		&& (check_vector_knight(square, Vec_NNW, Piece_White)
-			|| check_vector_knight(square, Vec_NNE, Piece_White));
-}
-
-static inline
-bool check_neighbors_white(register square_t square, dir_mask_t* dir_mask) {
-	return check_neighbors_white_ss(square, dir_mask)
-		|| check_neighbors_white_s(square, dir_mask)
-		|| check_neighbors_white_we(square, dir_mask)
-		|| check_neighbors_white_n(square, dir_mask)
-		|| check_neighbors_white_nn(square, dir_mask);
+bool check_neighbors_white(register square_t square) {
+	return check_neighbors_ss(square, Piece_White)
+		|| check_neighbors_white_s(square)
+		|| check_neighbors_we(square, Piece_White)
+		|| check_neighbors_white_n(square)
+		|| check_neighbors_nn(square, Piece_White);
 }
 
 static inline
@@ -793,58 +746,36 @@ move_t* gen_ep_black(move_t* moves, register const move_t move) {
 }
 
 static inline
-bool check_neighbors_black_ss(register square_t square, dir_mask_t* dir_mask) {
-	return (square & Square_Rank) > Square_Rank2
-		&& (check_vector_knight(square, Vec_SSW, Piece_Black)
-			|| check_vector_knight(square, Vec_SSE, Piece_Black));
-}
-
-static inline
-bool check_neighbors_black_s(register square_t square, dir_mask_t* dir_mask) {
+bool check_neighbors_black_s(register square_t square) {
 	return (square & Square_Rank)
-		&& (check_vector_knight(square, Vec_SWW, Piece_Black)
-			|| check_vector_diag (square, Vec_SW, Dir_SW, dir_mask, Piece_Black)
-			|| check_vector_ortho(square, Vec_S,  Dir_S,  dir_mask, Piece_Black)
-			|| check_vector_diag (square, Vec_SE, Dir_SE, dir_mask, Piece_Black)
+		&&    (check_vector_knight(square, Vec_SWW, Piece_Black)
+			|| check_vector_diag  (square, Vec_SW,  Piece_Black)
+			|| check_vector_ortho (square, Vec_S,   Piece_Black)
+			|| check_vector_diag  (square, Vec_SE,  Piece_Black)
 			|| check_vector_knight(square, Vec_SEE, Piece_Black));
 }
 
 static inline
-bool check_neighbors_black_we(register square_t square, dir_mask_t* dir_mask) {
-	return check_vector_ortho(square, Vec_W, Dir_W, dir_mask, Piece_Black)
-		|| check_vector_ortho(square, Vec_E, Dir_E, dir_mask, Piece_Black);
-}
-
-static inline
-bool check_neighbors_black_n(register square_t square, dir_mask_t* dir_mask) {
+bool check_neighbors_black_n(register square_t square) {
 	return (square & Square_Rank) != Square_Rank8
-		&& (check_vector_knight(square, Vec_NWW, Piece_Black)
-			|| check_vector_pawn (square, Vec_NW, Dir_NW, dir_mask, Piece_Black)
-			|| check_vector_ortho(square, Vec_N, Dir_N, dir_mask, Piece_Black)
-			|| check_vector_pawn (square, Vec_NE, Dir_NE, dir_mask, Piece_Black)
+		&&    (check_vector_knight(square, Vec_NWW, Piece_Black)
+			|| check_vector_pawn  (square, Vec_NW,  Piece_Black)
+			|| check_vector_ortho (square, Vec_N,   Piece_Black)
+			|| check_vector_pawn  (square, Vec_NE,  Piece_Black)
 			|| check_vector_knight(square, Vec_NEE, Piece_Black));
 }
 
 static inline
-bool check_neighbors_black_nn(register square_t square, dir_mask_t* dir_mask) {
-	return (square & Square_Rank) < Square_Rank7
-		&& (check_vector_knight(square, Vec_NNW, Piece_Black)
-			|| check_vector_knight(square, Vec_NNE, Piece_Black));
+bool check_neighbors_black(register square_t square) {
+	return check_neighbors_ss(square, Piece_Black)
+		|| check_neighbors_black_s(square)
+		|| check_neighbors_we(square, Piece_Black)
+		|| check_neighbors_black_n(square)
+		|| check_neighbors_nn(square, Piece_Black);
 }
 
 static inline
-bool check_neighbors_black(register square_t square, dir_mask_t* dir_mask) {
-	return check_neighbors_black_ss(square, dir_mask)
-		|| check_neighbors_black_s(square, dir_mask)
-		|| check_neighbors_black_we(square, dir_mask)
-		|| check_neighbors_black_n(square, dir_mask)
-		|| check_neighbors_black_nn(square, dir_mask);
-}
-
-static inline
-move_t* gen_king(move_t* moves, register piece_square_t from,
-	const uint8_t color)
-{
+move_t* gen_king(move_t* moves, register piece_square_t from, const uint8_t color) {
 	moves = gen_vector_leaper(moves, from, Vec_SW, color);
 	moves = gen_vector_leaper(moves, from, Vec_S,  color);
 	moves = gen_vector_leaper(moves, from, Vec_SE, color);
@@ -857,9 +788,7 @@ move_t* gen_king(move_t* moves, register piece_square_t from,
 }
 
 static inline
-move_t* gen_knight(move_t* moves, register piece_square_t from,
-	const uint8_t color)
-{
+move_t* gen_knight(move_t* moves, register piece_square_t from, const uint8_t color) {
 	moves = gen_vector_leaper(moves, from, Vec_SSW, color);
 	moves = gen_vector_leaper(moves, from, Vec_SSE, color);
 	moves = gen_vector_leaper(moves, from, Vec_SWW, color);
@@ -872,9 +801,7 @@ move_t* gen_knight(move_t* moves, register piece_square_t from,
 }
 
 static inline
-move_t* gen_bishop(move_t* moves, register piece_square_t from,
-	const uint8_t color)
-{
+move_t* gen_bishop(move_t* moves, register piece_square_t from, const uint8_t color) {
 	moves = gen_vector_slider(moves, from, Vec_SW, color);
 	moves = gen_vector_slider(moves, from, Vec_SE, color);
 	moves = gen_vector_slider(moves, from, Vec_NW, color);
@@ -883,19 +810,15 @@ move_t* gen_bishop(move_t* moves, register piece_square_t from,
 }
 
 static inline
-bool check_bishop(register piece_square_t from, register square_t src,
-	register const dir_mask_t dir_mask)
-{
+bool check_bishop(register piece_square_t from, register square_t src) {
 	register square_t dest = from.square;
 	register int8_t dfile = (dest & Square_File) - (src & Square_File);
 	register int8_t drank = (dest >> Shift_Rank) - (src >> Shift_Rank);
-	return check_diag(src, dest, dfile, drank, dir_mask);
+	return check_diag(src, dest, dfile, drank);
 }
 
 static inline
-move_t* gen_rook(move_t* moves, register piece_square_t from,
-	const uint8_t color)
-{
+move_t* gen_rook(move_t* moves, register piece_square_t from, const uint8_t color) {
 	moves = gen_vector_slider(moves, from, Vec_S, color);
 	moves = gen_vector_slider(moves, from, Vec_W, color);
 	moves = gen_vector_slider(moves, from, Vec_E, color);
@@ -904,19 +827,15 @@ move_t* gen_rook(move_t* moves, register piece_square_t from,
 }
 
 static inline
-bool check_rook(register piece_square_t from, register square_t src,
-	register const dir_mask_t dir_mask)
-{
+bool check_rook(register piece_square_t from, register square_t src) {
 	register square_t dest = from.square;
 	register int8_t dfile = (dest & Square_File) - (src & Square_File);
 	register int8_t drank = (dest >> Shift_Rank) - (src >> Shift_Rank);
-	return check_ortho(src, dest, dfile, drank, dir_mask);
+	return check_ortho(src, dest, dfile, drank);
 }
 
 static inline
-move_t* gen_queen(move_t* moves, register piece_square_t from,
-	const uint8_t color)
-{
+move_t* gen_queen(move_t* moves, register piece_square_t from, const uint8_t color) {
 	moves = gen_vector_slider(moves, from, Vec_SW, color);
 	moves = gen_vector_slider(moves, from, Vec_S,  color);
 	moves = gen_vector_slider(moves, from, Vec_SE, color);
@@ -929,20 +848,16 @@ move_t* gen_queen(move_t* moves, register piece_square_t from,
 }
 
 static inline
-bool check_queen(register piece_square_t from, register square_t src,
-	register const dir_mask_t dir_mask)
-{
+bool check_queen(register piece_square_t from, register square_t src) {
 	register square_t dest = from.square;
 	register int8_t dfile = (dest & Square_File) - (src & Square_File);
 	register int8_t drank = (dest >> Shift_Rank) - (src >> Shift_Rank);
-	return check_diag(src, dest, dfile, drank, dir_mask)
-		|| check_ortho(src, dest, dfile, drank, dir_mask);
+	return check_diag(src, dest, dfile, drank)
+		|| check_ortho(src, dest, dfile, drank);
 }
 
 static inline
-move_t* gen_kings(move_t* moves,
-	const uint8_t color)
-{
+move_t* gen_kings(move_t* moves, const uint8_t color) {
 	register piece_t piece = Piece_King + (color & Piece_Black);
 	return gen_king(moves, get_piece(piece), color);
 }
@@ -964,9 +879,7 @@ move_t* gen_pawns_black(move_t* moves, register const uint64_t piecemask, uint64
 }
 
 static inline
-move_t* gen_knights(move_t* moves, uint64_t* mask, piece_t* piece,
-	const uint8_t color)
-{
+move_t* gen_knights(move_t* moves, uint64_t* mask, piece_t* piece, const uint8_t color) {
 	for (; *piece < (Piece_Knight + Count_Knights + (color & Piece_Black)); *piece = find_next(mask)) {
 		moves = gen_knight(moves, get_piece(*piece), color);
 	}
@@ -974,9 +887,7 @@ move_t* gen_knights(move_t* moves, uint64_t* mask, piece_t* piece,
 }
 
 static inline
-move_t* gen_bishops(move_t* moves, uint64_t* mask, piece_t* piece,
-	const uint8_t color)
-{
+move_t* gen_bishops(move_t* moves, uint64_t* mask, piece_t* piece, const uint8_t color) {
 	for (; *piece < (Piece_Bishop + Count_Bishops + (color & Piece_Black)); *piece = find_next(mask)) {
 		moves = gen_bishop(moves, get_piece(*piece), color);
 	}
@@ -984,11 +895,9 @@ move_t* gen_bishops(move_t* moves, uint64_t* mask, piece_t* piece,
 }
 
 static inline
-bool check_bishops(register square_t square, uint64_t* mask, piece_t* piece,
-	register const dir_mask_t dir_mask, const uint8_t color)
-{
+bool check_bishops(register square_t square, uint64_t* mask, piece_t* piece, const uint8_t color) {
 	for (; *piece < (Piece_Bishop + Count_Bishops + (color & Piece_Black)); *piece = find_next(mask)) {
-		if (check_bishop(get_piece(*piece), square, dir_mask)) {
+		if (check_bishop(get_piece(*piece), square)) {
 			return true;
 		}
 	}
@@ -996,9 +905,7 @@ bool check_bishops(register square_t square, uint64_t* mask, piece_t* piece,
 }
 
 static inline
-move_t* gen_rooks(move_t* moves, uint64_t* mask, piece_t* piece,
-	const uint8_t color)
-{
+move_t* gen_rooks(move_t* moves, uint64_t* mask, piece_t* piece, const uint8_t color) {
 	for (; *piece < (Piece_Rook + Count_Rooks + (color & Piece_Black)); *piece = find_next(mask)) {
 		moves = gen_rook(moves, get_piece(*piece), color);
 	}
@@ -1006,11 +913,9 @@ move_t* gen_rooks(move_t* moves, uint64_t* mask, piece_t* piece,
 }
 
 static inline
-bool check_rooks(register square_t square, uint64_t* mask, piece_t* piece,
-	register const dir_mask_t dir_mask, const uint8_t color)
-{
+bool check_rooks(register square_t square, uint64_t* mask, piece_t* piece, const uint8_t color) {
 	for (; *piece < (Piece_Rook + Count_Rooks + (color & Piece_Black)); *piece = find_next(mask)) {
-		if (check_rook(get_piece(*piece), square, dir_mask)) {
+		if (check_rook(get_piece(*piece), square)) {
 			return true;
 		}
 	}
@@ -1018,9 +923,7 @@ bool check_rooks(register square_t square, uint64_t* mask, piece_t* piece,
 }
 
 static inline
-move_t* gen_queens(move_t* moves, uint64_t* mask, piece_t* piece,
-	const uint8_t color)
-{
+move_t* gen_queens(move_t* moves, uint64_t* mask, piece_t* piece, const uint8_t color) {
 	for (; *piece < (Piece_Queen + Count_Queens + (color & Piece_Black)); *piece = find_next(mask)) {
 		moves = gen_queen(moves, get_piece(*piece), color);
 	}
@@ -1028,11 +931,9 @@ move_t* gen_queens(move_t* moves, uint64_t* mask, piece_t* piece,
 }
 
 static inline
-bool check_queens(register square_t square, uint64_t* mask, piece_t* piece,
-	register const dir_mask_t dir_mask, const uint8_t color)
-{
+bool check_queens(register square_t square, uint64_t* mask, piece_t* piece, const uint8_t color) {
 	for (; *piece < (Piece_Queen + Count_Queens + (color & Piece_Black)); *piece = find_next(mask)) {
-		if (check_queen(get_piece(*piece), square, dir_mask)) {
+		if (check_queen(get_piece(*piece), square)) {
 			return true;
 		}
 	}
@@ -1040,9 +941,7 @@ bool check_queens(register square_t square, uint64_t* mask, piece_t* piece,
 }
 
 static inline
-move_t* gen_pieces(move_t* moves, uint64_t* mask, piece_t* piece,
-	const uint8_t color)
-{
+move_t* gen_pieces(move_t* moves, uint64_t* mask, piece_t* piece, const uint8_t color) {
 	moves = gen_knights(moves, mask, piece, color);
 	moves = gen_bishops(moves, mask, piece, color);
 	moves = gen_rooks(moves, mask, piece, color);
@@ -1051,30 +950,26 @@ move_t* gen_pieces(move_t* moves, uint64_t* mask, piece_t* piece,
 }
 
 static inline
-bool check_sliders(register square_t square, register const uint64_t piecemask,
-	register const dir_mask_t dir_mask, const uint8_t color)
-{
+bool check_sliders(register square_t square, register const uint64_t piecemask, const uint8_t color) {
 	piece_t piece = Piece_Bishop + (color & Piece_Black) + (get_index2(square) ^ Piece_Odd);
 	uint64_t mask = piecemask & (0xFFF00000ull << (color & Piece_Black))
 		& ~((1ull << piece) | (1ull << (piece + 1)));
 	piece = find_next(&mask);
-	return dir_mask && (check_bishops(square, &mask, &piece, dir_mask, color)
-		|| check_rooks(square, &mask, &piece, dir_mask, color)
-		|| check_queens(square, &mask, &piece, dir_mask, color));
+	return check_bishops(square, &mask, &piece, color)
+		|| check_rooks(square, &mask, &piece, color)
+		|| check_queens(square, &mask, &piece, color);
 }
 
 static inline
 bool check_to_white(register square_t square, register const uint64_t piecemask) {
-	dir_mask_t dir_mask = 0;
-	return check_neighbors_white(square, &dir_mask)
-		|| check_sliders(square, piecemask, dir_mask, Piece_White);
+	return check_neighbors_white(square)
+		|| check_sliders(square, piecemask, Piece_White);
 }
 
 static inline
 bool check_to_black(register square_t square, register const uint64_t piecemask) {
-	dir_mask_t dir_mask = 0;
-	return check_neighbors_black(square, &dir_mask)
-		|| check_sliders(square, piecemask, dir_mask, Piece_Black);
+	return check_neighbors_black(square)
+		|| check_sliders(square, piecemask, Piece_Black);
 }
 
 static inline
