@@ -509,8 +509,8 @@ move_t* gen_vector_ep(move_t* moves, register piece_square_t ps, register square
 {
 	if ((ps.value & PieceSquare_EP) == PieceSquare_EP) {
 		register piece_square_t to = {
-			.piece = (piece & Piece_Index3) | Piece_Pawn0 | color | Piece_Moved,
-			.square = square & ~Square_FileInvalid
+			.piece = piece | Piece_Pawn0 | color | Piece_Moved,
+			.square = square
 		};
 		register move_t move = {
 			.prim = {
@@ -709,6 +709,18 @@ bool check_diag(register square_t src, register square_t dest, register int8_t d
 }
 
 static inline
+move_t* gen_ep(move_t* moves, register const move_t move,
+	const vector_t vector, const uint8_t color, const uint8_t color2)
+{
+	register square_t square = move.sec.to.square & ~Square_FileInvalid;
+	moves = gen_vector_ep(moves, move.sec.from, square,
+		move.sec.from.square & Piece_Index3, vector + Vec_W, color, color2);
+	moves = gen_vector_ep(moves, move.sec.to, square,
+		move.sec.from.square >> Shift_EP_Index, vector + Vec_E, color, color2);
+	return moves;
+}
+
+static inline
 move_t* gen_pawn_white(move_t* moves, register piece_square_t from, register const uint64_t piecemask) {
 	moves = gen_vector_pawn(moves, from, piecemask, Vec_NW, Square_Rank8, Piece_White, Piece_Black);
 	moves = gen_vector_pawn(moves, from, piecemask, Vec_NE, Square_Rank8, Piece_White, Piece_Black);
@@ -717,11 +729,7 @@ move_t* gen_pawn_white(move_t* moves, register piece_square_t from, register con
 
 static inline
 move_t* gen_ep_white(move_t* moves, register const move_t move) {
-	moves = gen_vector_ep(moves, move.sec.from, move.sec.to.square,
-		move.sec.from.square, Vec_SW, Piece_White, Piece_Black);
-	moves = gen_vector_ep(moves, move.sec.to, move.sec.to.square,
-		move.sec.from.square >> Shift_EP_Index, Vec_SE, Piece_White, Piece_Black);
-	return moves;
+	return gen_ep(moves, move, Vec_S, Piece_White, Piece_Black);
 }
 
 static inline
@@ -782,11 +790,7 @@ move_t* gen_pawn_black(move_t* moves, register piece_square_t from, register con
 
 static inline
 move_t* gen_ep_black(move_t* moves, register const move_t move) {
-	moves = gen_vector_ep(moves, move.sec.from, move.sec.to.square,
-		move.sec.from.square, Vec_NW, Piece_Black, Piece_White);
-	moves = gen_vector_ep(moves, move.sec.to, move.sec.to.square,
-		move.sec.from.square >> Shift_EP_Index, Vec_NE, Piece_Black, Piece_White);
-	return moves;
+	return gen_ep(moves, move, Vec_N, Piece_Black, Piece_White);
 }
 
 static inline
