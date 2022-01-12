@@ -435,11 +435,10 @@ move_t* gen_push2_pawn(move_t* moves, register const move_t move,
 	register piece_t left = !((to.square - 1) & Square_FileInvalid)
 		? get_square2(row, to.square - 1)
 		: 0;
-	register piece_t piece = get_square2(row, to.square);
 	register piece_t right = !((to.square + 1) & Square_FileInvalid)
 		? get_square2(row, to.square + 1)
 		: 0;
-	if (!piece) {
+	if (!get_square2(row, to.square)) {
 		register move_t move2 = {
 			.prim = move.prim,
 			.sec = {
