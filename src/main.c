@@ -261,6 +261,11 @@ piece_t find_next(uint64_t* mask) {
 }
 
 static inline
+piece_t get_square2(register const uint64_t row, square_t square) {
+	return (piece_t)(row >> ((square & Square_File) << Shift_File));
+}
+
+static inline
 piece_t get_square(register square_t square) {
 	return board.squares[square];
 }
@@ -428,11 +433,11 @@ move_t* gen_push2_pawn(move_t* moves, register const move_t move,
 	register piece_square_t to = move.prim.to;
 	register uint64_t row = board.rows[to.square >> Shift_Row];
 	register piece_t left = !((to.square - 1) & Square_FileInvalid)
-		? (piece_t)(row >> (((to.square - 1) & Square_File) << Shift_File))
+		? get_square2(row, to.square - 1)
 		: 0;
-	register piece_t piece = (piece_t)(row >> ((to.square & Square_File) << Shift_File));
+	register piece_t piece = get_square2(row, to.square);
 	register piece_t right = !((to.square + 1) & Square_FileInvalid)
-		? (piece_t)(row >> (((to.square + 1) & Square_File) << Shift_File))
+		? get_square2(row, to.square + 1)
 		: 0;
 	if (!piece) {
 		register move_t move2 = {
