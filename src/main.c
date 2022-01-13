@@ -127,7 +127,6 @@ enum Count {
 
 	Count_Ranks     =   8,
 	Count_Files     =   8,
-	Count_Rows      =  16,
 	Count_Squares   = 128,
 
 	Count_Pawns    =    8,
@@ -172,10 +171,7 @@ enum Char {
 };
 
 struct {
-	union {
-		piece_t squares[Count_Squares];
-		uint64_t rows[Count_Rows];
-	};
+	piece_t squares[Count_Squares];
 	piece_square_t pieces[Count_Pieces];
 	piece_t color;
 } board;
@@ -235,11 +231,6 @@ piece_t find_next(uint64_t* mask) {
 #endif
 	*mask &= (*mask - 1);
 	return index;
-}
-
-static inline
-piece_t get_square2(register const uint64_t row, square_t square) {
-	return (piece_t)(row >> ((square & Square_File) << Shift_File));
 }
 
 static inline
@@ -408,14 +399,13 @@ move_t* gen_push2_pawn(move_t* moves, register const move_t move,
 	const uint8_t color2)
 {
 	register piece_square_t to = move.prim.to;
-	register uint64_t row = board.rows[to.square >> Shift_Row];
 	register piece_t left = !((to.square - 1) & Square_FileInvalid)
-		? get_square2(row, to.square - 1)
+		? get_square(to.square - 1)
 		: 0;
 	register piece_t right = !((to.square + 1) & Square_FileInvalid)
-		? get_square2(row, to.square + 1)
+		? get_square(to.square + 1)
 		: 0;
-	if (!get_square2(row, to.square)) {
+	if (!get_square(to.square)) {
 		register move_t move2 = {
 			.prim = move.prim,
 			.sec = {
