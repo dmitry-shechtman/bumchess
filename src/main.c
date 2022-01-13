@@ -533,17 +533,6 @@ move_t* gen_vector_leaper(move_t* moves, register piece_square_t from,
 }
 
 static inline
-bool check_square(register square_t square,
-	const type_mask_t type_mask, const uint8_t color)
-{
-	register piece_t piece = get_square(square);
-	if (piece & color) {
-		return type_mask & (1 << (piece & Piece_Type));
-	}
-	return 0;
-}
-
-static inline
 bool check_square_knight(register square_t square,
 	const uint8_t color)
 {
@@ -553,10 +542,17 @@ bool check_square_knight(register square_t square,
 
 static inline
 bool check_vector(register square_t square,
-	const type_mask_t type_mask, const vector_t vector, const uint8_t color)
+	const type_mask_t type_mask, const piece_t piece_type, const vector_t vector, const uint8_t color)
 {
-	return !((square += vector) & Square_Invalid)
-		&& check_square(square, type_mask, color);
+	if ((square += vector) & Square_Invalid) {
+		return false;
+	}
+	register piece_t piece = get_square(square);
+	if (piece) {
+		return (piece & color) && (type_mask & (1 << (piece & Piece_Type)));
+	}
+	while (!((square += vector) & Square_Invalid) && !(piece = get_square(square)));
+	return (piece & (piece_type | color)) == (piece_type | color);
 }
 
 static inline
@@ -569,19 +565,19 @@ bool check_vector_knight(register square_t square,
 static inline
 bool check_vector_pawn(register square_t square, const vector_t vector, const uint8_t color) {
 	return check_vector(square, TypeMask_Queen | TypeMask_Bishop | TypeMask_King | TypeMask_Pawn,
-		vector, color);
+		Piece_Bishop, vector, color);
 }
 
 static inline
 bool check_vector_diag(register square_t square, const vector_t vector, const uint8_t color) {
 	return check_vector(square, TypeMask_Queen | TypeMask_Bishop | TypeMask_King,
-		vector, color);
+		Piece_Bishop, vector, color);
 }
 
 static inline
 bool check_vector_ortho(register square_t square, const vector_t vector, const uint8_t color) {
 	return check_vector(square, TypeMask_Queen | TypeMask_Rook | TypeMask_King,
-		vector, color);
+		Piece_Rook, vector, color);
 }
 
 static inline
@@ -606,58 +602,6 @@ move_t* gen_vector_slider(move_t* moves, register piece_square_t from,
 			*moves++ = move;
 	}
 	return moves;
-}
-
-static inline
-bool check_vector_slider(register square_t src, register square_t dest, const vector_t vector) {
-	while (!get_square(src += vector));
-	return src == dest;
-}
-
-static inline
-bool check_vert(register square_t src, register square_t dest, register int8_t drank) {
-	return !(drank & Square_FileInvalid)
-		? check_vector_slider(src, dest, Vec_N)
-		: check_vector_slider(src, dest, Vec_S);
-}
-
-static inline
-bool check_horiz(register square_t src, register square_t dest, register int8_t dfile) {
-	return !(dfile & Square_FileInvalid)
-		? check_vector_slider(src, dest, Vec_E)
-		: check_vector_slider(src, dest, Vec_W);
-}
-
-static inline
-bool check_diag1(register square_t src, register square_t dest, register int8_t drank) {
-	return !(drank & Square_FileInvalid)
-		? check_vector_slider(src, dest, Vec_NE)
-		: check_vector_slider(src, dest, Vec_SW);
-}
-
-static inline
-bool check_diag2(register square_t src, register square_t dest, register int8_t dfile) {
-	return !(dfile & Square_FileInvalid)
-		? check_vector_slider(src, dest, Vec_SE)
-		: check_vector_slider(src, dest, Vec_NW);
-}
-
-static inline
-bool check_ortho(register square_t src, register square_t dest, register int8_t dfile, register int8_t drank) {
-	return !dfile
-		? check_vert(src, dest, drank)
-		: !drank
-			? check_horiz(src, dest, dfile)
-			: false;
-}
-
-static inline
-bool check_diag(register square_t src, register square_t dest, register int8_t dfile, register int8_t drank) {
-	return dfile == drank
-		? check_diag1(src, dest, drank)
-		: dfile == -drank
-			? check_diag2(src, dest, dfile)
-			: false;
 }
 
 static inline
@@ -725,7 +669,7 @@ bool check_neighbors_white_n(register square_t square) {
 }
 
 static inline
-bool check_neighbors_white(register square_t square) {
+bool check_to_white(register square_t square) {
 	return check_neighbors_ss(square, Piece_White)
 		|| check_neighbors_white_s(square)
 		|| check_neighbors_we(square, Piece_White)
@@ -766,7 +710,7 @@ bool check_neighbors_black_n(register square_t square) {
 }
 
 static inline
-bool check_neighbors_black(register square_t square) {
+bool check_to_black(register square_t square) {
 	return check_neighbors_ss(square, Piece_Black)
 		|| check_neighbors_black_s(square)
 		|| check_neighbors_we(square, Piece_Black)
@@ -810,28 +754,12 @@ move_t* gen_bishop(move_t* moves, register piece_square_t from, const uint8_t co
 }
 
 static inline
-bool check_bishop(register piece_square_t from, register square_t src) {
-	register square_t dest = from.square;
-	register int8_t dfile = (dest & Square_File) - (src & Square_File);
-	register int8_t drank = (dest >> Shift_Rank) - (src >> Shift_Rank);
-	return check_diag(src, dest, dfile, drank);
-}
-
-static inline
 move_t* gen_rook(move_t* moves, register piece_square_t from, const uint8_t color) {
 	moves = gen_vector_slider(moves, from, Vec_S, color);
 	moves = gen_vector_slider(moves, from, Vec_W, color);
 	moves = gen_vector_slider(moves, from, Vec_E, color);
 	moves = gen_vector_slider(moves, from, Vec_N, color);
 	return moves;
-}
-
-static inline
-bool check_rook(register piece_square_t from, register square_t src) {
-	register square_t dest = from.square;
-	register int8_t dfile = (dest & Square_File) - (src & Square_File);
-	register int8_t drank = (dest >> Shift_Rank) - (src >> Shift_Rank);
-	return check_ortho(src, dest, dfile, drank);
 }
 
 static inline
@@ -845,15 +773,6 @@ move_t* gen_queen(move_t* moves, register piece_square_t from, const uint8_t col
 	moves = gen_vector_slider(moves, from, Vec_N,  color);
 	moves = gen_vector_slider(moves, from, Vec_NE, color);
 	return moves;
-}
-
-static inline
-bool check_queen(register piece_square_t from, register square_t src) {
-	register square_t dest = from.square;
-	register int8_t dfile = (dest & Square_File) - (src & Square_File);
-	register int8_t drank = (dest >> Shift_Rank) - (src >> Shift_Rank);
-	return check_diag(src, dest, dfile, drank)
-		|| check_ortho(src, dest, dfile, drank);
 }
 
 static inline
@@ -895,31 +814,11 @@ move_t* gen_bishops(move_t* moves, uint64_t* mask, piece_t* piece, const uint8_t
 }
 
 static inline
-bool check_bishops(register square_t square, uint64_t* mask, piece_t* piece, const uint8_t color) {
-	for (; *piece < (Piece_Bishop + Count_Bishops + (color & Piece_Black)); *piece = find_next(mask)) {
-		if (check_bishop(get_piece(*piece), square)) {
-			return true;
-		}
-	}
-	return false;
-}
-
-static inline
 move_t* gen_rooks(move_t* moves, uint64_t* mask, piece_t* piece, const uint8_t color) {
 	for (; *piece < (Piece_Rook + Count_Rooks + (color & Piece_Black)); *piece = find_next(mask)) {
 		moves = gen_rook(moves, get_piece(*piece), color);
 	}
 	return moves;
-}
-
-static inline
-bool check_rooks(register square_t square, uint64_t* mask, piece_t* piece, const uint8_t color) {
-	for (; *piece < (Piece_Rook + Count_Rooks + (color & Piece_Black)); *piece = find_next(mask)) {
-		if (check_rook(get_piece(*piece), square)) {
-			return true;
-		}
-	}
-	return false;
 }
 
 static inline
@@ -931,45 +830,12 @@ move_t* gen_queens(move_t* moves, uint64_t* mask, piece_t* piece, const uint8_t 
 }
 
 static inline
-bool check_queens(register square_t square, uint64_t* mask, piece_t* piece, const uint8_t color) {
-	for (; *piece < (Piece_Queen + Count_Queens + (color & Piece_Black)); *piece = find_next(mask)) {
-		if (check_queen(get_piece(*piece), square)) {
-			return true;
-		}
-	}
-	return false;
-}
-
-static inline
 move_t* gen_pieces(move_t* moves, uint64_t* mask, piece_t* piece, const uint8_t color) {
 	moves = gen_knights(moves, mask, piece, color);
 	moves = gen_bishops(moves, mask, piece, color);
 	moves = gen_rooks(moves, mask, piece, color);
 	moves = gen_queens(moves, mask, piece, color);
 	return moves;
-}
-
-static inline
-bool check_sliders(register square_t square, register const uint64_t piecemask, const uint8_t color) {
-	piece_t piece = Piece_Bishop + (color & Piece_Black) + (get_index2(square) ^ Piece_Odd);
-	uint64_t mask = piecemask & (0xFFF00000ull << (color & Piece_Black))
-		& ~((1ull << piece) | (1ull << (piece + 1)));
-	piece = find_next(&mask);
-	return check_bishops(square, &mask, &piece, color)
-		|| check_rooks(square, &mask, &piece, color)
-		|| check_queens(square, &mask, &piece, color);
-}
-
-static inline
-bool check_to_white(register square_t square, register const uint64_t piecemask) {
-	return check_neighbors_white(square)
-		|| check_sliders(square, piecemask, Piece_White);
-}
-
-static inline
-bool check_to_black(register square_t square, register const uint64_t piecemask) {
-	return check_neighbors_black(square)
-		|| check_sliders(square, piecemask, Piece_Black);
 }
 
 static inline
@@ -1001,15 +867,15 @@ move_t* gen_black(move_t* moves, register const uint64_t piecemask, register con
 }
 
 static inline
-bool check_white(register const uint64_t piecemask) {
+bool check_white() {
 	piece_t piece = Piece_King | Piece_Black;
-	return check_to_white(get_piece(piece).square, piecemask);
+	return check_to_white(get_piece(piece).square);
 }
 
 static inline
-bool check_black(register const uint64_t piecemask) {
+bool check_black() {
 	piece_t piece = Piece_King;
-	return check_to_black(get_piece(piece).square, piecemask);
+	return check_to_black(get_piece(piece).square);
 }
 
 static inline
@@ -1020,10 +886,10 @@ move_t* gen(move_t* moves, register const uint64_t piecemask, register const mov
 }
 
 static inline
-bool check(register const uint64_t piecemask) {
+bool check() {
 	return board.color == Piece_White
-		? check_white(piecemask)
-		: check_black(piecemask);
+		? check_white()
+		: check_black();
 }
 
 static inline
@@ -1103,7 +969,7 @@ uint64_t perft_opt(move_t* moves, register uint64_t piecemask, register const mo
 #if !NDEBUG
 		if (pCurr->prim.from.piece)
 #endif
-		if (!check(piecemask)) {
+		if (!check()) {
 			count += depth
 				? perft_opt(pEnd, piecemask, *pCurr, depth)
 				: 1;
@@ -1142,7 +1008,7 @@ uint64_t perft(move_t* moves, uint64_t piecemask, move_t move, uint8_t depth, ui
 #if !NDEBUG
 		if (pCurr->prim.from.piece)
 #endif
-		if (!check(piecemask))
+		if (!check())
 			count += perft_divide(pEnd, piecemask, *pCurr, depth, div, str);
 		piecemask = move_unmake(*pCurr, piecemask);
 	}
@@ -1522,8 +1388,8 @@ bool validate_kings(uint64_t piecemask) {
 	return true;
 }
 
-bool validate_check(uint64_t piecemask) {
-	if (check(piecemask)) {
+bool validate_check() {
+	if (check()) {
 		fprintf(stderr, "Illegal position.\n");
 		return false;
 	}
@@ -1532,7 +1398,7 @@ bool validate_check(uint64_t piecemask) {
 
 bool validate(uint64_t piecemask) {
 	return validate_kings(piecemask)
-		&& validate_check(piecemask);
+		&& validate_check();
 }
 
 uint64_t set_pieces(uint64_t piecemask, move_t* move) {
