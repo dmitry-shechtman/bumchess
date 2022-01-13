@@ -883,27 +883,15 @@ bool check() {
 }
 
 static inline
-uint64_t set_init(register piece_square_t ps, register uint64_t piecemask) {
+uint64_t clear(register piece_square_t ps, register uint64_t piecemask) {
+	clear_square(ps);
+	return clear_piece(ps, piecemask);
+}
+
+static inline
+uint64_t set(register piece_square_t ps, register uint64_t piecemask) {
 	set_square(ps);
 	return set_piece(ps, piecemask);
-}
-
-static inline
-uint64_t clear_prim_from(register piece_square_t from, register uint64_t piecemask) {
-	clear_square(from);
-	return clear_piece(from, piecemask);
-}
-
-static inline
-uint64_t set_prim_from(register piece_square_t from, register uint64_t piecemask) {
-	set_square(from);
-	return set_piece(from, piecemask);
-}
-
-static inline
-uint64_t clear_prim_to(register piece_square_t to, register uint64_t piecemask) {
-	clear_square(to);
-	return clear_piece(to, piecemask);
 }
 
 static inline
@@ -914,22 +902,10 @@ uint64_t set_prim_to(register piece_square_t to, register uint64_t piecemask) {
 }
 
 static inline
-uint64_t clear_sec(register piece_square_t ps, register uint64_t piecemask) {
-	clear_square(ps);
-	return clear_piece(ps, piecemask);
-}
-
-static inline
-uint64_t set_sec(register piece_square_t ps, register uint64_t piecemask) {
-	set_square(ps);
-	return set_piece(ps, piecemask);
-}
-
-static inline
 uint64_t move_make(register move_t move, register uint64_t piecemask) {
-	piecemask = clear_sec(move.sec.from, piecemask);
-	piecemask = set_sec(move.sec.to, piecemask);
-	piecemask = clear_prim_from(move.prim.from, piecemask);
+	piecemask = clear(move.sec.from, piecemask);
+	piecemask = set(move.sec.to, piecemask);
+	piecemask = clear(move.prim.from, piecemask);
 	piecemask = set_prim_to(move.prim.to, piecemask);
 
 	board.color ^= Piece_Color;
@@ -941,10 +917,10 @@ static inline
 uint64_t move_unmake(register move_t move, register uint64_t piecemask) {
 	board.color ^= Piece_Color;
 
-	piecemask = clear_prim_to(move.prim.to, piecemask);
-	piecemask = set_prim_from(move.prim.from, piecemask);
-	piecemask = clear_sec(move.sec.to, piecemask);
-	piecemask = set_sec(move.sec.from, piecemask);
+	piecemask = clear(move.prim.to, piecemask);
+	piecemask = set(move.prim.from, piecemask);
+	piecemask = clear(move.sec.to, piecemask);
+	piecemask = set(move.sec.from, piecemask);
 
 	return piecemask;
 }
@@ -1243,10 +1219,10 @@ char* fen_write_castlings(char* str, uint64_t piecemask) {
 	for (uint8_t i = 0; i < Count_Castlings; ++i) {
 		str = fen_write_castling(str, piecemask, i);
 	}
-if (str == start) {
-	*str++ = '-';
-}
-return str;
+	if (str == start) {
+		*str++ = '-';
+	}
+	return str;
 }
 
 const char* fen_read_ep(const char* str, uint64_t* piecemask, move_t* move) {
@@ -1293,7 +1269,7 @@ uint64_t set_piece_unmoved(piece_square_t ps, uint64_t piecemask) {
 		fprintf(stderr, "Invalid %c.\n", get_piece_char(ps.piece));
 		return 0;
 	}
-	return set_init(ps2, piecemask);
+	return set(ps2, piecemask);
 }
 
 uint64_t set_piece_moved(piece_square_t ps, uint64_t piecemask) {
@@ -1302,7 +1278,7 @@ uint64_t set_piece_moved(piece_square_t ps, uint64_t piecemask) {
 		fprintf(stderr, "Too many %c's.\n", get_piece_char(ps.piece));
 		return 0;
 	}
-	return set_init(ps2, piecemask);
+	return set(ps2, piecemask);
 }
 
 uint64_t set_pieces_unmoved(uint64_t piecemask) {
@@ -1362,7 +1338,7 @@ uint64_t set_pieces_ep_moved(uint64_t piecemask, move_t* move) {
 		move->prim.to.piece = get_square(move->prim.to.square) | Piece_Moved;
 		clear_square(move->prim.to);
 		gen_push2_pawn(move, *move, board.color);
-		piecemask = set_init(move->prim.to, piecemask);
+		piecemask = set(move->prim.to, piecemask);
 	}
 	return piecemask;
 }
