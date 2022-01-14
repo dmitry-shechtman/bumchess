@@ -133,17 +133,20 @@ enum Count {
 	Count_Files     =    8,
 	Count_Squares   =  128,
 
-	Count_Pawns     =    8,
-	Count_Knights   =    4,
-	Count_Bishops   =    4,
-	Count_Rooks     =    4,
-	Count_Queens    =    3,
 	Count_Pieces    =   64,
+};
 
-	Count_Chars     = 1024,
-	Count_Moves     = 1024,
+enum Max {
+	Max_Pawns     =    8,
+	Max_Knights   =    4,
+	Max_Bishops   =    4,
+	Max_Rooks     =    4,
+	Max_Queens    =    3,
 
-	Count_Threads   =   32,
+	Max_Chars     = 1024,
+	Max_Moves     = 1024,
+
+	Max_Threads   =   32,
 };
 
 typedef uint8_t piece_t;
@@ -234,7 +237,7 @@ typedef struct {
 typedef struct {
 	board_t   board;
 	uint64_t  piecemask;
-	move_t    moves[Count_Moves];
+	move_t    moves[Max_Moves];
 	move_t*   pEnd;
 	uint64_t  count;
 	uint8_t   depth;
@@ -805,7 +808,7 @@ move_t* gen_kings(move_t* moves, const board_t* board, const uint8_t color) {
 
 static inline
 move_t* gen_pawns_white(move_t* moves, const board_t* board, register const uint64_t piecemask, uint64_t* mask, piece_t* piece) {
-	for (; *piece < Piece_Pawn0 + Count_Pawns; *piece = find_next(mask)) {
+	for (; *piece < Piece_Pawn0 + Max_Pawns; *piece = find_next(mask)) {
 		moves = gen_pawn_white(moves, board, get_piece(board, *piece), piecemask);
 	}
 	return moves;
@@ -813,7 +816,7 @@ move_t* gen_pawns_white(move_t* moves, const board_t* board, register const uint
 
 static inline
 move_t* gen_pawns_black(move_t* moves, const board_t* board, register const uint64_t piecemask, uint64_t* mask, piece_t* piece) {
-	for (; *piece < Piece_Pawn0 + Count_Pawns + Piece_Black; *piece = find_next(mask)) {
+	for (; *piece < Piece_Pawn0 + Max_Pawns + Piece_Black; *piece = find_next(mask)) {
 		moves = gen_pawn_black(moves, board, get_piece(board, *piece), piecemask);
 	}
 	return moves;
@@ -821,7 +824,7 @@ move_t* gen_pawns_black(move_t* moves, const board_t* board, register const uint
 
 static inline
 move_t* gen_knights(move_t* moves, const board_t* board, uint64_t* mask, piece_t* piece, const uint8_t color) {
-	for (; *piece < (Piece_Knight + Count_Knights + (color & Piece_Black)); *piece = find_next(mask)) {
+	for (; *piece < Piece_Knight + Max_Knights + (color & Piece_Black); *piece = find_next(mask)) {
 		moves = gen_knight(moves, board, get_piece(board, *piece), color);
 	}
 	return moves;
@@ -829,7 +832,7 @@ move_t* gen_knights(move_t* moves, const board_t* board, uint64_t* mask, piece_t
 
 static inline
 move_t* gen_bishops(move_t* moves, const board_t* board, uint64_t* mask, piece_t* piece, const uint8_t color) {
-	for (; *piece < (Piece_Bishop + Count_Bishops + (color & Piece_Black)); *piece = find_next(mask)) {
+	for (; *piece < Piece_Bishop + Max_Bishops + (color & Piece_Black); *piece = find_next(mask)) {
 		moves = gen_bishop(moves, board, get_piece(board, *piece), color);
 	}
 	return moves;
@@ -837,7 +840,7 @@ move_t* gen_bishops(move_t* moves, const board_t* board, uint64_t* mask, piece_t
 
 static inline
 move_t* gen_rooks(move_t* moves, const board_t* board, uint64_t* mask, piece_t* piece, const uint8_t color) {
-	for (; *piece < (Piece_Rook + Count_Rooks + (color & Piece_Black)); *piece = find_next(mask)) {
+	for (; *piece < Piece_Rook + Max_Rooks + (color & Piece_Black); *piece = find_next(mask)) {
 		moves = gen_rook(moves, board, get_piece(board, *piece), color);
 	}
 	return moves;
@@ -845,7 +848,7 @@ move_t* gen_rooks(move_t* moves, const board_t* board, uint64_t* mask, piece_t* 
 
 static inline
 move_t* gen_queens(move_t* moves, const board_t* board, uint64_t* mask, piece_t* piece, const uint8_t color) {
-	for (; *piece < (Piece_Queen + Count_Queens + (color & Piece_Black)); *piece = find_next(mask)) {
+	for (; *piece < Piece_Queen + Max_Queens + (color & Piece_Black); *piece = find_next(mask)) {
 		moves = gen_queen(moves, board, get_piece(board, *piece), color);
 	}
 	return moves;
@@ -994,7 +997,7 @@ void* perft_start(void* pstate) {
 	return pstate;
 }
 
-pstate_t states[Count_Threads];
+pstate_t states[Max_Threads];
 
 void perft_init_state(pstate_t* state, move_t* moves, size_t mcount, board_t* board, uint64_t piecemask, uint8_t depth, uint8_t pindex, uint8_t pcount) {
 	size_t start = mcount * pindex / pcount;
@@ -1039,7 +1042,7 @@ uint64_t perft_do(move_t* moves, board_t* board, uint64_t piecemask, move_t move
 			: 0;
 }
 
-extern char buffer[Count_Chars];
+extern char buffer[Max_Chars];
 
 uint64_t perft(move_t* moves, board_t* board, uint64_t piecemask, move_t move, uint8_t depth, uint8_t div, char* str, uint8_t pcount);
 char* move_write(char* str, move_t move);
@@ -1499,8 +1502,8 @@ char* move_write(char* str, move_t move) {
 	return str;
 }
 
-char buffer[Count_Chars];
-move_t moves[Count_Moves];
+char buffer[Max_Chars];
+move_t moves[Max_Moves];
 
 const char* read_uint8(const char* str, uint8_t* result) {
 	unsigned int i = 0;
@@ -1595,8 +1598,8 @@ int main(int argc, const char* argv[]) {
 		return -1;
 	}
 
-	if (params.pcount > Count_Threads) {
-		fprintf(stderr, "Thread count is limited to %d.\n", Count_Threads);
+	if (params.pcount > Max_Threads) {
+		fprintf(stderr, "Thread count is limited to %d.\n", Max_Threads);
 		return -1;
 	}
 
