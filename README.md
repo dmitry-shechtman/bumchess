@@ -2,13 +2,14 @@
 Branchless Unmake/Make Chess Move Generator
 
 ## Usage
-`perft [<fen>] [<depth> [<result>]] [-d<divide>] [-l]`
+`perft [<fen>] [<depth> [<result>]] [-d<divide>] [-p<threads>] [-l]`
 
-- `<fen>`      - Specifies the position in FEN format (castlings and e.p. square are optional)
-- `<depth>`    - Specifies the depth
-- `<result>`   - Specifies the expected leaf count
-- `-d<divide>` - Divide from depth 1 to `<divide>`
-- `-l`         - Loop from depth 0 to `<depth>`
+- `<fen>`       - Specifies the position in FEN format (castlings and e.p. square are optional)
+- `<depth>`     - Specifies the depth
+- `<result>`    - Specifies the expected leaf count
+- `-d<divide>`  - Divide from depth 1 to `<divide>`
+- `-p<threads>` - Run in parallel `<threads>`
+- `-l`          - Loop from depth 0 to `<depth>`
 
 ## Not Yet Implemented
 * Castling

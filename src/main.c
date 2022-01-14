@@ -8,6 +8,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <pthread.h>
 
 #ifdef _MSC_VER
 #include <intrin.h>
@@ -141,6 +142,8 @@ enum Count {
 
 	Count_Chars     = 1024,
 	Count_Moves     = 1024,
+
+	Count_Threads   =   32,
 };
 
 typedef uint8_t piece_t;
@@ -225,7 +228,18 @@ typedef struct {
 	uint8_t  max;
 	uint8_t  div;
 	uint64_t result;
+	uint8_t  pcount;
 } params_t;
+
+typedef struct {
+	board_t   board;
+	uint64_t  piecemask;
+	move_t    moves[Count_Moves];
+	move_t*   pEnd;
+	uint64_t  count;
+	uint8_t   depth;
+	pthread_t thread;
+} pstate_t;
 
 static inline
 piece_t find_next(uint64_t* mask) {
@@ -963,27 +977,89 @@ uint64_t perft_opt(move_t* moves, board_t* board, register uint64_t piecemask, r
 	return count;
 }
 
+void* perft_start(void* pstate) {
+	pstate_t* state = (pstate_t*)pstate;
+	for (move_t* pCurr = state->moves; pCurr != state->pEnd; ++pCurr) {
+		state->piecemask = move_make(&state->board, *pCurr, state->piecemask);
+#if !NDEBUG
+		if (pCurr->prim.from.piece)
+#endif
+		if (!check(&state->board)) {
+			state->count += state->depth
+				? perft_opt(state->pEnd, &state->board, state->piecemask, *pCurr, state->depth)
+				: 1;
+		}
+		state->piecemask = move_unmake(&state->board, *pCurr, state->piecemask);
+	}
+	return pstate;
+}
+
+pstate_t states[Count_Threads];
+
+void perft_init_state(pstate_t* state, move_t* moves, size_t mcount, board_t* board, uint64_t piecemask, uint8_t depth, uint8_t pindex, uint8_t pcount) {
+	size_t start = mcount * pindex / pcount;
+	size_t end = mcount * (pindex + 1) / pcount;
+	state->board = *board;
+	state->piecemask = piecemask;
+	for (size_t mindex = start; mindex < end; ++mindex) {
+		state->moves[mindex - start] = moves[mindex];
+	}
+	state->pEnd = &state->moves[end - start];
+	state->count = 0;
+	state->depth = depth;
+}
+
+bool perft_run(move_t* moves, board_t* board, uint64_t piecemask, move_t move, uint8_t depth, uint8_t pcount) {
+	size_t mcount = gen(moves, board, piecemask, move) - moves;
+	for (uint8_t i = 0; i < pcount; ++i) {
+		perft_init_state(&states[i], moves, mcount, board, piecemask, depth - 1, i, pcount);
+		if (pthread_create(&states[i].thread, 0, perft_start, &states[i])) {
+			return false;
+		}
+	}
+	return true;
+}
+
+uint64_t perft_count(uint8_t pcount) {
+	uint64_t result = 0;
+	for (uint8_t i = 0; i < pcount; ++i) {
+		if (pthread_join(states[i].thread, 0)) {
+			return 0;
+		}
+		result += states[i].count;
+	}
+	return result;
+}
+
+uint64_t perft_do(move_t* moves, board_t* board, uint64_t piecemask, move_t move, uint8_t depth, uint8_t pcount) {
+	return pcount <= 1
+		? perft_opt(moves, board, piecemask, move, depth)
+		: perft_run(moves, board, piecemask, move, depth, pcount)
+			? perft_count(pcount)
+			: 0;
+}
+
 extern char buffer[Count_Chars];
 
-uint64_t perft(move_t* moves, board_t* board, uint64_t piecemask, move_t move, uint8_t depth, uint8_t div, char* str);
+uint64_t perft(move_t* moves, board_t* board, uint64_t piecemask, move_t move, uint8_t depth, uint8_t div, char* str, uint8_t pcount);
 char* move_write(char* str, move_t move);
 
-uint64_t perft_divide(move_t* moves, board_t* board, uint64_t piecemask, move_t move, uint8_t depth, uint8_t div, char* str) {
+uint64_t perft_divide(move_t* moves, board_t* board, uint64_t piecemask, move_t move, uint8_t depth, uint8_t div, char* str, uint8_t pcount) {
 	str = move_write(str, move);
 	*str++ = ' ';
-	uint64_t count = perft(moves, board, piecemask, move, depth, div, str);
+	uint64_t count = perft(moves, board, piecemask, move, depth, div, str, pcount);
 	*str = 0;
 	printf("%s%11" PRIu64 "\n", buffer, count);
 	return count;
 }
 
-uint64_t perft(move_t* moves, board_t* board, uint64_t piecemask, move_t move, uint8_t depth, uint8_t div, char* str) {
+uint64_t perft(move_t* moves, board_t* board, uint64_t piecemask, move_t move, uint8_t depth, uint8_t div, char* str, uint8_t pcount) {
 	move_t *pEnd, *pCurr;
 	uint64_t count = 0;
 	if (!depth)
 		return 1;
 	if (!div)
-		return perft_opt(moves, board, piecemask, move, depth);
+		return perft_do(moves, board, piecemask, move, depth, pcount);
 	pEnd = gen(moves, board, piecemask, move);
 	--depth;
 	--div;
@@ -993,7 +1069,7 @@ uint64_t perft(move_t* moves, board_t* board, uint64_t piecemask, move_t move, u
 		if (pCurr->prim.from.piece)
 #endif
 		if (!check(board))
-			count += perft_divide(pEnd, board, piecemask, *pCurr, depth, div, str);
+			count += perft_divide(pEnd, board, piecemask, *pCurr, depth, div, str, pcount);
 		piecemask = move_unmake(board, *pCurr, piecemask);
 	}
 	return count;
@@ -1461,6 +1537,10 @@ bool args_read_div(const char* arg, params_t* params) {
 	return read_uint8(arg, &params->div) && params->div;
 }
 
+bool args_read_pcount(const char* arg, params_t* params) {
+	return read_uint8(arg, &params->pcount) && params->pcount;
+}
+
 bool args_read_result(const char* arg, params_t* params) {
 	return read_uint64(arg, &params->result);
 }
@@ -1469,6 +1549,8 @@ bool args_read_flag(const char* arg, params_t* params) {
 	switch (arg[1]) {
 	case 'd':
 		return args_read_div(&arg[2], params);
+	case 'p':
+		return args_read_pcount(&arg[2], params);
 	case 'l':
 		params->min = 0;
 		return true;
@@ -1481,6 +1563,7 @@ bool args_read(int argc, const char* argv[], params_t* params) {
 	params->min = 0;
 	params->max = UINT8_MAX;
 	params->div = 0;
+	params->pcount = 0;
 	params->fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -";
 	params->result = UINT64_MAX;
 	
@@ -1508,7 +1591,12 @@ int main(int argc, const char* argv[]) {
 	uint64_t count = 0;
 
 	if (!args_read(argc, argv, &params)) {
-		printf("Usage: perft [<fen>] [<depth> [<result>]] [-d<divide>] [-l]\n");
+		printf("Usage: perft [<fen>] [<depth> [<result>]] [-d<divide>] [-p<threads>] [-l]\n");
+		return -1;
+	}
+
+	if (params.pcount > Count_Threads) {
+		fprintf(stderr, "Thread count is limited to %d.\n", Count_Threads);
 		return -1;
 	}
 
@@ -1528,7 +1616,7 @@ int main(int argc, const char* argv[]) {
 	}
 
 	for (uint8_t depth = params.min; depth <= params.max; ++depth) {
-		count = perft(moves, &board, piecemask, move, depth, params.div, buffer);
+		count = perft(moves, &board, piecemask, move, depth, params.div, buffer, params.pcount);
 		printf("perft(%3d)=%11" PRIu64 "\n", depth, count);
 	}
 	
