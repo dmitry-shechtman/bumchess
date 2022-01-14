@@ -918,10 +918,9 @@ const char* fen_read_char(const char* str, char e) {
 
 const char* fen_read_piece_clear(const char* str, piece_square_t* ps) {
 	char c = *str++;
-	for (uint8_t i = 0; i < c - Char_Zero; ++i) {
+	for (uint8_t i = 0; i < c - Char_Zero; ++i, ++ps->square) {
 		clear_square(*ps);
 	}
-	ps->square += c - Char_Zero;
 	return !(ps->square & Square_File) || !(ps->square & Square_FileInvalid)
 		? str
 		: fen_read_error(c);
