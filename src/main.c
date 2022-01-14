@@ -12,6 +12,10 @@
 
 #ifdef _MSC_VER
 #include <intrin.h>
+#else
+#ifdef BMI
+#include <x86intrin.h>
+#endif
 #endif
 
 enum Type {
@@ -232,7 +236,11 @@ piece_t find_next(uint64_t* mask) {
 #else
 	uint8_t index = __builtin_ctzl(*mask);
 #endif
+#ifdef BMI
+	*mask = _blsr_u64(*mask);
+#else
 	*mask &= (*mask - 1);
+#endif
 	return index;
 }
 
