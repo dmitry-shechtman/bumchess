@@ -132,15 +132,18 @@ enum Count {
 	Count_Files     =    8,
 	Count_Squares   =  128,
 
-	Count_Pawns     =    8,
-	Count_Knights   =    4,
-	Count_Bishops   =    4,
-	Count_Rooks     =    4,
-	Count_Queens    =    3,
 	Count_Pieces    =   64,
+};
 
-	Count_Chars     = 1024,
-	Count_Moves     = 1024,
+enum Max {
+	Max_Pawns     =    8,
+	Max_Knights   =    4,
+	Max_Bishops   =    4,
+	Max_Rooks     =    4,
+	Max_Queens    =    3,
+
+	Max_Chars     = 1024,
+	Max_Moves     = 1024,
 };
 
 typedef uint8_t piece_t;
@@ -791,7 +794,7 @@ move_t* gen_kings(move_t* moves, const uint8_t color) {
 
 static inline
 move_t* gen_pawns_white(move_t* moves, register const uint64_t piecemask, uint64_t* mask, piece_t* piece) {
-	for (; *piece < Piece_Pawn0 + Count_Pawns; *piece = find_next(mask)) {
+	for (; *piece < Piece_Pawn0 + Max_Pawns; *piece = find_next(mask)) {
 		moves = gen_pawn_white(moves, get_piece(*piece), piecemask);
 	}
 	return moves;
@@ -799,7 +802,7 @@ move_t* gen_pawns_white(move_t* moves, register const uint64_t piecemask, uint64
 
 static inline
 move_t* gen_pawns_black(move_t* moves, register const uint64_t piecemask, uint64_t* mask, piece_t* piece) {
-	for (; *piece < Piece_Pawn0 + Count_Pawns + Piece_Black; *piece = find_next(mask)) {
+	for (; *piece < Piece_Pawn0 + Max_Pawns + Piece_Black; *piece = find_next(mask)) {
 		moves = gen_pawn_black(moves, get_piece(*piece), piecemask);
 	}
 	return moves;
@@ -807,7 +810,7 @@ move_t* gen_pawns_black(move_t* moves, register const uint64_t piecemask, uint64
 
 static inline
 move_t* gen_knights(move_t* moves, uint64_t* mask, piece_t* piece, const uint8_t color) {
-	for (; *piece < (Piece_Knight + Count_Knights + (color & Piece_Black)); *piece = find_next(mask)) {
+	for (; *piece < Piece_Knight + Max_Knights + (color & Piece_Black); *piece = find_next(mask)) {
 		moves = gen_knight(moves, get_piece(*piece), color);
 	}
 	return moves;
@@ -815,7 +818,7 @@ move_t* gen_knights(move_t* moves, uint64_t* mask, piece_t* piece, const uint8_t
 
 static inline
 move_t* gen_bishops(move_t* moves, uint64_t* mask, piece_t* piece, const uint8_t color) {
-	for (; *piece < (Piece_Bishop + Count_Bishops + (color & Piece_Black)); *piece = find_next(mask)) {
+	for (; *piece < Piece_Bishop + Max_Bishops + (color & Piece_Black); *piece = find_next(mask)) {
 		moves = gen_bishop(moves, get_piece(*piece), color);
 	}
 	return moves;
@@ -823,7 +826,7 @@ move_t* gen_bishops(move_t* moves, uint64_t* mask, piece_t* piece, const uint8_t
 
 static inline
 move_t* gen_rooks(move_t* moves, uint64_t* mask, piece_t* piece, const uint8_t color) {
-	for (; *piece < (Piece_Rook + Count_Rooks + (color & Piece_Black)); *piece = find_next(mask)) {
+	for (; *piece < Piece_Rook + Max_Rooks + (color & Piece_Black); *piece = find_next(mask)) {
 		moves = gen_rook(moves, get_piece(*piece), color);
 	}
 	return moves;
@@ -831,7 +834,7 @@ move_t* gen_rooks(move_t* moves, uint64_t* mask, piece_t* piece, const uint8_t c
 
 static inline
 move_t* gen_queens(move_t* moves, uint64_t* mask, piece_t* piece, const uint8_t color) {
-	for (; *piece < (Piece_Queen + Count_Queens + (color & Piece_Black)); *piece = find_next(mask)) {
+	for (; *piece < Piece_Queen + Max_Queens + (color & Piece_Black); *piece = find_next(mask)) {
 		moves = gen_queen(moves, get_piece(*piece), color);
 	}
 	return moves;
@@ -963,7 +966,7 @@ uint64_t perft_opt(move_t* moves, register uint64_t piecemask, register const mo
 	return count;
 }
 
-extern char buffer[Count_Chars];
+extern char buffer[Max_Chars];
 
 uint64_t perft(move_t* moves, uint64_t piecemask, move_t move, uint8_t depth, uint8_t div, char* str);
 char* move_write(char* str, move_t move);
@@ -1423,8 +1426,8 @@ char* move_write(char* str, move_t move) {
 	return str;
 }
 
-char buffer[Count_Chars];
-move_t moves[Count_Moves];
+char buffer[Max_Chars];
+move_t moves[Max_Moves];
 
 const char* read_uint8(const char* str, uint8_t* result) {
 	unsigned int i = 0;
