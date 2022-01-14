@@ -842,21 +842,19 @@ void move_unmake(move_t move) {
 	set_sec(move.sec.from);
 }
 
-extern char buffer[Max_Chars];
-
-uint64_t perft(move_t* moves, uint8_t depth, uint8_t div, char* str);
+uint64_t perft(move_t* moves, uint8_t depth, uint8_t div, char* buffer, char* str);
 char* move_write(char* str, move_t move);
 
-uint64_t perft_divide(move_t* moves, move_t move, uint8_t depth, uint8_t div, char* str) {
+uint64_t perft_divide(move_t* moves, move_t move, uint8_t depth, uint8_t div, char* buffer, char* str) {
 	str = move_write(str, move);
 	*str++ = ' ';
-	uint64_t count = perft(moves, depth, div, str);
+	uint64_t count = perft(moves, depth, div, buffer, str);
 	*str = 0;
 	printf("%s%11" PRIu64 "\n", buffer, count);
 	return count;
 }
 
-uint64_t perft(move_t* moves, uint8_t depth, uint8_t div, char* str) {
+uint64_t perft(move_t* moves, uint8_t depth, uint8_t div, char* buffer, char* str) {
 	move_t *pEnd, *pCurr;
 	uint64_t count = 0;
 	state_t state2;
@@ -871,8 +869,8 @@ uint64_t perft(move_t* moves, uint8_t depth, uint8_t div, char* str) {
 #endif
 		if (!check())
 			count += !div
-				? perft(pEnd, depth - 1, div, str)
-				: perft_divide(pEnd, *pCurr, depth - 1, div - 1, str);
+				? perft(pEnd, depth - 1, div, buffer, str)
+				: perft_divide(pEnd, *pCurr, depth - 1, div - 1, buffer, str);
 		move_unmake(*pCurr);
 		state = state2;
 	}
@@ -1302,9 +1300,6 @@ char* move_write(char* str, move_t move) {
 	return str;
 }
 
-char buffer[Max_Chars];
-move_t moves[Max_Moves];
-
 const char* read_uint8(const char* str, uint8_t* result) {
 	unsigned int i = 0;
 	char c;
@@ -1382,6 +1377,9 @@ bool args_read(int argc, const char* argv[], params_t* params) {
 }
 
 int main(int argc, const char* argv[]) {
+	static move_t moves[Max_Moves];
+	static char buffer[Max_Chars];
+
 	params_t params;
 	uint64_t count = 0;
 
@@ -1404,7 +1402,7 @@ int main(int argc, const char* argv[]) {
 	}
 
 	for (uint8_t depth = params.min; depth <= params.max; ++depth) {
-		count = perft(moves, depth, params.div, buffer);
+		count = perft(moves, depth, params.div, buffer, buffer);
 		printf("perft(%3d)=%11" PRIu64 "\n", depth, count);
 	}
 	
