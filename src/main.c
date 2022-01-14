@@ -107,16 +107,19 @@ enum Count {
 	Count_Files     =    8,
 	Count_Squares   =  128,
 
-	Count_Pawns     =    8,
-	Count_Knights   =    4,
-	Count_Bishops   =    4,
-	Count_Bishops2  =    2,
-	Count_Rooks     =    4,
-	Count_Queens    =    4,
 	Count_Pieces    =   64,
+};
 
-	Count_Chars     = 1024,
-	Count_Moves     = 1024,
+enum Max {
+	Max_Pawns     =    8,
+	Max_Knights   =    4,
+	Max_Bishops   =    4,
+	Max_Bishops2  =    2,
+	Max_Rooks     =    4,
+	Max_Queens    =    4,
+
+	Max_Chars     = 1024,
+	Max_Moves     = 1024,
 };
 
 typedef uint8_t piece_t;
@@ -664,7 +667,7 @@ bool check_kings(square_t dest) {
 move_t* gen_pawns(move_t* moves) {
 	piece_t piece = (Piece_Pawn0 | color) & Piece_Index;
 	uint64_t mask = state.piecemask >> piece;
-	for (uint8_t i = 0; i < Count_Pawns; ++i, ++piece, mask >>= 1) {
+	for (uint8_t i = 0; i < Max_Pawns; ++i, ++piece, mask >>= 1) {
 		if (mask & 1) {
 			moves = gen_pawn(moves, get_piece(piece));
 		}
@@ -675,7 +678,7 @@ move_t* gen_pawns(move_t* moves) {
 move_t* gen_knights(move_t* moves) {
 	piece_t piece = (Piece_Knight | color) & Piece_Index;
 	uint64_t mask = state.piecemask >> piece;
-	for (uint8_t i = 0; i < Count_Knights; ++i, ++piece, mask >>= 1) {
+	for (uint8_t i = 0; i < Max_Knights; ++i, ++piece, mask >>= 1) {
 		if (mask & 1) {
 			moves = gen_knight(moves, get_piece(piece));
 		}
@@ -686,7 +689,7 @@ move_t* gen_knights(move_t* moves) {
 move_t* gen_bishops(move_t* moves) {
 	piece_t piece = (Piece_Bishop | color) & Piece_Index;
 	uint64_t mask = state.piecemask >> piece;
-	for (uint8_t i = 0; i < Count_Bishops; ++i, ++piece, mask >>= 1) {
+	for (uint8_t i = 0; i < Max_Bishops; ++i, ++piece, mask >>= 1) {
 		if (mask & 1) {
 			moves = gen_bishop(moves, get_piece(piece));
 		}
@@ -697,7 +700,7 @@ move_t* gen_bishops(move_t* moves) {
 bool check_bishops(square_t dest) {
 	piece_t piece = ((Piece_Bishop + get_index2(dest)) | color) & Piece_Index;
 	uint64_t mask = state.piecemask >> piece;
-	for (uint8_t i = 0; i < Count_Bishops2; ++i, ++piece, mask >>= 1) {
+	for (uint8_t i = 0; i < Max_Bishops2; ++i, ++piece, mask >>= 1) {
 		if ((mask & 1) && check_bishop(get_piece(piece), dest)) {
 			return true;
 		}
@@ -708,7 +711,7 @@ bool check_bishops(square_t dest) {
 move_t* gen_rooks(move_t* moves) {
 	piece_t piece = (Piece_Rook | color) & Piece_Index;
 	uint64_t mask = state.piecemask >> piece;
-	for (uint8_t i = 0; i < Count_Rooks; ++i, ++piece, mask >>= 1) {
+	for (uint8_t i = 0; i < Max_Rooks; ++i, ++piece, mask >>= 1) {
 		if (mask & 1) {
 			moves = gen_rook(moves, get_piece(piece));
 		}
@@ -719,7 +722,7 @@ move_t* gen_rooks(move_t* moves) {
 bool check_rooks(square_t dest) {
 	piece_t piece = (Piece_Rook | color) & Piece_Index;
 	uint64_t mask = state.piecemask >> piece;
-	for (uint8_t i = 0; i < Count_Rooks; ++i, ++piece, mask >>= 1) {
+	for (uint8_t i = 0; i < Max_Rooks; ++i, ++piece, mask >>= 1) {
 		if ((mask & 1) && check_rook(get_piece(piece), dest)) {
 			return true;
 		}
@@ -730,7 +733,7 @@ bool check_rooks(square_t dest) {
 move_t* gen_queens(move_t* moves) {
 	piece_t piece = (Piece_Queen | color) & Piece_Index;
 	uint64_t mask = state.piecemask >> piece;
-	for (uint8_t i = 0; i < Count_Queens; ++i, ++piece, mask >>= 1) {
+	for (uint8_t i = 0; i < Max_Queens; ++i, ++piece, mask >>= 1) {
 		if (mask & 1) {
 			moves = gen_queen(moves, get_piece(piece));
 		}
@@ -741,7 +744,7 @@ move_t* gen_queens(move_t* moves) {
 bool check_queens(square_t dest) {
 	piece_t piece = (Piece_Queen | color) & Piece_Index;
 	uint64_t mask = state.piecemask >> piece;
-	for (uint8_t i = 0; i < Count_Queens; ++i, ++piece, mask >>= 1) {
+	for (uint8_t i = 0; i < Max_Queens; ++i, ++piece, mask >>= 1) {
 		if ((mask & 1) && check_queen(get_piece(piece), dest)) {
 			return true;
 		}
@@ -839,7 +842,7 @@ void move_unmake(move_t move) {
 	set_sec(move.sec.from);
 }
 
-extern char buffer[Count_Chars];
+extern char buffer[Max_Chars];
 
 uint64_t perft(move_t* moves, uint8_t depth, uint8_t div, char* str);
 char* move_write(char* str, move_t move);
@@ -1299,8 +1302,8 @@ char* move_write(char* str, move_t move) {
 	return str;
 }
 
-char buffer[Count_Chars];
-move_t moves[Count_Moves];
+char buffer[Max_Chars];
+move_t moves[Max_Moves];
 
 const char* read_uint8(const char* str, uint8_t* result) {
 	unsigned int i = 0;
