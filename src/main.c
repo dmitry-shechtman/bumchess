@@ -997,8 +997,6 @@ void* perft_start(void* pstate) {
 	return pstate;
 }
 
-pstate_t states[Max_Threads];
-
 void perft_init_state(pstate_t* state, move_t* moves, size_t mcount, board_t* board, uint64_t piecemask, uint8_t depth, uint8_t pindex, uint8_t pcount) {
 	size_t start = mcount * pindex / pcount;
 	size_t end = mcount * (pindex + 1) / pcount;
@@ -1012,7 +1010,7 @@ void perft_init_state(pstate_t* state, move_t* moves, size_t mcount, board_t* bo
 	state->depth = depth;
 }
 
-bool perft_run(move_t* moves, board_t* board, uint64_t piecemask, move_t move, uint8_t depth, uint8_t pcount) {
+bool perft_run(move_t* moves, board_t* board, uint64_t piecemask, move_t move, uint8_t depth, pstate_t* states, uint8_t pcount) {
 	size_t mcount = gen(moves, board, piecemask, move) - moves;
 	for (uint8_t i = 0; i < pcount; ++i) {
 		perft_init_state(&states[i], moves, mcount, board, piecemask, depth - 1, i, pcount);
@@ -1023,7 +1021,7 @@ bool perft_run(move_t* moves, board_t* board, uint64_t piecemask, move_t move, u
 	return true;
 }
 
-uint64_t perft_count(uint8_t pcount) {
+uint64_t perft_count(pstate_t* states, uint8_t pcount) {
 	uint64_t result = 0;
 	for (uint8_t i = 0; i < pcount; ++i) {
 		if (pthread_join(states[i].thread, 0)) {
@@ -1035,10 +1033,11 @@ uint64_t perft_count(uint8_t pcount) {
 }
 
 uint64_t perft_do(move_t* moves, board_t* board, uint64_t piecemask, move_t move, uint8_t depth, uint8_t pcount) {
+	static pstate_t states[Max_Threads];
 	return pcount <= 1
 		? perft_opt(moves, board, piecemask, move, depth)
-		: perft_run(moves, board, piecemask, move, depth, pcount)
-			? perft_count(pcount)
+		: perft_run(moves, board, piecemask, move, depth, states, pcount)
+			? perft_count(states, pcount)
 			: 0;
 }
 
