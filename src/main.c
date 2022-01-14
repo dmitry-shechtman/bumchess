@@ -232,7 +232,15 @@ static inline
 piece_t find_next(uint64_t* mask) {
 #ifdef _MSC_VER
 	uint32_t index;
+#if _WIN64
 	_BitScanForward64(&index, *mask);
+#else
+	if (!_BitScanForward(&index, *(uint32_t*)mask)) {
+		_BitScanForward(&index, *mask >>= 32);
+		index += 32;
+		*mask <<= 32;
+	}
+#endif
 #else
 	uint8_t index = __builtin_ctzl(*mask);
 #endif
