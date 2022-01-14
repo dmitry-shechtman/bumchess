@@ -966,21 +966,19 @@ uint64_t perft_opt(move_t* moves, register uint64_t piecemask, register const mo
 	return count;
 }
 
-extern char buffer[Max_Chars];
-
-uint64_t perft(move_t* moves, uint64_t piecemask, move_t move, uint8_t depth, uint8_t div, char* str);
+uint64_t perft(move_t* moves, uint64_t piecemask, move_t move, uint8_t depth, uint8_t div, char* buffer, char* str);
 char* move_write(char* str, move_t move);
 
-uint64_t perft_divide(move_t* moves, uint64_t piecemask, move_t move, uint8_t depth, uint8_t div, char* str) {
+uint64_t perft_divide(move_t* moves, uint64_t piecemask, move_t move, uint8_t depth, uint8_t div, char* buffer, char* str) {
 	str = move_write(str, move);
 	*str++ = ' ';
-	uint64_t count = perft(moves, piecemask, move, depth, div, str);
+	uint64_t count = perft(moves, piecemask, move, depth, div, buffer, str);
 	*str = 0;
 	printf("%s%11" PRIu64 "\n", buffer, count);
 	return count;
 }
 
-uint64_t perft(move_t* moves, uint64_t piecemask, move_t move, uint8_t depth, uint8_t div, char* str) {
+uint64_t perft(move_t* moves, uint64_t piecemask, move_t move, uint8_t depth, uint8_t div, char* buffer, char* str) {
 	move_t *pEnd, *pCurr;
 	uint64_t count = 0;
 	if (!depth)
@@ -996,7 +994,7 @@ uint64_t perft(move_t* moves, uint64_t piecemask, move_t move, uint8_t depth, ui
 		if (pCurr->prim.from.piece)
 #endif
 		if (!check())
-			count += perft_divide(pEnd, piecemask, *pCurr, depth, div, str);
+			count += perft_divide(pEnd, piecemask, *pCurr, depth, div, buffer, str);
 		piecemask = move_unmake(*pCurr, piecemask);
 	}
 	return count;
@@ -1426,9 +1424,6 @@ char* move_write(char* str, move_t move) {
 	return str;
 }
 
-char buffer[Max_Chars];
-move_t moves[Max_Moves];
-
 const char* read_uint8(const char* str, uint8_t* result) {
 	unsigned int i = 0;
 	char c;
@@ -1506,6 +1501,9 @@ bool args_read(int argc, const char* argv[], params_t* params) {
 }
 
 int main(int argc, const char* argv[]) {
+	static move_t moves[Max_Moves];
+	static char buffer[Max_Chars];
+
 	params_t params;
 	uint64_t count = 0;
 
@@ -1530,7 +1528,7 @@ int main(int argc, const char* argv[]) {
 	}
 
 	for (uint8_t depth = params.min; depth <= params.max; ++depth) {
-		count = perft(moves, piecemask, move, depth, params.div, buffer);
+		count = perft(moves, piecemask, move, depth, params.div, buffer, buffer);
 		printf("perft(%3d)=%11" PRIu64 "\n", depth, count);
 	}
 	
