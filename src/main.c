@@ -176,11 +176,11 @@ enum Char {
 	Char_File = 'a',
 };
 
-struct {
+typedef struct {
 	piece_t squares[Count_Squares];
 	piece_square_t pieces[Count_Pieces];
 	piece_t color;
-} board;
+} board_t;
 
 const move_t nullmove = {
 	.prim = {
@@ -252,23 +252,23 @@ piece_t find_next(uint64_t* mask) {
 }
 
 static inline
-piece_t get_square(register square_t square) {
-	return board.squares[square];
+piece_t get_square(const board_t* board, register square_t square) {
+	return board->squares[square];
 }
 
 static inline
-void clear_square(register piece_square_t ps) {
-	board.squares[ps.square] = 0x00;
+void clear_square(board_t* board, register piece_square_t ps) {
+	board->squares[ps.square] = 0x00;
 }
 
 static inline
-void set_square(register piece_square_t ps) {
-	board.squares[ps.square] = ps.piece;
+void set_square(board_t* board, register piece_square_t ps) {
+	board->squares[ps.square] = ps.piece;
 }
 
 static inline
-piece_square_t get_piece(register piece_t piece) {
-	return board.pieces[piece];
+piece_square_t get_piece(const board_t* board, register piece_t piece) {
+	return board->pieces[piece];
 }
 
 static inline
@@ -278,9 +278,9 @@ uint64_t clear_piece(register piece_square_t ps, register uint64_t piecemask) {
 }
 
 static inline
-uint64_t set_piece(register piece_square_t ps, register uint64_t piecemask) {
+uint64_t set_piece(board_t* board, register piece_square_t ps, register uint64_t piecemask) {
 	register piece_t piece = ps.piece & Piece_Index;
-	board.pieces[piece] = ps;
+	board->pieces[piece] = ps;
 	return piecemask |= (1ull << piece);
 }
 
@@ -413,17 +413,17 @@ move_t* gen_promo_pawn(move_t* moves, move_t move, piece_square_t to,
 }
 
 static inline
-move_t* gen_push2_pawn(move_t* moves, register const move_t move,
+move_t* gen_push2_pawn(move_t* moves, const board_t* board, register const move_t move,
 	const uint8_t color2)
 {
 	register piece_square_t to = move.prim.to;
 	register piece_t left = !((to.square - 1) & Square_FileInvalid)
-		? get_square(to.square - 1)
+		? get_square(board, to.square - 1)
 		: 0;
 	register piece_t right = !((to.square + 1) & Square_FileInvalid)
-		? get_square(to.square + 1)
+		? get_square(board, to.square + 1)
 		: 0;
-	if (!get_square(to.square)) {
+	if (!get_square(board, to.square)) {
 		register move_t move2 = {
 			.prim = move.prim,
 			.sec = {
@@ -439,12 +439,12 @@ move_t* gen_push2_pawn(move_t* moves, register const move_t move,
 }
 
 static inline
-move_t* gen_push_pawn(move_t* moves, register piece_square_t from, register const uint64_t piecemask,
+move_t* gen_push_pawn(move_t* moves, const board_t* board, register piece_square_t from, register const uint64_t piecemask,
 	const vector_t vector, const uint8_t promo, const uint8_t color, const uint8_t color2)
 {
 	register piece_square_t to = from;
 	register piece_square_t from2;
-	if (!(from2.piece = get_square(from2.square = to.square += vector))) {
+	if (!(from2.piece = get_square(board, from2.square = to.square += vector))) {
 		register move_t move = {
 			.prim = {
 				.from = from,
@@ -458,20 +458,20 @@ move_t* gen_push_pawn(move_t* moves, register piece_square_t from, register cons
 		moves = gen_promo_pawn(moves, move, to, piecemask, promo, color);
 		if (!(from.piece & Piece_Moved)) {
 			move.prim.to.square += vector;
-			moves = gen_push2_pawn(moves, move, color2);
+			moves = gen_push2_pawn(moves, board, move, color2);
 		}
 	}
 	return moves;
 }
 
 static inline
-move_t* gen_vector_pawn(move_t* moves, register piece_square_t from, register const uint64_t piecemask,
+move_t* gen_vector_pawn(move_t* moves, const board_t* board, register piece_square_t from, register const uint64_t piecemask,
 	const vector_t vector, const uint8_t promo, const uint8_t color, const uint8_t color2)
 {
 	register piece_square_t to = from;
 	register piece_square_t from2;
 	if (!((to.square += vector) & Square_Invalid)
-		&& ((from2.piece = get_square(from2.square = to.square)) & color2)) {
+		&& ((from2.piece = get_square(board, from2.square = to.square)) & color2)) {
 			register move_t move = {
 				.prim = {
 					.from = from,
@@ -518,13 +518,13 @@ move_t* gen_vector_ep(move_t* moves, register piece_square_t ps, register square
 }
 
 static inline
-move_t* gen_vector_leaper(move_t* moves, register piece_square_t from,
+move_t* gen_vector_leaper(move_t* moves, const board_t* board, register piece_square_t from,
 	const vector_t vector, const uint8_t color)
 {
 	register piece_square_t to = from;
 	register piece_square_t from2;
 	if (!((to.square += vector) & Square_Invalid)
-		&& !((from2.piece = get_square(from2.square = to.square)) & color)) {
+		&& !((from2.piece = get_square(board, from2.square = to.square)) & color)) {
 			register move_t move = {
 				.prim = {
 					.from = from,
@@ -541,62 +541,62 @@ move_t* gen_vector_leaper(move_t* moves, register piece_square_t from,
 }
 
 static inline
-bool check_square_knight(register square_t square,
+bool check_square_knight(const board_t* board, register square_t square,
 	const uint8_t color)
 {
-	register piece_t piece = (square & Square_Invalid) ? 0 : get_square(square);
+	register piece_t piece = (square & Square_Invalid) ? 0 : get_square(board, square);
 	return (piece & (Piece_Type | Piece_Color)) == (Piece_Knight | color);
 }
 
 static inline
-bool check_vector(register square_t square,
+bool check_vector(const board_t* board, register square_t square,
 	const type_mask_t type_mask, const piece_t piece_type, const vector_t vector, const uint8_t color)
 {
 	if ((square += vector) & Square_Invalid) {
 		return false;
 	}
-	register piece_t piece = get_square(square);
+	register piece_t piece = get_square(board, square);
 	if (piece) {
 		return (piece & color) && (type_mask & (1 << (piece & Piece_Type)));
 	}
-	while (!((square += vector) & Square_Invalid) && !(piece = get_square(square)));
+	while (!((square += vector) & Square_Invalid) && !(piece = get_square(board, square)));
 	return (piece & (piece_type | color)) == (piece_type | color);
 }
 
 static inline
-bool check_vector_knight(register square_t square,
+bool check_vector_knight(const board_t* board, register square_t square,
 	const vector_t vector, const uint8_t color)
 {
-	return check_square_knight(square + vector, color);
+	return check_square_knight(board, square + vector, color);
 }
 
 static inline
-bool check_vector_pawn(register square_t square, const vector_t vector, const uint8_t color) {
-	return check_vector(square, TypeMask_Queen | TypeMask_Bishop | TypeMask_King | TypeMask_Pawn,
+bool check_vector_pawn(const board_t* board, register square_t square, const vector_t vector, const uint8_t color) {
+	return check_vector(board, square, TypeMask_Queen | TypeMask_Bishop | TypeMask_King | TypeMask_Pawn,
 		Piece_Bishop, vector, color);
 }
 
 static inline
-bool check_vector_diag(register square_t square, const vector_t vector, const uint8_t color) {
-	return check_vector(square, TypeMask_Queen | TypeMask_Bishop | TypeMask_King,
+bool check_vector_diag(const board_t* board, register square_t square, const vector_t vector, const uint8_t color) {
+	return check_vector(board, square, TypeMask_Queen | TypeMask_Bishop | TypeMask_King,
 		Piece_Bishop, vector, color);
 }
 
 static inline
-bool check_vector_ortho(register square_t square, const vector_t vector, const uint8_t color) {
-	return check_vector(square, TypeMask_Queen | TypeMask_Rook | TypeMask_King,
+bool check_vector_ortho(const board_t* board, register square_t square, const vector_t vector, const uint8_t color) {
+	return check_vector(board, square, TypeMask_Queen | TypeMask_Rook | TypeMask_King,
 		Piece_Rook, vector, color);
 }
 
 static inline
-move_t* gen_vector_slider(move_t* moves, register piece_square_t from,
+move_t* gen_vector_slider(move_t* moves, const board_t* board, register piece_square_t from,
 	const vector_t vector, const uint8_t color)
 {
 	register piece_square_t to = from;
 	register piece_square_t from2 = {0};
 	while (!from2.piece
 		&& !((to.square += vector) & Square_Invalid)
-		&& !((from2.piece = get_square(from2.square = to.square)) & color)) {
+		&& !((from2.piece = get_square(board, from2.square = to.square)) & color)) {
 			register move_t move = {
 				.prim = {
 					.from = from,
@@ -625,10 +625,10 @@ move_t* gen_ep(move_t* moves, register const move_t move,
 }
 
 static inline
-move_t* gen_pawn_white(move_t* moves, register piece_square_t from, register const uint64_t piecemask) {
-	moves = gen_vector_pawn(moves, from, piecemask, Vec_NW, Square_Rank8, Piece_White, Piece_Black);
-	moves = gen_vector_pawn(moves, from, piecemask, Vec_NE, Square_Rank8, Piece_White, Piece_Black);
-	return gen_push_pawn(moves, from, piecemask, Vec_N, Square_Rank8, Piece_White, Piece_Black);
+move_t* gen_pawn_white(move_t* moves, const board_t* board, register piece_square_t from, register const uint64_t piecemask) {
+	moves = gen_vector_pawn(moves, board, from, piecemask, Vec_NW, Square_Rank8, Piece_White, Piece_Black);
+	moves = gen_vector_pawn(moves, board, from, piecemask, Vec_NE, Square_Rank8, Piece_White, Piece_Black);
+	return gen_push_pawn(moves, board, from, piecemask, Vec_N, Square_Rank8, Piece_White, Piece_Black);
 }
 
 static inline
@@ -637,59 +637,59 @@ move_t* gen_ep_white(move_t* moves, register const move_t move) {
 }
 
 static inline
-bool check_neighbors_ss(register square_t square, const uint8_t color) {
+bool check_neighbors_ss(const board_t* board, register square_t square, const uint8_t color) {
 	return (square & Square_Rank) > Square_Rank2
-		&& (check_vector_knight(square, Vec_SSW, color)
-		|| check_vector_knight(square, Vec_SSE, color));
+		&& (check_vector_knight(board, square, Vec_SSW, color)
+		|| check_vector_knight(board, square, Vec_SSE, color));
 }
 
 static inline
-bool check_neighbors_we(register square_t square, const uint8_t color) {
-	return check_vector_ortho(square, Vec_W, color)
-		|| check_vector_ortho(square, Vec_E, color);
+bool check_neighbors_we(const board_t* board, register square_t square, const uint8_t color) {
+	return check_vector_ortho(board, square, Vec_W, color)
+		|| check_vector_ortho(board, square, Vec_E, color);
 }
 
 static inline
-bool check_neighbors_nn(register square_t square, const uint8_t color) {
+bool check_neighbors_nn(const board_t* board, register square_t square, const uint8_t color) {
 	return (square & Square_Rank) < Square_Rank7
-		&& (check_vector_knight(square, Vec_NNW, color)
-		|| check_vector_knight(square, Vec_NNE, color));
+		&& (check_vector_knight(board, square, Vec_NNW, color)
+		|| check_vector_knight(board, square, Vec_NNE, color));
 }
 
 static inline
-bool check_neighbors_white_s(register square_t square) {
+bool check_neighbors_white_s(const board_t* board, register square_t square) {
 	return (square & Square_Rank)
-		&&    (check_vector_knight(square, Vec_SWW, Piece_White)
-			|| check_vector_pawn  (square, Vec_SW,  Piece_White)
-			|| check_vector_ortho (square, Vec_S,   Piece_White)
-			|| check_vector_pawn  (square, Vec_SE,  Piece_White)
-			|| check_vector_knight(square, Vec_SEE, Piece_White));
+		&&    (check_vector_knight(board, square, Vec_SWW, Piece_White)
+			|| check_vector_pawn  (board, square, Vec_SW,  Piece_White)
+			|| check_vector_ortho (board, square, Vec_S,   Piece_White)
+			|| check_vector_pawn  (board, square, Vec_SE,  Piece_White)
+			|| check_vector_knight(board, square, Vec_SEE, Piece_White));
 }
 
 static inline
-bool check_neighbors_white_n(register square_t square) {
+bool check_neighbors_white_n(const board_t* board, register square_t square) {
 	return (square & Square_Rank) != Square_Rank8
-		&&    (check_vector_knight(square, Vec_NWW, Piece_White)
-			|| check_vector_diag  (square, Vec_NW,  Piece_White)
-			|| check_vector_ortho (square, Vec_N,   Piece_White)
-			|| check_vector_diag  (square, Vec_NE,  Piece_White)
-			|| check_vector_knight(square, Vec_NEE, Piece_White));
+		&&    (check_vector_knight(board, square, Vec_NWW, Piece_White)
+			|| check_vector_diag  (board, square, Vec_NW,  Piece_White)
+			|| check_vector_ortho (board, square, Vec_N,   Piece_White)
+			|| check_vector_diag  (board, square, Vec_NE,  Piece_White)
+			|| check_vector_knight(board, square, Vec_NEE, Piece_White));
 }
 
 static inline
-bool check_to_white(register square_t square) {
-	return check_neighbors_ss(square, Piece_White)
-		|| check_neighbors_white_s(square)
-		|| check_neighbors_we(square, Piece_White)
-		|| check_neighbors_white_n(square)
-		|| check_neighbors_nn(square, Piece_White);
+bool check_to_white(const board_t* board, register square_t square) {
+	return check_neighbors_ss(board, square, Piece_White)
+		|| check_neighbors_white_s(board, square)
+		|| check_neighbors_we(board, square, Piece_White)
+		|| check_neighbors_white_n(board, square)
+		|| check_neighbors_nn(board, square, Piece_White);
 }
 
 static inline
-move_t* gen_pawn_black(move_t* moves, register piece_square_t from, register const uint64_t piecemask) {
-	moves = gen_vector_pawn(moves, from, piecemask, Vec_SW, Square_Rank1, Piece_Black, Piece_White);
-	moves = gen_vector_pawn(moves, from, piecemask, Vec_SE, Square_Rank1, Piece_Black, Piece_White);
-	return gen_push_pawn(moves, from, piecemask, Vec_S, Square_Rank1, Piece_Black, Piece_White);
+move_t* gen_pawn_black(move_t* moves, const board_t* board, register piece_square_t from, register const uint64_t piecemask) {
+	moves = gen_vector_pawn(moves, board, from, piecemask, Vec_SW, Square_Rank1, Piece_Black, Piece_White);
+	moves = gen_vector_pawn(moves, board, from, piecemask, Vec_SE, Square_Rank1, Piece_Black, Piece_White);
+	return gen_push_pawn(moves, board, from, piecemask, Vec_S, Square_Rank1, Piece_Black, Piece_White);
 }
 
 static inline
@@ -698,161 +698,161 @@ move_t* gen_ep_black(move_t* moves, register const move_t move) {
 }
 
 static inline
-bool check_neighbors_black_s(register square_t square) {
+bool check_neighbors_black_s(const board_t* board, register square_t square) {
 	return (square & Square_Rank)
-		&&    (check_vector_knight(square, Vec_SWW, Piece_Black)
-			|| check_vector_diag  (square, Vec_SW,  Piece_Black)
-			|| check_vector_ortho (square, Vec_S,   Piece_Black)
-			|| check_vector_diag  (square, Vec_SE,  Piece_Black)
-			|| check_vector_knight(square, Vec_SEE, Piece_Black));
+		&&    (check_vector_knight(board, square, Vec_SWW, Piece_Black)
+			|| check_vector_diag  (board, square, Vec_SW,  Piece_Black)
+			|| check_vector_ortho (board, square, Vec_S,   Piece_Black)
+			|| check_vector_diag  (board, square, Vec_SE,  Piece_Black)
+			|| check_vector_knight(board, square, Vec_SEE, Piece_Black));
 }
 
 static inline
-bool check_neighbors_black_n(register square_t square) {
+bool check_neighbors_black_n(const board_t* board, register square_t square) {
 	return (square & Square_Rank) != Square_Rank8
-		&&    (check_vector_knight(square, Vec_NWW, Piece_Black)
-			|| check_vector_pawn  (square, Vec_NW,  Piece_Black)
-			|| check_vector_ortho (square, Vec_N,   Piece_Black)
-			|| check_vector_pawn  (square, Vec_NE,  Piece_Black)
-			|| check_vector_knight(square, Vec_NEE, Piece_Black));
+		&&    (check_vector_knight(board, square, Vec_NWW, Piece_Black)
+			|| check_vector_pawn  (board, square, Vec_NW,  Piece_Black)
+			|| check_vector_ortho (board, square, Vec_N,   Piece_Black)
+			|| check_vector_pawn  (board, square, Vec_NE,  Piece_Black)
+			|| check_vector_knight(board, square, Vec_NEE, Piece_Black));
 }
 
 static inline
-bool check_to_black(register square_t square) {
-	return check_neighbors_ss(square, Piece_Black)
-		|| check_neighbors_black_s(square)
-		|| check_neighbors_we(square, Piece_Black)
-		|| check_neighbors_black_n(square)
-		|| check_neighbors_nn(square, Piece_Black);
+bool check_to_black(const board_t* board, register square_t square) {
+	return check_neighbors_ss(board, square, Piece_Black)
+		|| check_neighbors_black_s(board, square)
+		|| check_neighbors_we(board, square, Piece_Black)
+		|| check_neighbors_black_n(board, square)
+		|| check_neighbors_nn(board, square, Piece_Black);
 }
 
 static inline
-move_t* gen_king(move_t* moves, register piece_square_t from, const uint8_t color) {
-	moves = gen_vector_leaper(moves, from, Vec_SW, color);
-	moves = gen_vector_leaper(moves, from, Vec_S,  color);
-	moves = gen_vector_leaper(moves, from, Vec_SE, color);
-	moves = gen_vector_leaper(moves, from, Vec_W,  color);
-	moves = gen_vector_leaper(moves, from, Vec_E,  color);
-	moves = gen_vector_leaper(moves, from, Vec_NW, color);
-	moves = gen_vector_leaper(moves, from, Vec_N,  color);
-	moves = gen_vector_leaper(moves, from, Vec_NE, color);
+move_t* gen_king(move_t* moves, const board_t* board, register piece_square_t from, const uint8_t color) {
+	moves = gen_vector_leaper(moves, board, from, Vec_SW, color);
+	moves = gen_vector_leaper(moves, board, from, Vec_S,  color);
+	moves = gen_vector_leaper(moves, board, from, Vec_SE, color);
+	moves = gen_vector_leaper(moves, board, from, Vec_W,  color);
+	moves = gen_vector_leaper(moves, board, from, Vec_E,  color);
+	moves = gen_vector_leaper(moves, board, from, Vec_NW, color);
+	moves = gen_vector_leaper(moves, board, from, Vec_N,  color);
+	moves = gen_vector_leaper(moves, board, from, Vec_NE, color);
 	return moves;
 }
 
 static inline
-move_t* gen_knight(move_t* moves, register piece_square_t from, const uint8_t color) {
-	moves = gen_vector_leaper(moves, from, Vec_SSW, color);
-	moves = gen_vector_leaper(moves, from, Vec_SSE, color);
-	moves = gen_vector_leaper(moves, from, Vec_SWW, color);
-	moves = gen_vector_leaper(moves, from, Vec_SEE, color);
-	moves = gen_vector_leaper(moves, from, Vec_NWW, color);
-	moves = gen_vector_leaper(moves, from, Vec_NEE, color);
-	moves = gen_vector_leaper(moves, from, Vec_NNW, color);
-	moves = gen_vector_leaper(moves, from, Vec_NNE, color);
+move_t* gen_knight(move_t* moves, const board_t* board, register piece_square_t from, const uint8_t color) {
+	moves = gen_vector_leaper(moves, board, from, Vec_SSW, color);
+	moves = gen_vector_leaper(moves, board, from, Vec_SSE, color);
+	moves = gen_vector_leaper(moves, board, from, Vec_SWW, color);
+	moves = gen_vector_leaper(moves, board, from, Vec_SEE, color);
+	moves = gen_vector_leaper(moves, board, from, Vec_NWW, color);
+	moves = gen_vector_leaper(moves, board, from, Vec_NEE, color);
+	moves = gen_vector_leaper(moves, board, from, Vec_NNW, color);
+	moves = gen_vector_leaper(moves, board, from, Vec_NNE, color);
 	return moves;
 }
 
 static inline
-move_t* gen_bishop(move_t* moves, register piece_square_t from, const uint8_t color) {
-	moves = gen_vector_slider(moves, from, Vec_SW, color);
-	moves = gen_vector_slider(moves, from, Vec_SE, color);
-	moves = gen_vector_slider(moves, from, Vec_NW, color);
-	moves = gen_vector_slider(moves, from, Vec_NE, color);
+move_t* gen_bishop(move_t* moves, const board_t* board, register piece_square_t from, const uint8_t color) {
+	moves = gen_vector_slider(moves, board, from, Vec_SW, color);
+	moves = gen_vector_slider(moves, board, from, Vec_SE, color);
+	moves = gen_vector_slider(moves, board, from, Vec_NW, color);
+	moves = gen_vector_slider(moves, board, from, Vec_NE, color);
 	return moves;
 }
 
 static inline
-move_t* gen_rook(move_t* moves, register piece_square_t from, const uint8_t color) {
-	moves = gen_vector_slider(moves, from, Vec_S, color);
-	moves = gen_vector_slider(moves, from, Vec_W, color);
-	moves = gen_vector_slider(moves, from, Vec_E, color);
-	moves = gen_vector_slider(moves, from, Vec_N, color);
+move_t* gen_rook(move_t* moves, const board_t* board, register piece_square_t from, const uint8_t color) {
+	moves = gen_vector_slider(moves, board, from, Vec_S, color);
+	moves = gen_vector_slider(moves, board, from, Vec_W, color);
+	moves = gen_vector_slider(moves, board, from, Vec_E, color);
+	moves = gen_vector_slider(moves, board, from, Vec_N, color);
 	return moves;
 }
 
 static inline
-move_t* gen_queen(move_t* moves, register piece_square_t from, const uint8_t color) {
-	moves = gen_vector_slider(moves, from, Vec_SW, color);
-	moves = gen_vector_slider(moves, from, Vec_S,  color);
-	moves = gen_vector_slider(moves, from, Vec_SE, color);
-	moves = gen_vector_slider(moves, from, Vec_W,  color);
-	moves = gen_vector_slider(moves, from, Vec_E,  color);
-	moves = gen_vector_slider(moves, from, Vec_NW, color);
-	moves = gen_vector_slider(moves, from, Vec_N,  color);
-	moves = gen_vector_slider(moves, from, Vec_NE, color);
+move_t* gen_queen(move_t* moves, const board_t* board, register piece_square_t from, const uint8_t color) {
+	moves = gen_vector_slider(moves, board, from, Vec_SW, color);
+	moves = gen_vector_slider(moves, board, from, Vec_S,  color);
+	moves = gen_vector_slider(moves, board, from, Vec_SE, color);
+	moves = gen_vector_slider(moves, board, from, Vec_W,  color);
+	moves = gen_vector_slider(moves, board, from, Vec_E,  color);
+	moves = gen_vector_slider(moves, board, from, Vec_NW, color);
+	moves = gen_vector_slider(moves, board, from, Vec_N,  color);
+	moves = gen_vector_slider(moves, board, from, Vec_NE, color);
 	return moves;
 }
 
 static inline
-move_t* gen_kings(move_t* moves, const uint8_t color) {
+move_t* gen_kings(move_t* moves, const board_t* board, const uint8_t color) {
 	register piece_t piece = Piece_King + (color & Piece_Black);
-	return gen_king(moves, get_piece(piece), color);
+	return gen_king(moves, board, get_piece(board, piece), color);
 }
 
 static inline
-move_t* gen_pawns_white(move_t* moves, register const uint64_t piecemask, uint64_t* mask, piece_t* piece) {
+move_t* gen_pawns_white(move_t* moves, const board_t* board, register const uint64_t piecemask, uint64_t* mask, piece_t* piece) {
 	for (; *piece < Piece_Pawn0 + Count_Pawns; *piece = find_next(mask)) {
-		moves = gen_pawn_white(moves, get_piece(*piece), piecemask);
+		moves = gen_pawn_white(moves, board, get_piece(board, *piece), piecemask);
 	}
 	return moves;
 }
 
 static inline
-move_t* gen_pawns_black(move_t* moves, register const uint64_t piecemask, uint64_t* mask, piece_t* piece) {
+move_t* gen_pawns_black(move_t* moves, const board_t* board, register const uint64_t piecemask, uint64_t* mask, piece_t* piece) {
 	for (; *piece < Piece_Pawn0 + Count_Pawns + Piece_Black; *piece = find_next(mask)) {
-		moves = gen_pawn_black(moves, get_piece(*piece), piecemask);
+		moves = gen_pawn_black(moves, board, get_piece(board, *piece), piecemask);
 	}
 	return moves;
 }
 
 static inline
-move_t* gen_knights(move_t* moves, uint64_t* mask, piece_t* piece, const uint8_t color) {
+move_t* gen_knights(move_t* moves, const board_t* board, uint64_t* mask, piece_t* piece, const uint8_t color) {
 	for (; *piece < (Piece_Knight + Count_Knights + (color & Piece_Black)); *piece = find_next(mask)) {
-		moves = gen_knight(moves, get_piece(*piece), color);
+		moves = gen_knight(moves, board, get_piece(board, *piece), color);
 	}
 	return moves;
 }
 
 static inline
-move_t* gen_bishops(move_t* moves, uint64_t* mask, piece_t* piece, const uint8_t color) {
+move_t* gen_bishops(move_t* moves, const board_t* board, uint64_t* mask, piece_t* piece, const uint8_t color) {
 	for (; *piece < (Piece_Bishop + Count_Bishops + (color & Piece_Black)); *piece = find_next(mask)) {
-		moves = gen_bishop(moves, get_piece(*piece), color);
+		moves = gen_bishop(moves, board, get_piece(board, *piece), color);
 	}
 	return moves;
 }
 
 static inline
-move_t* gen_rooks(move_t* moves, uint64_t* mask, piece_t* piece, const uint8_t color) {
+move_t* gen_rooks(move_t* moves, const board_t* board, uint64_t* mask, piece_t* piece, const uint8_t color) {
 	for (; *piece < (Piece_Rook + Count_Rooks + (color & Piece_Black)); *piece = find_next(mask)) {
-		moves = gen_rook(moves, get_piece(*piece), color);
+		moves = gen_rook(moves, board, get_piece(board, *piece), color);
 	}
 	return moves;
 }
 
 static inline
-move_t* gen_queens(move_t* moves, uint64_t* mask, piece_t* piece, const uint8_t color) {
+move_t* gen_queens(move_t* moves, const board_t* board, uint64_t* mask, piece_t* piece, const uint8_t color) {
 	for (; *piece < (Piece_Queen + Count_Queens + (color & Piece_Black)); *piece = find_next(mask)) {
-		moves = gen_queen(moves, get_piece(*piece), color);
+		moves = gen_queen(moves, board, get_piece(board, *piece), color);
 	}
 	return moves;
 }
 
 static inline
-move_t* gen_pieces(move_t* moves, uint64_t* mask, piece_t* piece, const uint8_t color) {
-	moves = gen_knights(moves, mask, piece, color);
-	moves = gen_bishops(moves, mask, piece, color);
-	moves = gen_rooks(moves, mask, piece, color);
-	moves = gen_queens(moves, mask, piece, color);
+move_t* gen_pieces(move_t* moves, const board_t* board, uint64_t* mask, piece_t* piece, const uint8_t color) {
+	moves = gen_knights(moves, board, mask, piece, color);
+	moves = gen_bishops(moves, board, mask, piece, color);
+	moves = gen_rooks(moves, board, mask, piece, color);
+	moves = gen_queens(moves, board, mask, piece, color);
 	return moves;
 }
 
 static inline
-move_t* gen_white(move_t* moves, register const uint64_t piecemask, register const move_t move) {
+move_t* gen_white(move_t* moves, const board_t* board, register const uint64_t piecemask, register const move_t move) {
 	uint64_t mask = piecemask & 0x00000000FFFFFF00;
 	piece_t piece = find_next(&mask);
-	moves = gen_kings(moves, Piece_White);
-	moves = gen_pawns_white(moves, piecemask, &mask, &piece);
-	moves = gen_pieces(moves, &mask, &piece, Piece_White);
+	moves = gen_kings(moves, board, Piece_White);
+	moves = gen_pawns_white(moves, board, piecemask, &mask, &piece);
+	moves = gen_pieces(moves, board, &mask, &piece, Piece_White);
 	moves = gen_ep_white(moves, move);
 #if !NDEBUG
 	*moves++ = nullmove;
@@ -861,12 +861,12 @@ move_t* gen_white(move_t* moves, register const uint64_t piecemask, register con
 }
 
 static inline
-move_t* gen_black(move_t* moves, register const uint64_t piecemask, register const move_t move) {
+move_t* gen_black(move_t* moves, const board_t* board, register const uint64_t piecemask, register const move_t move) {
 	uint64_t mask = piecemask & 0xFFFFFF0000000000;
 	piece_t piece = find_next(&mask);
-	moves = gen_kings(moves, Piece_Black);
-	moves = gen_pawns_black(moves, piecemask, &mask, &piece);
-	moves = gen_pieces(moves, &mask, &piece, Piece_Black);
+	moves = gen_kings(moves, board, Piece_Black);
+	moves = gen_pawns_black(moves, board, piecemask, &mask, &piece);
+	moves = gen_pieces(moves, board, &mask, &piece, Piece_Black);
 	moves = gen_ep_black(moves, move);
 #if !NDEBUG
 	*moves++ = nullmove;
@@ -875,126 +875,126 @@ move_t* gen_black(move_t* moves, register const uint64_t piecemask, register con
 }
 
 static inline
-bool check_white() {
+bool check_white(const board_t* board) {
 	piece_t piece = Piece_King | Piece_Black;
-	return check_to_white(get_piece(piece).square);
+	return check_to_white(board, get_piece(board, piece).square);
 }
 
 static inline
-bool check_black() {
+bool check_black(const board_t* board) {
 	piece_t piece = Piece_King;
-	return check_to_black(get_piece(piece).square);
+	return check_to_black(board, get_piece(board, piece).square);
 }
 
 static inline
-move_t* gen(move_t* moves, register const uint64_t piecemask, register const move_t move) {
-	return board.color == Piece_White
-		? gen_white(moves, piecemask, move)
-		: gen_black(moves, piecemask, move);
+move_t* gen(move_t* moves, const board_t* board, register const uint64_t piecemask, register const move_t move) {
+	return board->color == Piece_White
+		? gen_white(moves, board, piecemask, move)
+		: gen_black(moves, board, piecemask, move);
 }
 
 static inline
-bool check() {
-	return board.color == Piece_White
-		? check_white()
-		: check_black();
+bool check(const board_t* board) {
+	return board->color == Piece_White
+		? check_white(board)
+		: check_black(board);
 }
 
 static inline
-uint64_t clear(register piece_square_t ps, register uint64_t piecemask) {
-	clear_square(ps);
+uint64_t clear(board_t* board, register piece_square_t ps, register uint64_t piecemask) {
+	clear_square(board, ps);
 	return clear_piece(ps, piecemask);
 }
 
 static inline
-uint64_t set(register piece_square_t ps, register uint64_t piecemask) {
-	set_square(ps);
-	return set_piece(ps, piecemask);
+uint64_t set(board_t* board, register piece_square_t ps, register uint64_t piecemask) {
+	set_square(board, ps);
+	return set_piece(board, ps, piecemask);
 }
 
 static inline
-uint64_t set_prim_to(register piece_square_t to, register uint64_t piecemask) {
+uint64_t set_prim_to(board_t* board, register piece_square_t to, register uint64_t piecemask) {
 	to.piece |= Piece_Moved;
-	set_square(to);
-	return set_piece(to, piecemask);
+	set_square(board, to);
+	return set_piece(board, to, piecemask);
 }
 
 static inline
-uint64_t move_make(register move_t move, register uint64_t piecemask) {
-	piecemask = clear(move.sec.from, piecemask);
-	piecemask = set(move.sec.to, piecemask);
-	piecemask = clear(move.prim.from, piecemask);
-	piecemask = set_prim_to(move.prim.to, piecemask);
+uint64_t move_make(board_t* board, register move_t move, register uint64_t piecemask) {
+	piecemask = clear(board, move.sec.from, piecemask);
+	piecemask = set(board, move.sec.to, piecemask);
+	piecemask = clear(board, move.prim.from, piecemask);
+	piecemask = set_prim_to(board, move.prim.to, piecemask);
 
-	board.color ^= Piece_Color;
+	board->color ^= Piece_Color;
 
 	return piecemask;
 }
 
 static inline
-uint64_t move_unmake(register move_t move, register uint64_t piecemask) {
-	board.color ^= Piece_Color;
+uint64_t move_unmake(board_t* board, register move_t move, register uint64_t piecemask) {
+	board->color ^= Piece_Color;
 
-	piecemask = clear(move.prim.to, piecemask);
-	piecemask = set(move.prim.from, piecemask);
-	piecemask = clear(move.sec.to, piecemask);
-	piecemask = set(move.sec.from, piecemask);
+	piecemask = clear(board, move.prim.to, piecemask);
+	piecemask = set(board, move.prim.from, piecemask);
+	piecemask = clear(board, move.sec.to, piecemask);
+	piecemask = set(board, move.sec.from, piecemask);
 
 	return piecemask;
 }
 
-uint64_t perft_opt(move_t* moves, register uint64_t piecemask, register const move_t move, register uint8_t depth) {
+uint64_t perft_opt(move_t* moves, board_t* board, register uint64_t piecemask, register const move_t move, register uint8_t depth) {
 	move_t *pEnd, *pCurr;
 	uint64_t count = 0;
-	pEnd = gen(moves, piecemask, move);
+	pEnd = gen(moves, board, piecemask, move);
 	--depth;
 	for (pCurr = moves; pCurr != pEnd; ++pCurr) {
-		piecemask = move_make(*pCurr, piecemask);
+		piecemask = move_make(board, *pCurr, piecemask);
 #if !NDEBUG
 		if (pCurr->prim.from.piece)
 #endif
-		if (!check()) {
+		if (!check(board)) {
 			count += depth
-				? perft_opt(pEnd, piecemask, *pCurr, depth)
+				? perft_opt(pEnd, board, piecemask, *pCurr, depth)
 				: 1;
 		}
-		piecemask = move_unmake(*pCurr, piecemask);
+		piecemask = move_unmake(board, *pCurr, piecemask);
 	}
 	return count;
 }
 
 extern char buffer[Count_Chars];
 
-uint64_t perft(move_t* moves, uint64_t piecemask, move_t move, uint8_t depth, uint8_t div, char* str);
+uint64_t perft(move_t* moves, board_t* board, uint64_t piecemask, move_t move, uint8_t depth, uint8_t div, char* str);
 char* move_write(char* str, move_t move);
 
-uint64_t perft_divide(move_t* moves, uint64_t piecemask, move_t move, uint8_t depth, uint8_t div, char* str) {
+uint64_t perft_divide(move_t* moves, board_t* board, uint64_t piecemask, move_t move, uint8_t depth, uint8_t div, char* str) {
 	str = move_write(str, move);
 	*str++ = ' ';
-	uint64_t count = perft(moves, piecemask, move, depth, div, str);
+	uint64_t count = perft(moves, board, piecemask, move, depth, div, str);
 	*str = 0;
 	printf("%s%11" PRIu64 "\n", buffer, count);
 	return count;
 }
 
-uint64_t perft(move_t* moves, uint64_t piecemask, move_t move, uint8_t depth, uint8_t div, char* str) {
+uint64_t perft(move_t* moves, board_t* board, uint64_t piecemask, move_t move, uint8_t depth, uint8_t div, char* str) {
 	move_t *pEnd, *pCurr;
 	uint64_t count = 0;
 	if (!depth)
 		return 1;
 	if (!div)
-		return perft_opt(moves, piecemask, move, depth);
-	pEnd = gen(moves, piecemask, move);
+		return perft_opt(moves, board, piecemask, move, depth);
+	pEnd = gen(moves, board, piecemask, move);
 	--depth;
 	--div;
 	for (pCurr = moves; pCurr != pEnd; ++pCurr) {
-		piecemask = move_make(*pCurr, piecemask);
+		piecemask = move_make(board, *pCurr, piecemask);
 #if !NDEBUG
 		if (pCurr->prim.from.piece)
 #endif
-		if (!check())
-			count += perft_divide(pEnd, piecemask, *pCurr, depth, div, str);
-		piecemask = move_unmake(*pCurr, piecemask);
+		if (!check(board))
+			count += perft_divide(pEnd, board, piecemask, *pCurr, depth, div, str);
+		piecemask = move_unmake(board, *pCurr, piecemask);
 	}
 	return count;
 }
@@ -1039,10 +1039,10 @@ const char* fen_read_char(const char* str, char e) {
 		: fen_read_error(c);
 }
 
-const char* fen_read_piece_clear(const char* str, piece_square_t* ps) {
+const char* fen_read_piece_clear(const char* str, board_t* board, piece_square_t* ps) {
 	char c = *str++;
 	for (uint8_t i = 0; i < c - Char_Zero; ++i, ++ps->square) {
-		clear_square(*ps);
+		clear_square(board, *ps);
 	}
 	return !(ps->square & Square_File) || !(ps->square & Square_FileInvalid)
 		? str
@@ -1057,7 +1057,7 @@ char* fen_write_piece_clear(char* str, uint8_t* count) {
 	return str;
 }
 
-const char* fen_read_piece_set(const char* str, piece_square_t* ps) {
+const char* fen_read_piece_set(const char* str, board_t* board, piece_square_t* ps) {
 	char c = *str++;
 	uint8_t type4;
 	if (!((type4 = find_type4(c)) & (Type_Count - 1))) {
@@ -1067,7 +1067,7 @@ const char* fen_read_piece_set(const char* str, piece_square_t* ps) {
 	if (!(ps->piece & Piece_Black)) {
 		ps->piece |= Piece_White;
 	}
-	set_square(*ps);
+	set_square(board, *ps);
 	++ps->square;
 	return str;
 }
@@ -1078,16 +1078,16 @@ char* fen_write_piece_set(char* str, piece_t piece, uint8_t* count) {
 	return str;
 }
 
-const char* fen_read_piece(const char* str, piece_square_t* ps) {
+const char* fen_read_piece(const char* str, board_t* board, piece_square_t* ps) {
 	char c;
 	return ((c = *str) > Char_Zero && c <= Char_Zero + Count_Files)
-		? fen_read_piece_clear(str, ps)
-		: fen_read_piece_set(str, ps);
+		? fen_read_piece_clear(str, board, ps)
+		: fen_read_piece_set(str, board, ps);
 }
 
-char* fen_write_piece(char* str, square_t square, uint8_t* count) {
+char* fen_write_piece(char* str, const board_t* board, square_t square, uint8_t* count) {
 	piece_t piece;
-	if ((piece = get_square(square))) {
+	if ((piece = get_square(board, square))) {
 		str = fen_write_piece_set(str, piece, count);
 	}
 	else {
@@ -1137,11 +1137,11 @@ char* square_write(char* str, square_t square) {
 	return str;
 }
 
-const char* fen_read_squares(const char* str) {
+const char* fen_read_squares(const char* str, board_t* board) {
 	piece_square_t ps;
 	for (int8_t rank = Count_Ranks - 1; rank >= 0; --rank) {
 		for (ps.square = rank << Shift_Rank; !(ps.square & Square_FileInvalid); ) {
-			if (!(str = fen_read_piece(str, &ps))) {
+			if (!(str = fen_read_piece(str, board, &ps))) {
 				return 0;
 			}
 		}
@@ -1152,12 +1152,12 @@ const char* fen_read_squares(const char* str) {
 	return str;
 }
 
-char* fen_write_squares(char* str) {
+char* fen_write_squares(char* str, const board_t* board) {
 	square_t square;
 	uint8_t count = 0;
 	for (int8_t rank = Count_Ranks - 1; rank >= 0; --rank) {
 		for (square = rank << Shift_Rank; !(square & Square_FileInvalid); ++square) {
-			str = fen_write_piece(str, square, &count);
+			str = fen_write_piece(str, board, square, &count);
 		}
 		str = fen_write_piece_clear(str, &count);
 		if (rank) {
@@ -1167,49 +1167,49 @@ char* fen_write_squares(char* str) {
 	return str;
 }
 
-const char* fen_read_color(const char* str) {
+const char* fen_read_color(const char* str, board_t* board) {
 	char c = *str++;
 	uint8_t i;
 	if ((i = find_color(c)) == Count_Colors) {
 		return fen_read_error(c);
 	}
-	board.color = color_values[i];
+	board->color = color_values[i];
 	return str;
 }
 
-char* fen_write_color(char* str) {
-	*str++ = color_chars[board.color == Piece_Black];
+char* fen_write_color(char* str, const board_t* board) {
+	*str++ = color_chars[board->color == Piece_Black];
 	return str;
 }
 
-const char* fen_read_castling(const char* str) {
+const char* fen_read_castling(const char* str, board_t* board) {
 	char c = *str++;
 	uint8_t i;
 	piece_square_t ps;
 	if ((i = find_castling(c)) == Count_Castlings
-		|| (ps.piece = get_square(ps.square = castling_rooks[i])) != (Piece_Rook | Piece_Moved | color_values[i >> Shift_Castling])) {
+		|| (ps.piece = get_square(board, ps.square = castling_rooks[i])) != (Piece_Rook | Piece_Moved | color_values[i >> Shift_Castling])) {
 			return fen_read_error(c);
 	}
 	ps.piece &= ~Piece_Moved;
-	set_square(ps);
+	set_square(board, ps);
 	return str;
 }
 
-char* fen_write_castling(char* str, uint64_t piecemask, uint8_t i) {
+char* fen_write_castling(char* str, const board_t* board, uint64_t piecemask, uint8_t i) {
 	piece_t color = color_values[i >> Shift_Castling];
 	piece_t rook = Piece_Rook | color | ((i & Piece_Castling) ^ Piece_Castling);
 	piece_t king = Piece_King | color;
 	if ((piecemask & (1ull << rook))
-		&& !(get_piece(rook & Piece_Index).piece & Piece_Moved)
-		&& !(get_piece(king & Piece_Index).piece & Piece_Moved)) {
+		&& !(get_piece(board, rook & Piece_Index).piece & Piece_Moved)
+		&& !(get_piece(board, king & Piece_Index).piece & Piece_Moved)) {
 			*str++ = castling_chars[i];
 	}
 	return str;
 }
 
-const char* fen_read_castling_chars(const char* str) {
+const char* fen_read_castling_chars(const char* str, board_t* board) {
 	do {
-		if (!(str = fen_read_castling(str))) {
+		if (!(str = fen_read_castling(str, board))) {
 			return 0;
 		}
 	} while (*str && *str != ' ');
@@ -1225,16 +1225,16 @@ char* fen_write_ep_square(char* str, move_t move) {
 	return square_write(str, move.sec.to.square);
 }
 
-const char* fen_read_castlings(const char* str) {
+const char* fen_read_castlings(const char* str, board_t* board) {
 	return *str != '-'
-		? fen_read_castling_chars(str)
+		? fen_read_castling_chars(str, board)
 		: ++str;
 }
 
-char* fen_write_castlings(char* str, uint64_t piecemask) {
+char* fen_write_castlings(char* str, const board_t* board, uint64_t piecemask) {
 	char* start = str;
 	for (uint8_t i = 0; i < Count_Castlings; ++i) {
-		str = fen_write_castling(str, piecemask, i);
+		str = fen_write_castling(str, board, piecemask, i);
 	}
 	if (str == start) {
 		*str++ = '-';
@@ -1257,54 +1257,54 @@ char* fen_write_ep(char* str, uint64_t piecemask, move_t move) {
 	return str;
 }
 
-const char* fen_read(const char* str, uint64_t* piecemask, move_t* move) {
+const char* fen_read(const char* str, board_t* board, uint64_t* piecemask, move_t* move) {
 	*move = nullmove;
 	*piecemask = (1ull << Piece_Guard) | (1ull << (Piece_Guard + Piece_Black));
-	if (!(str = fen_read_squares(str))
-		|| !(str = fen_read_char(str, ' ')) || !(str = fen_read_color(str))
-		|| ((*str && (!(str = fen_read_char(str, ' ')) || !(str = fen_read_castlings(str))
+	if (!(str = fen_read_squares(str, board))
+		|| !(str = fen_read_char(str, ' ')) || !(str = fen_read_color(str, board))
+		|| ((*str && (!(str = fen_read_char(str, ' ')) || !(str = fen_read_castlings(str, board))
 			|| (*str && (!(str = fen_read_char(str, ' ')) || !(str = fen_read_ep(str, piecemask, move)))))))) {
 		return 0;
 	}
 	return str;
 }
 
-char* fen_write(char* str, uint64_t piecemask, move_t move) {
-	str = fen_write_squares(str);
+char* fen_write(char* str, const board_t* board, uint64_t piecemask, move_t move) {
+	str = fen_write_squares(str, board);
 	*str++ = ' ';
-	str = fen_write_color(str);
+	str = fen_write_color(str, board);
 	*str++ = ' ';
-	str = fen_write_castlings(str, piecemask);
+	str = fen_write_castlings(str, board, piecemask);
 	*str++ = ' ';
 	str = fen_write_ep(str, piecemask, move);
 	return str;
 }
 
-uint64_t set_piece_unmoved(piece_square_t ps, uint64_t piecemask) {
+uint64_t set_piece_unmoved(board_t* board, piece_square_t ps, uint64_t piecemask) {
 	piece_square_t ps2 = find_index(ps, piecemask);
 	if (!ps2.value) {
 		fprintf(stderr, "Invalid %c.\n", get_piece_char(ps.piece));
 		return 0;
 	}
-	return set(ps2, piecemask);
+	return set(board, ps2, piecemask);
 }
 
-uint64_t set_piece_moved(piece_square_t ps, uint64_t piecemask) {
+uint64_t set_piece_moved(board_t* board, piece_square_t ps, uint64_t piecemask) {
 	piece_square_t ps2 = find_index_moved(ps, piecemask);
 	if (!ps2.value) {
 		fprintf(stderr, "Too many %c's.\n", get_piece_char(ps.piece));
 		return 0;
 	}
-	return set(ps2, piecemask);
+	return set(board, ps2, piecemask);
 }
 
-uint64_t set_pieces_unmoved(uint64_t piecemask) {
+uint64_t set_pieces_unmoved(board_t* board, uint64_t piecemask) {
 	piece_square_t ps;
 	for (uint8_t rank = 0; rank < Count_Ranks; ++rank) {
 		ps.square = rank << Shift_Rank;
 		for (uint8_t file = 0; file < Count_Files; ++file, ++ps.square) {
-			if ((ps.piece = get_square(ps.square)) && !(ps.piece & Piece_Moved)
-				&& !(piecemask = set_piece_unmoved(ps, piecemask))) {
+			if ((ps.piece = get_square(board, ps.square)) && !(ps.piece & Piece_Moved)
+				&& !(piecemask = set_piece_unmoved(board, ps, piecemask))) {
 					return 0;
 			}
 		}
@@ -1312,13 +1312,13 @@ uint64_t set_pieces_unmoved(uint64_t piecemask) {
 	return piecemask;
 }
 
-uint64_t set_pieces_moved(uint64_t piecemask) {
+uint64_t set_pieces_moved(board_t* board, uint64_t piecemask) {
 	piece_square_t ps;
 	for (uint8_t rank = 0; rank < Count_Ranks; ++rank) {
 		ps.square = rank << Shift_Rank;
 		for (uint8_t file = 0; file < Count_Files; ++file, ++ps.square) {
-			if (((ps.piece = get_square(ps.square)) & Piece_Moved)
-				&& !(piecemask = set_piece_moved(ps, piecemask))) {
+			if (((ps.piece = get_square(board, ps.square)) & Piece_Moved)
+				&& !(piecemask = set_piece_moved(board, ps, piecemask))) {
 					return 0;
 			}
 		}
@@ -1326,36 +1326,36 @@ uint64_t set_pieces_moved(uint64_t piecemask) {
 	return piecemask;
 }
 
-uint64_t set_pieces_ep_get(uint64_t piecemask, move_t* move) {
+uint64_t set_pieces_ep_get(board_t* board, uint64_t piecemask, move_t* move) {
 	move->prim.to.square = move->sec.from.square ^ Square_Rank2;
 	move->prim.from.square = move->prim.to.square ^ Square_Rank3;
-	if (((move->sec.from.square & Square_Rank) != color_ranks[board.color == Piece_Black]
-		|| get_square(move->prim.from.square)
-		|| get_square(move->sec.from.square))
-		|| (move->prim.to.piece = get_square(move->prim.to.square)) != (Piece_Pawn0 | Piece_Moved | (board.color ^ Piece_Color))) {
+	if (((move->sec.from.square & Square_Rank) != color_ranks[board->color == Piece_Black]
+		|| get_square(board, move->prim.from.square)
+		|| get_square(board, move->sec.from.square))
+		|| (move->prim.to.piece = get_square(board, move->prim.to.square)) != (Piece_Pawn0 | Piece_Moved | (board->color ^ Piece_Color))) {
 			fprintf(stderr, "Invalid e.p. square.\n");
 			return 0;
 	}
 	return piecemask;
 }
 
-uint64_t set_pieces_ep_unmoved(uint64_t piecemask, move_t* move) {
+uint64_t set_pieces_ep_unmoved(board_t* board, uint64_t piecemask, move_t* move) {
 	if (piecemask & (1ull << Piece_EP)) {
-		if (!set_pieces_ep_get(piecemask, move)) {
+		if (!set_pieces_ep_get(board, piecemask, move)) {
 			return 0;
 		}
 		move->prim.to.piece &= ~Piece_Moved;
-		set_square(move->prim.to);
+		set_square(board, move->prim.to);
 	}
 	return piecemask;
 }
 
-uint64_t set_pieces_ep_moved(uint64_t piecemask, move_t* move) {
+uint64_t set_pieces_ep_moved(board_t* board, uint64_t piecemask, move_t* move) {
 	if (piecemask & (1ull << Piece_EP)) {
-		move->prim.to.piece = get_square(move->prim.to.square) | Piece_Moved;
-		clear_square(move->prim.to);
-		gen_push2_pawn(move, *move, board.color);
-		piecemask = set(move->prim.to, piecemask);
+		move->prim.to.piece = get_square(board, move->prim.to.square) | Piece_Moved;
+		clear_square(board, move->prim.to);
+		gen_push2_pawn(move, board, *move, board->color);
+		piecemask = set(board, move->prim.to, piecemask);
 	}
 	return piecemask;
 }
@@ -1371,37 +1371,37 @@ bool validate_kings(uint64_t piecemask) {
 	return true;
 }
 
-bool validate_check() {
-	if (check()) {
+bool validate_check(const board_t* board) {
+	if (check(board)) {
 		fprintf(stderr, "Illegal position.\n");
 		return false;
 	}
 	return true;
 }
 
-bool validate(uint64_t piecemask) {
+bool validate(const board_t* board, uint64_t piecemask) {
 	return validate_kings(piecemask)
-		&& validate_check();
+		&& validate_check(board);
 }
 
-uint64_t set_pieces(uint64_t piecemask, move_t* move) {
-	return (piecemask = set_pieces_ep_unmoved(piecemask, move))
-		&& (piecemask = set_pieces_unmoved(piecemask))
-		&& (piecemask = set_pieces_moved(piecemask))
-		&& (piecemask = set_pieces_ep_moved(piecemask, move))
-		&& validate(piecemask)
+uint64_t set_pieces(board_t* board, uint64_t piecemask, move_t* move) {
+	return (piecemask = set_pieces_ep_unmoved(board, piecemask, move))
+		&& (piecemask = set_pieces_unmoved(board, piecemask))
+		&& (piecemask = set_pieces_moved(board, piecemask))
+		&& (piecemask = set_pieces_ep_moved(board, piecemask, move))
+		&& validate(board, piecemask)
 			? piecemask
 			: 0;
 }
 
-char* board_write(char* str) {
+char* board_write(char* str, const board_t* board) {
 	square_t square;
 	piece_t piece;
 	for (int8_t rank = Count_Ranks - 1; rank >= 0; --rank) {
 		square = rank << Shift_Rank;
 		str = rank_write(str, square);
 		for (uint8_t file = 0; file < Count_Files; ++file, ++square) {
-			piece = get_square(square);
+			piece = get_square(board, square);
 			*str++ = ' ';
 			*str++ = piece
 				? get_piece_char(piece)
@@ -1503,6 +1503,7 @@ bool args_read(int argc, const char* argv[], params_t* params) {
 }
 
 int main(int argc, const char* argv[]) {
+	board_t board;
 	params_t params;
 	uint64_t count = 0;
 
@@ -1513,21 +1514,21 @@ int main(int argc, const char* argv[]) {
 
 	move_t move;
 	uint64_t piecemask;
-	if (!fen_read(params.fen, &piecemask, &move)
-		|| !(piecemask = set_pieces(piecemask, &move))) {
+	if (!fen_read(params.fen, &board, &piecemask, &move)
+		|| !(piecemask = set_pieces(&board, piecemask, &move))) {
 			return 1;
 	}
 
 	if (params.result == UINT64_MAX) {
-		board_write(buffer);
+		board_write(buffer, &board);
 		printf("%s\n", buffer);
 	} else {
-		fen_write(buffer, piecemask, move);
+		fen_write(buffer, &board, piecemask, move);
 		printf("\nPosition: %s\n", buffer);
 	}
 
 	for (uint8_t depth = params.min; depth <= params.max; ++depth) {
-		count = perft(moves, piecemask, move, depth, params.div, buffer);
+		count = perft(moves, &board, piecemask, move, depth, params.div, buffer);
 		printf("perft(%3d)=%11" PRIu64 "\n", depth, count);
 	}
 	
