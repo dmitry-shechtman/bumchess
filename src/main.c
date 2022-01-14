@@ -87,9 +87,11 @@ enum Count {
 	Count_Ranks     =    8,
 	Count_Files     =    8,
 	Count_Squares   =  128,
+};
 
-	Count_Chars     = 1024,
-	Count_Moves     = 1024,
+enum Max {
+	Max_Chars     = 1024,
+	Max_Moves     = 1024,
 };
 
 typedef uint8_t piece_t;
@@ -548,7 +550,7 @@ void move_unmake(move_t move) {
 	set_sec(move.sec.from);
 }
 
-extern char buffer[Count_Chars];
+extern char buffer[Max_Chars];
 
 uint64_t perft(move_t* moves, uint8_t depth, uint8_t div, char* str);
 char* move_write(char* str, move_t move);
@@ -889,8 +891,8 @@ char* move_write(char* str, move_t move) {
 	return str;
 }
 
-char buffer[Count_Chars];
-move_t moves[Count_Moves];
+char buffer[Max_Chars];
+move_t moves[Max_Moves];
 
 const char* read_uint8(const char* str, uint8_t* result) {
 	unsigned int i = 0;
