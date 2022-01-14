@@ -8,6 +8,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <pthread.h>
 
 #ifdef _MSC_VER
@@ -145,8 +146,6 @@ enum Max {
 
 	Max_Chars     = 1024,
 	Max_Moves     = 1024,
-
-	Max_Threads   =   32,
 };
 
 typedef uint8_t piece_t;
@@ -1018,10 +1017,9 @@ void perft_init_state(pstate_t* state, move_t* moves, uint8_t mcount, board_t* b
 	state->depth = depth;
 }
 
-bool perft_run(move_t* moves, board_t* board, uint64_t piecemask, move_t move, uint8_t depth, pstate_t* states, uint8_t* pcount) {
-	uint8_t mcount = perft_init(moves, board, piecemask, move, pcount);
-	for (uint8_t i = 0; i < *pcount; ++i) {
-		perft_init_state(&states[i], moves, mcount, board, piecemask, depth - 1, i, *pcount);
+bool perft_run(move_t* moves, uint8_t mcount, board_t* board, uint64_t piecemask, move_t move, uint8_t depth, pstate_t* states, uint8_t pcount) {
+	for (uint8_t i = 0; i < pcount; ++i) {
+		perft_init_state(&states[i], moves, mcount, board, piecemask, depth - 1, i, pcount);
 		if (pthread_create(&states[i].thread, 0, perft_start, &states[i])) {
 			return false;
 		}
@@ -1040,13 +1038,23 @@ uint64_t perft_count(pstate_t* states, uint8_t pcount) {
 	return result;
 }
 
+uint64_t perft_dyn(move_t* moves, board_t* board, uint64_t piecemask, move_t move, uint8_t depth, uint8_t pcount) {
+	uint8_t mcount = perft_init(moves, board, piecemask, move, &pcount);
+	pstate_t* states;
+	uint64_t result = 0;
+	if ((states = malloc(pcount * sizeof(pstate_t)))) {
+		if (perft_run(moves, mcount, board, piecemask, move, depth, states, pcount)) {
+			result = perft_count(states, pcount);
+		}
+		free(states);
+	}
+	return result;
+}
+
 uint64_t perft_do(move_t* moves, board_t* board, uint64_t piecemask, move_t move, uint8_t depth, uint8_t pcount) {
-	static pstate_t states[Max_Threads];
 	return pcount <= 1
 		? perft_opt(moves, board, piecemask, move, depth)
-		: perft_run(moves, board, piecemask, move, depth, states, &pcount)
-			? perft_count(states, pcount)
-			: 0;
+		: perft_dyn(moves, board, piecemask, move, depth, pcount);
 }
 
 uint64_t perft(move_t* moves, board_t* board, uint64_t piecemask, move_t move, uint8_t depth, uint8_t div, char* buffer, char* str, uint8_t pcount);
@@ -1600,11 +1608,6 @@ int main(int argc, const char* argv[]) {
 
 	if (!args_read(argc, argv, &params)) {
 		printf("Usage: perft [<fen>] [<depth> [<result>]] [-d<divide>] [-p<threads>] [-l]\n");
-		return -1;
-	}
-
-	if (params.pcount > Max_Threads) {
-		fprintf(stderr, "Thread count is limited to %d.\n", Max_Threads);
 		return -1;
 	}
 
