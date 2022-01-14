@@ -1,6 +1,7 @@
 CC = gcc
 
 FLAGS = -std=c11 -pedantic -Wall -Ofast -flto
+FLAGS += -pthread
 # FLAGS += -mbmi -DBMI
 FLAGS += -DNDEBUG
 
