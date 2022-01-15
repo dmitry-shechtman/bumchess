@@ -162,6 +162,8 @@ typedef union {
 	};
 } piece_square_t;
 
+typedef uint64_t bank_t;
+
 typedef struct {
 	struct {
 		piece_square_t from;
@@ -185,7 +187,7 @@ struct {
 	piece_t squares[Count_Squares];
 	union {
 		piece_square_t pieces[Count_Pieces];
-		uint64_t banks[Count_Banks];
+		bank_t banks[Count_Banks];
 	};
 	piece_t color;
 } board;
@@ -267,7 +269,7 @@ void set_square(register piece_square_t ps) {
 }
 
 static inline
-piece_square_t get_piece(uint64_t bank, register piece_t piece) {
+piece_square_t get_piece(bank_t bank, register piece_t piece) {
 	register piece_square_t ps = { (uint16_t)(bank >> ((piece & Piece_Index2) << Shift_Bank)) };
 	return ps;
 }
@@ -767,14 +769,14 @@ move_t* gen_queen(move_t* moves, register piece_square_t from, const uint8_t col
 }
 
 static inline
-move_t* gen_kings(move_t* moves, uint64_t bank,
+move_t* gen_kings(move_t* moves, bank_t bank,
 	const uint8_t color)
 {
 	return gen_king(moves, get_piece(bank, 0), color);
 }
 
 static inline
-move_t* gen_pawns_white(move_t* moves, uint64_t bank, const uint8_t type,
+move_t* gen_pawns_white(move_t* moves, bank_t bank, const uint8_t type,
 	uint32_t* mask, uint16_t piecemask, piece_t* piece)
 {
 	for (; *piece < type + Max_Pawns0; *piece = find_next(mask)) {
@@ -784,7 +786,7 @@ move_t* gen_pawns_white(move_t* moves, uint64_t bank, const uint8_t type,
 }
 
 static inline
-move_t* gen_pawns_black(move_t* moves, uint64_t bank, const uint8_t type,
+move_t* gen_pawns_black(move_t* moves, bank_t bank, const uint8_t type,
 	uint32_t* mask, uint16_t piecemask, piece_t* piece)
 {
 	for (; *piece < type + Max_Pawns0; *piece = find_next(mask)) {
@@ -794,7 +796,7 @@ move_t* gen_pawns_black(move_t* moves, uint64_t bank, const uint8_t type,
 }
 
 static inline
-move_t* gen_knights(move_t* moves, uint64_t bank,
+move_t* gen_knights(move_t* moves, bank_t bank,
 	uint32_t* mask, piece_t* piece, const uint8_t color)
 {
 	for (; *piece < Piece_Knight + Max_Knights; *piece = find_next(mask)) {
@@ -804,7 +806,7 @@ move_t* gen_knights(move_t* moves, uint64_t bank,
 }
 
 static inline
-move_t* gen_bishops(move_t* moves, uint64_t bank,
+move_t* gen_bishops(move_t* moves, bank_t bank,
 	uint32_t* mask, piece_t* piece, const uint8_t color)
 {
 	for (; *piece < Piece_Bishop + Max_Bishops; *piece = find_next(mask)) {
@@ -814,7 +816,7 @@ move_t* gen_bishops(move_t* moves, uint64_t bank,
 }
 
 static inline
-move_t* gen_rooks(move_t* moves, uint64_t bank,
+move_t* gen_rooks(move_t* moves, bank_t bank,
 	uint32_t* mask, piece_t* piece, const uint8_t color)
 {
 	for (; *piece < Piece_Rook + Max_Rooks; *piece = find_next(mask)) {
@@ -824,7 +826,7 @@ move_t* gen_rooks(move_t* moves, uint64_t bank,
 }
 
 static inline
-move_t* gen_queens(move_t* moves, uint64_t bank,
+move_t* gen_queens(move_t* moves, bank_t bank,
 	uint32_t* mask, piece_t* piece, const uint8_t color)
 {
 	for (; *piece < Piece_Queen + Max_Queens; *piece = find_next(mask)) {
@@ -834,7 +836,7 @@ move_t* gen_queens(move_t* moves, uint64_t bank,
 }
 
 static inline
-move_t* gen_pieces(move_t* moves, const uint64_t* banks,
+move_t* gen_pieces(move_t* moves, const bank_t* banks,
 	uint32_t mask, piece_t piece, const uint8_t color)
 {
 	moves = gen_knights(moves, *++banks, &mask, &piece, color);
@@ -846,7 +848,7 @@ move_t* gen_pieces(move_t* moves, const uint64_t* banks,
 
 static inline
 move_t* gen_white(move_t* moves, register const uint64_t piecemask, register const move_t move) {
-	const uint64_t* banks = board.banks;
+	const bank_t* banks = board.banks;
 	uint32_t mask = piecemask & 0xFFFFFF00;
 	piece_t piece = find_next(&mask);
 	moves = gen_kings(moves, *++banks, Piece_White);
@@ -862,7 +864,7 @@ move_t* gen_white(move_t* moves, register const uint64_t piecemask, register con
 
 static inline
 move_t* gen_black(move_t* moves, register const uint64_t piecemask, register const move_t move) {
-	const uint64_t* banks = board.banks + Type_Count;
+	const bank_t* banks = board.banks + Type_Count;
 	uint32_t mask = (piecemask >> Piece_Black) & 0xFFFFFF00;
 	piece_t piece = find_next(&mask);
 	moves = gen_kings(moves, *++banks, Piece_Black);
@@ -878,13 +880,13 @@ move_t* gen_black(move_t* moves, register const uint64_t piecemask, register con
 
 static inline
 bool check_white() {
-	uint64_t bank = board.banks[Type_King + Type_Count];
+	bank_t bank = board.banks[Type_King + Type_Count];
 	return check_to_white(get_piece(bank, 0).square);
 }
 
 static inline
 bool check_black() {
-	uint64_t bank = board.banks[Type_King];
+	bank_t bank = board.banks[Type_King];
 	return check_to_black(get_piece(bank, 0).square);
 }
 
