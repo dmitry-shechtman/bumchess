@@ -964,12 +964,11 @@ uint64_t move_unmake(board_t* board, register move_t move, register uint64_t pie
 	return piecemask;
 }
 
-uint64_t perft_opt(move_t* moves, board_t* board, register uint64_t piecemask, register const move_t move, register uint8_t depth) {
-	move_t *pEnd, *pCurr;
+uint64_t perft_opt(move_t* moves, board_t* board, register uint64_t piecemask, register const move_t move, register uint8_t depth);
+
+uint64_t perft_one(move_t* moves, move_t* pEnd, board_t* board, uint64_t piecemask, uint8_t depth) {
 	uint64_t count = 0;
-	pEnd = gen(moves, board, piecemask, move);
-	--depth;
-	for (pCurr = moves; pCurr != pEnd; ++pCurr) {
+	for (move_t* pCurr = moves; pCurr != pEnd; ++pCurr) {
 		piecemask = move_make(board, *pCurr, piecemask);
 #if !NDEBUG
 		if (pCurr->prim.from.piece)
@@ -984,20 +983,14 @@ uint64_t perft_opt(move_t* moves, board_t* board, register uint64_t piecemask, r
 	return count;
 }
 
+uint64_t perft_opt(move_t* moves, board_t* board, register uint64_t piecemask, register const move_t move, register uint8_t depth) {
+	move_t *pEnd = gen(moves, board, piecemask, move);
+	return perft_one(moves, pEnd, board, piecemask, depth - 1);
+}
+
 void* perft_start(void* pstate) {
 	pstate_t* state = (pstate_t*)pstate;
-	for (move_t* pCurr = state->moves; pCurr != state->pEnd; ++pCurr) {
-		state->piecemask = move_make(&state->board, *pCurr, state->piecemask);
-#if !NDEBUG
-		if (pCurr->prim.from.piece)
-#endif
-		if (!check(&state->board)) {
-			state->count += state->depth
-				? perft_opt(state->pEnd, &state->board, state->piecemask, *pCurr, state->depth)
-				: 1;
-		}
-		state->piecemask = move_unmake(&state->board, *pCurr, state->piecemask);
-	}
+	state->count = perft_one(state->moves, state->pEnd, &state->board, state->piecemask, state->depth);
 	return pstate;
 }
 
@@ -1018,7 +1011,6 @@ void perft_init_state(pstate_t* state, move_t* moves, uint8_t mcount, board_t* b
 		state->moves[mindex - start] = moves[mindex];
 	}
 	state->pEnd = &state->moves[end - start];
-	state->count = 0;
 	state->depth = depth;
 }
 
