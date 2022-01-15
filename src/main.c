@@ -244,8 +244,8 @@ typedef struct {
 	board_t   board;
 	uint64_t  piecemask;
 	move_t    moves[Max_Moves];
-	move_t*   pEnd;
 	uint64_t  count;
+	uint8_t   mcount;
 	uint8_t   depth;
 	pthread_t thread;
 } pstate_t;
@@ -966,31 +966,31 @@ uint64_t move_unmake(board_t* board, register move_t move, register uint64_t pie
 
 uint64_t perft_opt(move_t* moves, board_t* board, register uint64_t piecemask, register const move_t move, register uint8_t depth);
 
-uint64_t perft_one(move_t* moves, move_t* pEnd, board_t* board, uint64_t piecemask, uint8_t depth) {
+uint64_t perft_one(move_t* moves, board_t* board, uint64_t piecemask, uint8_t depth, uint8_t mcount) {
 	uint64_t count = 0;
-	for (move_t* pCurr = moves; pCurr != pEnd; ++pCurr) {
-		piecemask = move_make(board, *pCurr, piecemask);
+	for (uint8_t i = 0; i < mcount; ++i) {
+		piecemask = move_make(board, moves[i], piecemask);
 #if !NDEBUG
-		if (pCurr->prim.from.piece)
+		if (moves[i].prim.from.piece)
 #endif
 		if (!check(board)) {
 			count += depth
-				? perft_opt(pEnd, board, piecemask, *pCurr, depth)
+				? perft_opt(moves + mcount, board, piecemask, moves[i], depth)
 				: 1;
 		}
-		piecemask = move_unmake(board, *pCurr, piecemask);
+		piecemask = move_unmake(board, moves[i], piecemask);
 	}
 	return count;
 }
 
 uint64_t perft_opt(move_t* moves, board_t* board, register uint64_t piecemask, register const move_t move, register uint8_t depth) {
-	move_t *pEnd = gen(moves, board, piecemask, move);
-	return perft_one(moves, pEnd, board, piecemask, depth - 1);
+	uint8_t mcount = (uint8_t)(gen(moves, board, piecemask, move) - moves);
+	return perft_one(moves, board, piecemask, depth - 1, mcount);
 }
 
 void* perft_start(void* pstate) {
 	pstate_t* state = (pstate_t*)pstate;
-	state->count = perft_one(state->moves, state->pEnd, &state->board, state->piecemask, state->depth);
+	state->count = perft_one(state->moves, &state->board, state->piecemask, state->depth, state->mcount);
 	return pstate;
 }
 
@@ -1010,7 +1010,7 @@ void perft_init_state(pstate_t* state, move_t* moves, uint8_t mcount, board_t* b
 	for (uint8_t mindex = start; mindex < end; ++mindex) {
 		state->moves[mindex - start] = moves[mindex];
 	}
-	state->pEnd = &state->moves[end - start];
+	state->mcount = end - start;
 	state->depth = depth;
 }
 
@@ -1067,23 +1067,22 @@ uint64_t perft_divide(move_t* moves, board_t* board, uint64_t piecemask, move_t 
 }
 
 uint64_t perft(move_t* moves, board_t* board, uint64_t piecemask, move_t move, uint8_t depth, uint8_t div, char* buffer, char* str, uint8_t pcount) {
-	move_t *pEnd, *pCurr;
 	uint64_t count = 0;
 	if (!depth)
 		return 1;
 	if (!div)
 		return perft_do(moves, board, piecemask, move, depth, pcount);
-	pEnd = gen(moves, board, piecemask, move);
+	uint8_t mcount = (uint8_t)(gen(moves, board, piecemask, move) - moves);
 	--depth;
 	--div;
-	for (pCurr = moves; pCurr != pEnd; ++pCurr) {
-		piecemask = move_make(board, *pCurr, piecemask);
+	for (uint8_t i = 0; i < mcount; ++i) {
+		piecemask = move_make(board, moves[i], piecemask);
 #if !NDEBUG
-		if (pCurr->prim.from.piece)
+		if (moves[i].prim.from.piece)
 #endif
 		if (!check(board))
-			count += perft_divide(pEnd, board, piecemask, *pCurr, depth, div, buffer, str, pcount);
-		piecemask = move_unmake(board, *pCurr, piecemask);
+			count += perft_divide(moves + mcount, board, piecemask, moves[i], depth, div, buffer, str, pcount);
+		piecemask = move_unmake(board, moves[i], piecemask);
 	}
 	return count;
 }
