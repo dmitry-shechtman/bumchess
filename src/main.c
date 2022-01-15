@@ -1346,7 +1346,7 @@ const char* fen_read_ep(const char* str, uint64_t* piecemask, move_t* move) {
 }
 
 char* fen_write_ep(char* str, uint64_t piecemask, move_t move) {
-	if (!(piecemask & (1ull << Piece_EP))) {
+	if ((move.sec.to.piece & Piece_Type4) != Piece_EP) {
 		*str++ = '-';
 	} else {
 		str = fen_write_ep_square(str, move);
