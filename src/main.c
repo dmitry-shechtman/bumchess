@@ -48,6 +48,7 @@ enum Piece {
 	Piece_Odd      = 0x02,
 	Piece_Index2   = 0x03,
 	Piece_Index3   = 0x07,
+	Piece_Index4   = 0x0F,
 
 	Piece_King     = Type_King   << Shift_Type,
 	Piece_Pawn0    = Type_Pawn0  << Shift_Type,
@@ -295,6 +296,14 @@ piece_square_t find_index_to(register piece_square_t ps, register const uint64_t
 	return ps;
 }
 
+static inline
+piece_square_t find_index_to16(register piece_square_t ps, register const uint16_t piecemask) {
+	for (uint16_t mask = piecemask >> (ps.value & Piece_Index4);
+		mask & 1;
+		++ps.value, mask >>= 1);
+	return ps;
+}
+
 piece_square_t find_index_error(piece_square_t ps) {
 	ps.value = 0;
 	return ps;
@@ -361,17 +370,17 @@ piece_square_t find_index_moved(piece_square_t ps, const uint64_t piecemask) {
 
 static inline
 move_t* gen_promo(move_t* moves, register move_t move, register piece_square_t to,
-	register const uint64_t piecemask, const piece_t piece, const uint8_t color)
+	register const uint16_t piecemask, const piece_t piece, const uint8_t color)
 {
 	to.piece = piece | color;
-	move.prim.to = find_index_to(to, piecemask);
+	move.prim.to = find_index_to16(to, piecemask);
 	*moves++ = move;
 	return moves;
 }
 
 static inline
 move_t* gen_promo_pawn(move_t* moves, move_t move, piece_square_t to,
-	register const uint64_t piecemask, const uint8_t promo, const uint8_t color)
+	register const uint16_t piecemask, const uint8_t promo, const uint8_t color)
 {
 	if ((to.square & Square_Rank) == promo) {
 		moves = gen_promo(moves, move, to, piecemask, Piece_Knight, color);
@@ -411,7 +420,7 @@ move_t* gen_push2_pawn(move_t* moves, register const move_t move,
 }
 
 static inline
-move_t* gen_push_pawn(move_t* moves, register piece_square_t from, register const uint64_t piecemask,
+move_t* gen_push_pawn(move_t* moves, register piece_square_t from, register const uint16_t piecemask,
 	const vector_t vector, const uint8_t promo, const uint8_t color, const uint8_t color2)
 {
 	register piece_square_t to = from;
@@ -437,7 +446,7 @@ move_t* gen_push_pawn(move_t* moves, register piece_square_t from, register cons
 }
 
 static inline
-move_t* gen_vector_pawn(move_t* moves, register piece_square_t from, register const uint64_t piecemask,
+move_t* gen_vector_pawn(move_t* moves, register piece_square_t from, register const uint16_t piecemask,
 	const vector_t vector, const uint8_t promo, const uint8_t color, const uint8_t color2)
 {
 	register piece_square_t to = from;
@@ -585,7 +594,7 @@ move_t* gen_vector_slider(move_t* moves, register piece_square_t from,
 }
 
 static inline
-move_t* gen_pawn(move_t* moves, register piece_square_t from, register const uint64_t piecemask,
+move_t* gen_pawn(move_t* moves, register piece_square_t from, register const uint16_t piecemask,
 	const vector_t vector, const uint8_t promo, const uint8_t color, const uint8_t color2)
 {
 	moves = gen_vector_pawn(moves, from, piecemask, vector + Vec_W, promo, color, color2);
@@ -606,7 +615,7 @@ move_t* gen_ep(move_t* moves, register const move_t move,
 }
 
 static inline
-move_t* gen_pawn_white(move_t* moves, register piece_square_t from, register const uint64_t piecemask) {
+move_t* gen_pawn_white(move_t* moves, register piece_square_t from, register const uint16_t piecemask) {
 	return gen_pawn(moves, from, piecemask, Vec_N, Square_Rank8, Piece_White, Piece_Black);
 }
 
@@ -665,7 +674,7 @@ bool check_to_white(register square_t square) {
 }
 
 static inline
-move_t* gen_pawn_black(move_t* moves, register piece_square_t from, register const uint64_t piecemask) {
+move_t* gen_pawn_black(move_t* moves, register piece_square_t from, register const uint16_t piecemask) {
 	return gen_pawn(moves, from, piecemask, Vec_S, Square_Rank1, Piece_Black, Piece_White);
 }
 
@@ -767,7 +776,7 @@ move_t* gen_kings(move_t* moves, const uint8_t color) {
 }
 
 static inline
-move_t* gen_pawns_white(move_t* moves, register const uint64_t piecemask, uint64_t* mask, piece_t* piece) {
+move_t* gen_pawns_white(move_t* moves, register const uint16_t piecemask, uint64_t* mask, piece_t* piece) {
 	for (; *piece < Piece_Pawn0 + Max_Pawns; *piece = find_next(mask)) {
 		moves = gen_pawn_white(moves, get_piece(*piece), piecemask);
 	}
@@ -775,7 +784,7 @@ move_t* gen_pawns_white(move_t* moves, register const uint64_t piecemask, uint64
 }
 
 static inline
-move_t* gen_pawns_black(move_t* moves, register const uint64_t piecemask, uint64_t* mask, piece_t* piece) {
+move_t* gen_pawns_black(move_t* moves, register const uint16_t piecemask, uint64_t* mask, piece_t* piece) {
 	for (; *piece < Piece_Pawn0 + Max_Pawns + Piece_Black; *piece = find_next(mask)) {
 		moves = gen_pawn_black(moves, get_piece(*piece), piecemask);
 	}
@@ -826,9 +835,10 @@ move_t* gen_pieces(move_t* moves, uint64_t* mask, piece_t* piece, const uint8_t 
 static inline
 move_t* gen_white(move_t* moves, register const uint64_t piecemask, register const move_t move) {
 	uint64_t mask = piecemask & 0x00000000FFFFFF00;
+	uint16_t pmask = (uint16_t)(mask >> 16);
 	piece_t piece = find_next(&mask);
 	moves = gen_kings(moves, Piece_White);
-	moves = gen_pawns_white(moves, piecemask, &mask, &piece);
+	moves = gen_pawns_white(moves, pmask, &mask, &piece);
 	moves = gen_pieces(moves, &mask, &piece, Piece_White);
 	moves = gen_ep_white(moves, move);
 #if !NDEBUG
@@ -840,9 +850,10 @@ move_t* gen_white(move_t* moves, register const uint64_t piecemask, register con
 static inline
 move_t* gen_black(move_t* moves, register const uint64_t piecemask, register const move_t move) {
 	uint64_t mask = piecemask & 0xFFFFFF0000000000;
+	uint16_t pmask = mask >> 48;
 	piece_t piece = find_next(&mask);
 	moves = gen_kings(moves, Piece_Black);
-	moves = gen_pawns_black(moves, piecemask, &mask, &piece);
+	moves = gen_pawns_black(moves, pmask, &mask, &piece);
 	moves = gen_pieces(moves, &mask, &piece, Piece_Black);
 	moves = gen_ep_black(moves, move);
 #if !NDEBUG
