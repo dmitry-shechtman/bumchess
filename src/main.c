@@ -232,23 +232,15 @@ typedef struct {
 } params_t;
 
 static inline
-piece_t find_next(uint64_t* mask) {
+piece_t find_next(uint32_t* mask) {
 #ifdef _MSC_VER
 	uint32_t index;
-#if _WIN64
-	_BitScanForward64(&index, *mask);
+	_BitScanForward(&index, *mask);
 #else
-	if (!_BitScanForward(&index, *(uint32_t*)mask)) {
-		_BitScanForward(&index, *mask >>= 32);
-		index += 32;
-		*mask <<= 32;
-	}
-#endif
-#else
-	uint8_t index = __builtin_ctzl(*mask);
+	uint8_t index = __builtin_ctz(*mask);
 #endif
 #ifdef BMI
-	*mask = _blsr_u64(*mask);
+	*mask = _blsr_u32(*mask);
 #else
 	*mask &= (*mask - 1);
 #endif
@@ -770,76 +762,91 @@ move_t* gen_queen(move_t* moves, register piece_square_t from, const uint8_t col
 }
 
 static inline
-move_t* gen_kings(move_t* moves, const uint8_t color) {
-	register piece_t piece = Piece_King + (color & Piece_Black);
-	return gen_king(moves, get_piece(piece), color);
+move_t* gen_kings(move_t* moves, const piece_square_t* pieces,
+	const uint8_t color)
+{
+	return gen_king(moves, pieces[Piece_King], color);
 }
 
 static inline
-move_t* gen_pawns_white(move_t* moves, register const uint16_t piecemask, uint64_t* mask, piece_t* piece) {
+move_t* gen_pawns_white(move_t* moves, const piece_square_t* pieces,
+	uint32_t* mask, register const uint16_t piecemask, piece_t* piece)
+{
 	for (; *piece < Piece_Pawn0 + Max_Pawns; *piece = find_next(mask)) {
-		moves = gen_pawn_white(moves, get_piece(*piece), piecemask);
+		moves = gen_pawn_white(moves, pieces[*piece], piecemask);
 	}
 	return moves;
 }
 
 static inline
-move_t* gen_pawns_black(move_t* moves, register const uint16_t piecemask, uint64_t* mask, piece_t* piece) {
-	for (; *piece < Piece_Pawn0 + Max_Pawns + Piece_Black; *piece = find_next(mask)) {
-		moves = gen_pawn_black(moves, get_piece(*piece), piecemask);
+move_t* gen_pawns_black(move_t* moves, const piece_square_t* pieces,
+	uint32_t* mask, register const uint16_t piecemask, piece_t* piece)
+{
+	for (; *piece < Piece_Pawn0 + Max_Pawns; *piece = find_next(mask)) {
+		moves = gen_pawn_black(moves, pieces[*piece], piecemask);
 	}
 	return moves;
 }
 
 static inline
-move_t* gen_knights(move_t* moves, uint64_t* mask, piece_t* piece, const uint8_t color) {
-	for (; *piece < Piece_Knight + Max_Knights + (color & Piece_Black); *piece = find_next(mask)) {
-		moves = gen_knight(moves, get_piece(*piece), color);
+move_t* gen_knights(move_t* moves, const piece_square_t* pieces,
+	uint32_t* mask, piece_t* piece, const uint8_t color)
+{
+	for (; *piece < Piece_Knight + Max_Knights; *piece = find_next(mask)) {
+		moves = gen_knight(moves, pieces[*piece], color);
 	}
 	return moves;
 }
 
 static inline
-move_t* gen_bishops(move_t* moves, uint64_t* mask, piece_t* piece, const uint8_t color) {
-	for (; *piece < Piece_Bishop + Max_Bishops + (color & Piece_Black); *piece = find_next(mask)) {
-		moves = gen_bishop(moves, get_piece(*piece), color);
+move_t* gen_bishops(move_t* moves, const piece_square_t* pieces,
+	uint32_t* mask, piece_t* piece, const uint8_t color)
+{
+	for (; *piece < Piece_Bishop + Max_Bishops; *piece = find_next(mask)) {
+		moves = gen_bishop(moves, pieces[*piece], color);
 	}
 	return moves;
 }
 
 static inline
-move_t* gen_rooks(move_t* moves, uint64_t* mask, piece_t* piece, const uint8_t color) {
-	for (; *piece < Piece_Rook + Max_Rooks + (color & Piece_Black); *piece = find_next(mask)) {
-		moves = gen_rook(moves, get_piece(*piece), color);
+move_t* gen_rooks(move_t* moves, const piece_square_t* pieces,
+	uint32_t* mask, piece_t* piece, const uint8_t color)
+{
+	for (; *piece < Piece_Rook + Max_Rooks; *piece = find_next(mask)) {
+		moves = gen_rook(moves, pieces[*piece], color);
 	}
 	return moves;
 }
 
 static inline
-move_t* gen_queens(move_t* moves, uint64_t* mask, piece_t* piece, const uint8_t color) {
-	for (; *piece < Piece_Queen + Max_Queens + (color & Piece_Black); *piece = find_next(mask)) {
-		moves = gen_queen(moves, get_piece(*piece), color);
+move_t* gen_queens(move_t* moves, const piece_square_t* pieces,
+	uint32_t* mask, piece_t* piece, const uint8_t color)
+{
+	for (; *piece < Piece_Queen + Max_Queens; *piece = find_next(mask)) {
+		moves = gen_queen(moves, pieces[*piece], color);
 	}
 	return moves;
 }
 
 static inline
-move_t* gen_pieces(move_t* moves, uint64_t* mask, piece_t* piece, const uint8_t color) {
-	moves = gen_knights(moves, mask, piece, color);
-	moves = gen_bishops(moves, mask, piece, color);
-	moves = gen_rooks(moves, mask, piece, color);
-	moves = gen_queens(moves, mask, piece, color);
+move_t* gen_pieces(move_t* moves, const piece_square_t* pieces,
+	uint32_t* mask, piece_t* piece, const uint8_t color)
+{
+	moves = gen_knights(moves, pieces, mask, piece, color);
+	moves = gen_bishops(moves, pieces, mask, piece, color);
+	moves = gen_rooks(moves, pieces, mask, piece, color);
+	moves = gen_queens(moves, pieces, mask, piece, color);
 	return moves;
 }
 
 static inline
 move_t* gen_white(move_t* moves, register const uint64_t piecemask, register const move_t move) {
-	uint64_t mask = piecemask & 0x00000000FFFFFF00;
-	uint16_t pmask = (uint16_t)(mask >> 16);
+	const piece_square_t* pieces = board.pieces;
+	uint32_t mask = piecemask & 0xFFFFFF00;
 	piece_t piece = find_next(&mask);
-	moves = gen_kings(moves, Piece_White);
-	moves = gen_pawns_white(moves, pmask, &mask, &piece);
-	moves = gen_pieces(moves, &mask, &piece, Piece_White);
+	moves = gen_kings(moves, pieces, Piece_White);
+	moves = gen_pawns_white(moves, pieces, &mask, mask >> 16, &piece);
+	moves = gen_pieces(moves, pieces, &mask, &piece, Piece_White);
 	moves = gen_ep_white(moves, move);
 #if !NDEBUG
 	*moves++ = nullmove;
@@ -849,12 +856,12 @@ move_t* gen_white(move_t* moves, register const uint64_t piecemask, register con
 
 static inline
 move_t* gen_black(move_t* moves, register const uint64_t piecemask, register const move_t move) {
-	uint64_t mask = piecemask & 0xFFFFFF0000000000;
-	uint16_t pmask = mask >> 48;
+	const piece_square_t* pieces = board.pieces + Piece_Black;
+	uint32_t mask = (piecemask >> 32) & 0xFFFFFF00;
 	piece_t piece = find_next(&mask);
-	moves = gen_kings(moves, Piece_Black);
-	moves = gen_pawns_black(moves, pmask, &mask, &piece);
-	moves = gen_pieces(moves, &mask, &piece, Piece_Black);
+	moves = gen_kings(moves, pieces, Piece_Black);
+	moves = gen_pawns_black(moves, pieces, &mask, mask >> 16, &piece);
+	moves = gen_pieces(moves, pieces, &mask, &piece, Piece_Black);
 	moves = gen_ep_black(moves, move);
 #if !NDEBUG
 	*moves++ = nullmove;
