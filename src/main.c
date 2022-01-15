@@ -585,6 +585,15 @@ move_t* gen_vector_slider(move_t* moves, register piece_square_t from,
 }
 
 static inline
+move_t* gen_pawn(move_t* moves, register piece_square_t from, register const uint64_t piecemask,
+	const vector_t vector, const uint8_t promo, const uint8_t color, const uint8_t color2)
+{
+	moves = gen_vector_pawn(moves, from, piecemask, vector + Vec_W, promo, color, color2);
+	moves = gen_vector_pawn(moves, from, piecemask, vector + Vec_E, promo, color, color2);
+	return gen_push_pawn(moves, from, piecemask, vector, promo, color, color2);
+}
+
+static inline
 move_t* gen_ep(move_t* moves, register const move_t move,
 	const vector_t vector, const uint8_t color, const uint8_t color2)
 {
@@ -598,9 +607,7 @@ move_t* gen_ep(move_t* moves, register const move_t move,
 
 static inline
 move_t* gen_pawn_white(move_t* moves, register piece_square_t from, register const uint64_t piecemask) {
-	moves = gen_vector_pawn(moves, from, piecemask, Vec_NW, Square_Rank8, Piece_White, Piece_Black);
-	moves = gen_vector_pawn(moves, from, piecemask, Vec_NE, Square_Rank8, Piece_White, Piece_Black);
-	return gen_push_pawn(moves, from, piecemask, Vec_N, Square_Rank8, Piece_White, Piece_Black);
+	return gen_pawn(moves, from, piecemask, Vec_N, Square_Rank8, Piece_White, Piece_Black);
 }
 
 static inline
@@ -659,9 +666,7 @@ bool check_to_white(register square_t square) {
 
 static inline
 move_t* gen_pawn_black(move_t* moves, register piece_square_t from, register const uint64_t piecemask) {
-	moves = gen_vector_pawn(moves, from, piecemask, Vec_SW, Square_Rank1, Piece_Black, Piece_White);
-	moves = gen_vector_pawn(moves, from, piecemask, Vec_SE, Square_Rank1, Piece_Black, Piece_White);
-	return gen_push_pawn(moves, from, piecemask, Vec_S, Square_Rank1, Piece_Black, Piece_White);
+	return gen_pawn(moves, from, piecemask, Vec_S, Square_Rank1, Piece_Black, Piece_White);
 }
 
 static inline
