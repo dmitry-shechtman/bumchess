@@ -288,22 +288,11 @@ uint64_t set_piece(register piece_square_t ps, register uint64_t piecemask) {
 }
 
 static inline
-uint8_t get_index2(register square_t square) {
-	return ((square ^ (square >> Shift_Rank)) & 1) << Shift_Odd;
-}
-
-static inline
 piece_square_t find_index_to(register piece_square_t ps, register const uint64_t piecemask) {
 	for (uint64_t mask = piecemask >> (ps.value & Piece_Index);
 		mask & 1;
 		++ps.value, mask >>= 1);
 	return ps;
-}
-
-static inline
-piece_square_t find_index_to_bishop(register piece_square_t ps, register uint64_t piecemask) {
-	ps.value += get_index2(ps.square);
-	return find_index_to(ps, piecemask);
 }
 
 piece_square_t find_index_error(piece_square_t ps) {
@@ -323,14 +312,6 @@ piece_square_t find_index_pawn(piece_square_t ps, const uint64_t piecemask) {
 	return (piecemask & (1ull << (ps.value & Piece_Index)))
 		? find_index_error(ps)
 		: ps;
-}
-
-piece_square_t find_index_bishop(piece_square_t ps, const uint64_t piecemask) {
-	ps.value += get_index2(ps.square);
-	piece_square_t ps2 = find_index_to(ps, piecemask);
-	return ((ps.value ^ ps2.value) & (Piece_Type | Piece_Odd))
-		? find_index_error(ps2)
-		: ps2;
 }
 
 piece_square_t find_index_rook(piece_square_t ps, const uint64_t piecemask) {
@@ -373,8 +354,6 @@ piece_square_t find_index_moved(piece_square_t ps, const uint64_t piecemask) {
 		return find_index_king(ps, piecemask);
 	case Piece_Pawn0:
 		return find_index_moved_pawn(ps, piecemask);
-	case Piece_Bishop:
-		return find_index_bishop(ps, piecemask);
 	default:
 		return find_index_other(ps, piecemask);
 	}
@@ -391,24 +370,14 @@ move_t* gen_promo(move_t* moves, register move_t move, register piece_square_t t
 }
 
 static inline
-move_t* gen_promo_bishop(move_t* moves, register move_t move, register piece_square_t to,
-	register const uint64_t piecemask, const uint8_t color)
-{
-	to.piece = Piece_Bishop | color;
-	move.prim.to = find_index_to_bishop(to, piecemask);
-	*moves++ = move;
-	return moves;
-}
-
-static inline
 move_t* gen_promo_pawn(move_t* moves, move_t move, piece_square_t to,
 	register const uint64_t piecemask, const uint8_t promo, const uint8_t color)
 {
 	if ((to.square & Square_Rank) == promo) {
 		moves = gen_promo(moves, move, to, piecemask, Piece_Knight, color);
-		moves = gen_promo_bishop(moves, move, to, piecemask, color);
-		moves = gen_promo(moves, move, to, piecemask, Piece_Rook, color);
-		moves = gen_promo(moves, move, to, piecemask, Piece_Queen, color);
+		moves = gen_promo(moves, move, to, piecemask, Piece_Bishop, color);
+		moves = gen_promo(moves, move, to, piecemask, Piece_Rook,   color);
+		moves = gen_promo(moves, move, to, piecemask, Piece_Queen,  color);
 		return moves;
 	}
 	*moves++ = move;
