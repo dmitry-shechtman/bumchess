@@ -35,6 +35,8 @@ enum Shift {
 	Shift_Castling    =  1,
 	Shift_Odd         =  1,
 	Shift_Type        =  2,
+	Shift_Row         =  3,
+	Shift_File        =  3,
 	Shift_Rank        =  4,
 
 	Shift_Bank        =  4,
@@ -128,11 +130,13 @@ enum Vec {
 
 enum Count {
 	Count_Colors    =   2,
+	Count_Rooks     =   2,
 	Count_Castlings =   4,
 	Count_Type4     =  16,
 
 	Count_Ranks     =   8,
 	Count_Files     =   8,
+	Count_Rows      =  16,
 	Count_Squares   = 128,
 
 	Count_Banks     =  16,
@@ -164,6 +168,7 @@ typedef union {
 	};
 } piece_square_t;
 
+typedef uint64_t row_t;
 typedef uint64_t bank_t;
 
 typedef struct {
@@ -185,7 +190,10 @@ enum Char {
 };
 
 typedef struct {
-	piece_t squares[Count_Squares];
+	union {
+		piece_t squares[Count_Squares];
+		row_t rows[Count_Rows];
+	};
 	union {
 		piece_square_t pieces[Count_Pieces];
 		bank_t banks[Count_Banks];
@@ -268,6 +276,16 @@ piece_t find_next(uint32_t* mask) {
 	*mask &= (*mask - 1);
 #endif
 	return index;
+}
+
+static inline
+row_t get_row(const board_t* board, square_t square) {
+	return board->rows[square >> Shift_Row];
+}
+
+static inline
+piece_t get_square2(register const row_t row, square_t square) {
+	return (piece_t)(row >> ((square & Square_File) << Shift_File));
 }
 
 static inline
@@ -1287,14 +1305,20 @@ const char* fen_read_castling(const char* str, board_t* board) {
 	return str;
 }
 
-char* fen_write_castling(char* str, const board_t* board, uint64_t piecemask, uint8_t i) {
-	piece_t color = color_values[i >> Shift_Castling];
-	piece_t rook = Piece_Rook | color | ((i & Piece_Castling) ^ Piece_Castling);
-	piece_t king = Piece_King | color;
-	if ((piecemask & (1ull << rook))
-		&& !(board->pieces[rook & Piece_Index].piece & Piece_Moved)
-		&& !(board->pieces[king & Piece_Index].piece & Piece_Moved)) {
+char* fen_write_castling(char* str, row_t row, uint8_t i) {
+	square_t rook_sq = castling_rooks[i];
+	square_t king_sq = color_kings[i >> Shift_Castling];
+	if ((get_square2(row, rook_sq) & (Piece_Type | Piece_Moved)) == Piece_Rook
+		&& (get_square2(row, king_sq) & (Piece_Type | Piece_Moved)) == Piece_King) {
 			*str++ = castling_chars[i];
+	}
+	return str;
+}
+
+char* fen_write_castling_color(char* str, const board_t* board, uint64_t piecemask, uint8_t c) {
+	row_t row = get_row(board, color_kings[c]);
+	for (uint8_t r = 0; r < Count_Rooks; ++r) {
+		str = fen_write_castling(str, row, (c << Shift_Castling) + r);
 	}
 	return str;
 }
@@ -1325,8 +1349,8 @@ const char* fen_read_castlings(const char* str, board_t* board) {
 
 char* fen_write_castlings(char* str, const board_t* board, uint64_t piecemask) {
 	char* start = str;
-	for (uint8_t i = 0; i < Count_Castlings; ++i) {
-		str = fen_write_castling(str, board, piecemask, i);
+	for (uint8_t c = 0; c < Count_Colors; ++c) {
+		str = fen_write_castling_color(str, board, piecemask, c);
 	}
 	if (str == start) {
 		*str++ = '-';
