@@ -208,6 +208,10 @@ void set_square(piece_square_t ps) {
 	squares[ps.square] = ps.piece;
 }
 
+bool has_ep() {
+	return !(state.ep & Square_FileInvalid);
+}
+
 move_t* gen_promo(move_t* moves, move_t move, piece_t piece) {
 	move.prim.to.piece = piece | color;
 	*moves++ = move;
@@ -428,7 +432,7 @@ bool check_pawn(square_t square) {
 }
 
 move_t* gen_ep(move_t* moves) {
-	return !(state.ep & Square_FileInvalid)
+	return has_ep()
 		? color == Piece_White
 			? gen_ep_white(moves)
 			: gen_ep_black(moves)
@@ -855,7 +859,7 @@ const char* fen_read_ep(const char* str) {
 }
 
 char* fen_write_ep(char* str) {
-	if (state.ep & Square_FileInvalid) {
+	if (!has_ep()) {
 		*str++ = '-';
 	} else {
 		str = fen_write_ep_square(str);
