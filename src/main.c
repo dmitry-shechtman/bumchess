@@ -1326,7 +1326,7 @@ char* fen_write_castling(char* str, row_t row, uint8_t i) {
 	return str;
 }
 
-char* fen_write_castling_color(char* str, const board_t* board, uint64_t piecemask, uint8_t c) {
+char* fen_write_castling_color(char* str, const board_t* board, uint8_t c) {
 	row_t row = get_row(board, color_kings[c >> Shift_Castling]);
 	str = fen_write_castling(str, row, c | Rook_H);
 	str = fen_write_castling(str, row, c | Rook_A);
@@ -1342,9 +1342,9 @@ const char* fen_read_castling_chars(const char* str, board_t* board) {
 	return str;
 }
 
-char* fen_write_castling_chars(char* str, const board_t* board, uint64_t piecemask) {
-	str = fen_write_castling_color(str, board, piecemask, Castling_White);
-	str = fen_write_castling_color(str, board, piecemask, Castling_Black);
+char* fen_write_castling_chars(char* str, const board_t* board) {
+	str = fen_write_castling_color(str, board, Castling_White);
+	str = fen_write_castling_color(str, board, Castling_Black);
 	return str;
 }
 
@@ -1363,9 +1363,9 @@ const char* fen_read_castlings(const char* str, board_t* board) {
 		: ++str;
 }
 
-char* fen_write_castlings(char* str, const board_t* board, uint64_t piecemask) {
+char* fen_write_castlings(char* str, const board_t* board) {
 	char* start = str;
-	if ((str = fen_write_castling_chars(str, board, piecemask)) == start) {
+	if ((str = fen_write_castling_chars(str, board)) == start) {
 		*str++ = '-';
 	}
 	return str;
@@ -1377,7 +1377,7 @@ const char* fen_read_ep(const char* str, uint64_t* piecemask, move_t* move) {
 		: ++str;
 }
 
-char* fen_write_ep(char* str, uint64_t piecemask, move_t move) {
+char* fen_write_ep(char* str, move_t move) {
 	if ((move.sec.to.piece & Piece_Type4) != Piece_EP) {
 		*str++ = '-';
 	} else {
@@ -1398,14 +1398,14 @@ const char* fen_read(const char* str, board_t* board, uint64_t* piecemask, move_
 	return str;
 }
 
-char* fen_write(char* str, const board_t* board, uint64_t piecemask, move_t move) {
+char* fen_write(char* str, const board_t* board, move_t move) {
 	str = fen_write_squares(str, board);
 	*str++ = ' ';
 	str = fen_write_color(str, board);
 	*str++ = ' ';
-	str = fen_write_castlings(str, board, piecemask);
+	str = fen_write_castlings(str, board);
 	*str++ = ' ';
-	str = fen_write_ep(str, piecemask, move);
+	str = fen_write_ep(str, move);
 	return str;
 }
 
@@ -1659,7 +1659,7 @@ int main(int argc, const char* argv[]) {
 		board_write(buffer, &board);
 		printf("%s\n", buffer);
 	} else {
-		fen_write(buffer, &board, piecemask, move);
+		fen_write(buffer, &board, move);
 		printf("\nPosition: %s\n", buffer);
 	}
 
