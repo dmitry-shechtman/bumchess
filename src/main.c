@@ -125,14 +125,13 @@ typedef union {
 } piece_square_t;
 
 typedef struct {
-	struct {
-		piece_square_t from;
-		piece_square_t to;
-	} prim;
-	struct {
-		piece_square_t from;
-		piece_square_t to;
-	} sec;
+	piece_square_t from;
+	piece_square_t to;
+} from_to_t;
+
+typedef struct {
+	from_to_t prim;
+	from_to_t sec;
 } move_t;
 
 typedef struct {
