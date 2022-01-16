@@ -510,29 +510,17 @@ bool check() {
 	return check_to(state.king);
 }
 
-void clear_prim_from(piece_square_t from) {
-	clear_square(from);
+void clear(piece_square_t ps) {
+	clear_square(ps);
 }
 
-void set_prim_from(piece_square_t from) {
-	set_square(from);
-}
-
-void clear_prim_to(piece_square_t to) {
-	clear_square(to);
+void set(piece_square_t ps) {
+	set_square(ps);
 }
 
 void set_prim_to(piece_square_t to) {
 	to.piece |= Piece_Moved;
 	set_square(to);
-}
-
-void clear_sec(piece_square_t ps) {
-	clear_square(ps);
-}
-
-void set_sec(piece_square_t ps) {
-	set_square(ps);
 }
 
 void set_king(piece_square_t ps) {
@@ -542,9 +530,9 @@ void set_king(piece_square_t ps) {
 }
 
 void move_make(move_t move) {
-	clear_sec(move.sec.from);
-	set_sec(move.sec.to);
-	clear_prim_from(move.prim.from);
+	clear(move.sec.from);
+	set(move.sec.to);
+	clear(move.prim.from);
 	set_prim_to(move.prim.to);
 
 	state.ep = move.sec.to.square
@@ -558,10 +546,10 @@ void move_make(move_t move) {
 void move_unmake(move_t move) {
 	color ^= Piece_Color;
 
-	clear_prim_to(move.prim.to);
-	set_prim_from(move.prim.from);
-	clear_sec(move.sec.to);
-	set_sec(move.sec.from);
+	clear(move.prim.to);
+	set(move.prim.from);
+	clear(move.sec.to);
+	set(move.sec.from);
 }
 
 uint64_t perft(move_t* moves, uint8_t depth, uint8_t div, char* buffer, char* str);
