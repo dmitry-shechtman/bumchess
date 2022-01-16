@@ -805,6 +805,12 @@ char* fen_write_castling(char* str, uint8_t i) {
 	return str;
 }
 
+char* fen_write_castling_color(char* str, uint8_t c) {
+	str = fen_write_castling(str, c | Rook_H);
+	str = fen_write_castling(str, c | Rook_A);
+	return str;
+}
+
 const char* fen_read_castling_chars(const char* str) {
 	do {
 		if (!(str = fen_read_castling(str))) {
@@ -815,10 +821,8 @@ const char* fen_read_castling_chars(const char* str) {
 }
 
 char* fen_write_castling_chars(char* str) {
-	str = fen_write_castling(str, Castling_White | Rook_H);
-	str = fen_write_castling(str, Castling_White | Rook_A);
-	str = fen_write_castling(str, Castling_Black | Rook_H);
-	str = fen_write_castling(str, Castling_Black | Rook_A);
+	str = fen_write_castling_color(str, Castling_White);
+	str = fen_write_castling_color(str, Castling_Black);
 	return str;
 }
 
