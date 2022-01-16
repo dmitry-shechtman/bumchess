@@ -294,6 +294,11 @@ row_t get_row(const board_t* board, square_t square) {
 }
 
 static inline
+uint64_t get_row2(piece_t piece, square_t square) {
+	return (uint64_t)piece << ((square & Square_File) << Shift_File);
+}
+
+static inline
 piece_t get_square2(register const row_t row, square_t square) {
 	return (piece_t)(row >> ((square & Square_File) << Shift_File));
 }
@@ -1336,8 +1341,8 @@ const char* fen_read_castling(const char* str, board_t* board) {
 char* fen_write_castling(char* str, row_t row, uint8_t i) {
 	square_t rook_sq = castling_rooks[i];
 	square_t king_sq = color_kings[i >> Shift_Castling];
-	if ((get_square2(row, rook_sq) & (Piece_Type | Piece_Moved)) == Piece_Rook
-		&& (get_square2(row, king_sq) & (Piece_Type | Piece_Moved)) == Piece_King) {
+	if ((row & (get_row2(Piece_Type | Piece_Moved, rook_sq) | get_row2(Piece_Type | Piece_Moved, king_sq)))
+		== (get_row2(Piece_Rook, rook_sq) | get_row2(Piece_King, king_sq))) {
 			*str++ = castling_chars[i];
 	}
 	return str;
