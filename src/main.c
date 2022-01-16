@@ -22,6 +22,7 @@ enum Type {
 
 enum Shift {
 	Shift_Castling    =  1,
+	Shift_File        =  3,
 	Shift_Rank        =  4,
 
 	Shift_Square      =  8,
@@ -39,6 +40,10 @@ enum Piece {
 	Piece_Black    = 0x08,
 	Piece_White    = 0x10,
 	Piece_Color    = Piece_Black | Piece_White,
+
+	Piece_Type4    = Piece_Type | Piece_Black,
+
+	Piece_EP       = Piece_Black,
 
 	Piece_Moved    = 0x80
 };
@@ -228,7 +233,8 @@ move_t* gen_push_pawn(move_t* moves, piece_square_t from, vector_t vector, uint8
 		moves = gen_promo_pawn(moves, move, to, promo);
 		if (!(from.piece & Piece_Moved)
 			&& !get_square(to.square += vector)) {
-				move.prim.to.value = to.value | PieceSquare_Invalid;
+				move.prim.to = to;
+				move.sec.to.value = from2.value | Piece_EP | PieceSquare_Invalid;
 				*moves++ = move;
 		}
 	}
@@ -513,12 +519,10 @@ void set_prim_from(piece_square_t from) {
 }
 
 void clear_prim_to(piece_square_t to) {
-	to.square &= ~Square_Invalid;
 	clear_square(to);
 }
 
 void set_prim_to(piece_square_t to) {
-	to.square &= ~Square_Invalid;
 	to.piece |= Piece_Moved;
 	set_square(to);
 }
@@ -529,10 +533,6 @@ void clear_sec(piece_square_t ps) {
 
 void set_sec(piece_square_t ps) {
 	set_square(ps);
-}
-
-void set_ep(uint8_t file) {
-	state.ep = ((state.ep & Square_Rank) ^ Square_Rank) | file;
 }
 
 void set_king(piece_square_t ps) {
@@ -547,8 +547,8 @@ void move_make(move_t move) {
 	clear_prim_from(move.prim.from);
 	set_prim_to(move.prim.to);
 
-	set_ep((move.prim.to.square & Square_File)
-		| ((move.prim.to.square & Square_FileInvalid) ^ Square_FileInvalid));
+	state.ep = move.sec.to.square
+		^ (((move.sec.to.piece & Piece_Type4) == Piece_EP) << Shift_File);
 
 	set_king(move.prim.to);
 
@@ -597,7 +597,7 @@ uint64_t perft(move_t* moves, uint8_t depth, uint8_t div, char* buffer, char* st
 }
 
 char get_piece_char(piece_t piece) {
-	return piece_chars[piece & (Piece_Type | Piece_Black)];
+	return piece_chars[piece & Piece_Type4];
 }
 
 uint8_t find_char(char c, const char chars[], uint8_t count) {
