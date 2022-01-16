@@ -265,6 +265,14 @@ bool has_ep() {
 	return state.piecemask & (1ull << Piece_EP);
 }
 
+void clear_ep() {
+	state.piecemask &= ~(1ull << Piece_EP);
+}
+
+void set_ep() {
+	state.piecemask |= (1ull << Piece_EP);
+}
+
 uint8_t get_index2(square_t square) {
 	return ((square ^ (square >> Shift_Rank)) & 1) << Shift_Odd;
 }
@@ -820,10 +828,6 @@ void set_prim_to(piece_square_t to) {
 	set_piece(to);
 }
 
-void clear_ep() {
-	state.piecemask &= ~(1ull << Piece_EP);
-}
-
 void move_make(move_t move) {
 	clear_ep();
 
@@ -1115,7 +1119,7 @@ char* fen_write_castling_chars(char* str) {
 }
 
 const char* fen_read_ep_square(const char* str) {
-	state.piecemask |= (1ull << Piece_EP);
+	set_ep();
 	return fen_read_square(str, &state.ep.square);
 }
 
