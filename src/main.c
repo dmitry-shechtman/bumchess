@@ -101,7 +101,6 @@ enum Vec {
 
 enum Count {
 	Count_Colors    =    2,
-	Count_Castlings =    4,
 	Count_Type4     =   16,
 
 	Count_Ranks     =    8,
@@ -121,6 +120,18 @@ enum Max {
 
 	Max_Chars     = 1024,
 	Max_Moves     = 1024,
+};
+
+enum Rook {
+	Rook_A,
+	Rook_H,
+	Rook_Count
+};
+
+enum Castling {
+	Castling_White = 0,
+	Castling_Black = 2,
+	Castling_Count = 4
 };
 
 typedef uint8_t piece_t;
@@ -199,11 +210,11 @@ char color_chars[Count_Colors]  = "wb";
 piece_t  color_values[Count_Colors] = { Piece_White,  Piece_Black  };
 square_t color_ranks[Count_Colors]  = { Square_Rank6, Square_Rank3 };
 
-char castling_chars[Count_Castlings] = "KQkq";
+char castling_chars[Castling_Count] = "QKqk";
 
-square_t castling_rooks[Count_Castlings] = {
-	Square_FileH | Square_Rank1, Square_FileA | Square_Rank1,
-	Square_FileH | Square_Rank8, Square_FileA | Square_Rank8
+square_t castling_rooks[Castling_Count] = {
+	Square_FileA | Square_Rank1, Square_FileH | Square_Rank1,
+	Square_FileA | Square_Rank8, Square_FileH | Square_Rank8
 };
 
 square_t color_kings[Count_Colors] = {
@@ -881,7 +892,7 @@ uint8_t find_color(char c) {
 }
 
 uint8_t find_castling(char c) {
-	return find_char(c, castling_chars, Count_Castlings);
+	return find_char(c, castling_chars, Castling_Count);
 }
 
 uint8_t get_moved(uint8_t type4, square_t square) {
@@ -1050,7 +1061,7 @@ const char* fen_read_castling(const char* str) {
 	char c = *str++;
 	uint8_t i;
 	piece_square_t ps;
-	if ((i = find_castling(c)) == Count_Castlings
+	if ((i = find_castling(c)) == Castling_Count
 		|| (ps.piece = get_square(ps.square = castling_rooks[i]))
 			!= (Piece_Rook | Piece_Moved | color_values[i >> Shift_Castling])) {
 				return fen_read_error(c);
@@ -1062,7 +1073,7 @@ const char* fen_read_castling(const char* str) {
 
 char* fen_write_castling(char* str, uint8_t i) {
 	piece_t color = color_values[i >> Shift_Castling];
-	piece_t rook = Piece_Rook | color | ((i & Piece_Castling) ^ Piece_Castling);
+	piece_t rook = Piece_Rook | color | (i & Piece_Castling);
 	piece_t king = Piece_King | color;
 	if ((state.piecemask & (1ull << rook))
 		&& !(get_piece(rook & Piece_Index).piece & Piece_Moved)
@@ -1078,6 +1089,14 @@ const char* fen_read_castling_chars(const char* str) {
 			return 0;
 		}
 	} while (*str && *str != ' ');
+	return str;
+}
+
+char* fen_write_castling_chars(char* str) {
+	str = fen_write_castling(str, Castling_White | Rook_H);
+	str = fen_write_castling(str, Castling_White | Rook_A);
+	str = fen_write_castling(str, Castling_Black | Rook_H);
+	str = fen_write_castling(str, Castling_Black | Rook_A);
 	return str;
 }
 
@@ -1098,10 +1117,7 @@ const char* fen_read_castlings(const char* str) {
 
 char* fen_write_castlings(char* str) {
 	char* start = str;
-	for (uint8_t i = 0; i < Count_Castlings; ++i) {
-		str = fen_write_castling(str, i);
-	}
-	if (str == start) {
+	if ((str = fen_write_castling_chars(str)) == start) {
 		*str++ = '-';
 	}
 	return str;
