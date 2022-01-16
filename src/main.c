@@ -51,7 +51,8 @@ enum Piece {
 	Piece_White    = 0x80,
 	Piece_Color    = Piece_Black | Piece_White,
 
-	Piece_Index    = Piece_Index2 | Piece_Type | Piece_Black,
+	Piece_Type4    = Piece_Type | Piece_Black,
+	Piece_Index    = Piece_Index2 | Piece_Type4,
 
 	Piece_EP       = Piece_Black,
 };
@@ -142,14 +143,13 @@ typedef union {
 } piece_square_t;
 
 typedef struct {
-	struct {
-		piece_square_t from;
-		piece_square_t to;
-	} prim;
-	struct {
-		piece_square_t from;
-		piece_square_t to;
-	} sec;
+	piece_square_t from;
+	piece_square_t to;
+} from_to_t;
+
+typedef struct {
+	from_to_t prim;
+	from_to_t sec;
 } move_t;
 
 typedef struct {
@@ -785,35 +785,20 @@ void set_init(piece_square_t ps) {
 	set_piece(ps);
 }
 
-void clear_prim_from(piece_square_t from) {
-	clear_square(from);
-	clear_piece(from);
+void clear(piece_square_t ps) {
+	clear_square(ps);
+	clear_piece(ps);
 }
 
-void set_prim_from(piece_square_t from) {
-	set_square(from);
-	set_piece(from);
-}
-
-void clear_prim_to(piece_square_t to) {
-	clear_square(to);
-	clear_piece(to);
+void set(piece_square_t ps) {
+	set_square(ps);
+	set_piece(ps);
 }
 
 void set_prim_to(piece_square_t to) {
 	to.piece |= Piece_Moved;
 	set_square(to);
 	set_piece(to);
-}
-
-void clear_sec(piece_square_t ps) {
-	clear_square(ps);
-	clear_piece(ps);
-}
-
-void set_sec(piece_square_t ps) {
-	set_square(ps);
-	set_piece(ps);
 }
 
 void clear_ep() {
@@ -823,9 +808,9 @@ void clear_ep() {
 void move_make(move_t move) {
 	clear_ep();
 
-	clear_sec(move.sec.from);
-	set_sec(move.sec.to);
-	clear_prim_from(move.prim.from);
+	clear(move.sec.from);
+	set(move.sec.to);
+	clear(move.prim.from);
 	set_prim_to(move.prim.to);
 
 	color ^= Piece_Color;
@@ -836,10 +821,10 @@ void move_make(move_t move) {
 void move_unmake(move_t move) {
 	color ^= Piece_Color;
 
-	clear_prim_to(move.prim.to);
-	set_prim_from(move.prim.from);
-	clear_sec(move.sec.to);
-	set_sec(move.sec.from);
+	clear(move.prim.to);
+	set(move.prim.from);
+	clear(move.sec.to);
+	set(move.sec.from);
 }
 
 uint64_t perft(move_t* moves, uint8_t depth, uint8_t div, char* buffer, char* str);
@@ -1066,8 +1051,9 @@ const char* fen_read_castling(const char* str) {
 	uint8_t i;
 	piece_square_t ps;
 	if ((i = find_castling(c)) == Count_Castlings
-		|| (ps.piece = get_square(ps.square = castling_rooks[i])) != (Piece_Rook | Piece_Moved | color_values[i >> Shift_Castling])) {
-			return fen_read_error(c);
+		|| (ps.piece = get_square(ps.square = castling_rooks[i]))
+			!= (Piece_Rook | Piece_Moved | color_values[i >> Shift_Castling])) {
+				return fen_read_error(c);
 	}
 	ps.piece &= ~Piece_Moved;
 	set_square(ps);
