@@ -785,7 +785,9 @@ const char* fen_read_castling(const char* str) {
 	piece_square_t ps;
 	if ((i = find_castling(c)) == Castling_Count
 		|| (ps.piece = get_square(ps.square = castling_rooks[i]))
-			!= (Piece_Rook | Piece_Moved | color_values[i >> Shift_Castling])) {
+			!= (Piece_Rook | Piece_Moved | color_values[i >> Shift_Castling])
+		|| get_square(color_kings[i >> Shift_Castling])
+			!= (Piece_King | color_values[i >> Shift_Castling])) {
 				return fen_read_error(c);
 	}
 	ps.piece &= ~Piece_Moved;
