@@ -261,6 +261,10 @@ void set_piece(piece_square_t ps) {
 	state.piecemask |= (1ull << piece);
 }
 
+bool has_ep() {
+	return state.piecemask & (1ull << Piece_EP);
+}
+
 uint8_t get_index2(square_t square) {
 	return ((square ^ (square >> Shift_Rank)) & 1) << Shift_Odd;
 }
@@ -599,7 +603,7 @@ bool check_pawns(square_t dest) {
 }
 
 move_t* gen_ep(move_t* moves) {
-	return state.piecemask & (1ull << Piece_EP)
+	return has_ep()
 		? color == Piece_White
 			? gen_ep_white(moves)
 			: gen_ep_black(moves)
@@ -1067,7 +1071,9 @@ const char* fen_read_castling(const char* str) {
 	piece_square_t ps;
 	if ((i = find_castling(c)) == Castling_Count
 		|| (ps.piece = get_square(ps.square = castling_rooks[i]))
-			!= (Piece_Rook | Piece_Moved | color_values[i >> Shift_Castling])) {
+			!= (Piece_Rook | Piece_Moved | color_values[i >> Shift_Castling])
+		|| get_square(color_kings[i >> Shift_Castling])
+			!= (Piece_King | color_values[i >> Shift_Castling])) {
 				return fen_read_error(c);
 	}
 	ps.piece &= ~Piece_Moved;
@@ -1087,6 +1093,12 @@ char* fen_write_castling(char* str, uint8_t i) {
 	return str;
 }
 
+char* fen_write_castling_color(char* str, uint8_t c) {
+	str = fen_write_castling(str, c | Rook_H);
+	str = fen_write_castling(str, c | Rook_A);
+	return str;
+}
+
 const char* fen_read_castling_chars(const char* str) {
 	do {
 		if (!(str = fen_read_castling(str))) {
@@ -1097,10 +1109,8 @@ const char* fen_read_castling_chars(const char* str) {
 }
 
 char* fen_write_castling_chars(char* str) {
-	str = fen_write_castling(str, Castling_White | Rook_H);
-	str = fen_write_castling(str, Castling_White | Rook_A);
-	str = fen_write_castling(str, Castling_Black | Rook_H);
-	str = fen_write_castling(str, Castling_Black | Rook_A);
+	str = fen_write_castling_color(str, Castling_White);
+	str = fen_write_castling_color(str, Castling_Black);
 	return str;
 }
 
@@ -1134,7 +1144,7 @@ const char* fen_read_ep(const char* str) {
 }
 
 char* fen_write_ep(char* str) {
-	if (!(state.piecemask & (1ull << Piece_EP))) {
+	if (!has_ep()) {
 		*str++ = '-';
 	} else {
 		str = fen_write_ep_square(str);
@@ -1226,7 +1236,7 @@ bool set_pieces_ep_get(piece_square_t* ep_pawn) {
 }
 
 bool set_pieces_ep_unmoved(piece_square_t* ep_pawn) {
-	if (state.piecemask & (1ull << Piece_EP)) {
+	if (has_ep()) {
 		if (!set_pieces_ep_get(ep_pawn)) {
 			return false;
 		}
@@ -1237,7 +1247,7 @@ bool set_pieces_ep_unmoved(piece_square_t* ep_pawn) {
 }
 
 bool set_pieces_ep_moved(piece_square_t* ep_pawn) {
-	if (state.piecemask & (1ull << Piece_EP)) {
+	if (has_ep()) {
 		ep_pawn->piece = get_square(ep_pawn->square) | Piece_Moved;
 		set_init(*ep_pawn);
 	}
