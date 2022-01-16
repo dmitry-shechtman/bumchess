@@ -691,27 +691,27 @@ move_t* gen_ep_white(move_t* moves, from_to_t sec) {
 }
 
 static inline
-bool check_neighbors_ss(const board_t* board, register square_t square, const uint8_t color) {
+bool check_square_ss(const board_t* board, register square_t square, const uint8_t color) {
 	return (square & Square_Rank) > Square_Rank2
 		&& (check_vector_knight(board, square, Vec_SSW, color)
 		|| check_vector_knight(board, square, Vec_SSE, color));
 }
 
 static inline
-bool check_neighbors_we(const board_t* board, register square_t square, const uint8_t color) {
+bool check_square_we(const board_t* board, register square_t square, const uint8_t color) {
 	return check_vector_ortho(board, square, Vec_W, color)
 		|| check_vector_ortho(board, square, Vec_E, color);
 }
 
 static inline
-bool check_neighbors_nn(const board_t* board, register square_t square, const uint8_t color) {
+bool check_square_nn(const board_t* board, register square_t square, const uint8_t color) {
 	return (square & Square_Rank) < Square_Rank7
 		&& (check_vector_knight(board, square, Vec_NNW, color)
 		|| check_vector_knight(board, square, Vec_NNE, color));
 }
 
 static inline
-bool check_neighbors_white_s(const board_t* board, register square_t square) {
+bool check_square_white_s(const board_t* board, register square_t square) {
 	return (square & Square_Rank)
 		&&    (check_vector_knight(board, square, Vec_SWW, Piece_White)
 			|| check_vector_pawn  (board, square, Vec_SW,  Piece_White)
@@ -721,7 +721,7 @@ bool check_neighbors_white_s(const board_t* board, register square_t square) {
 }
 
 static inline
-bool check_neighbors_white_n(const board_t* board, register square_t square) {
+bool check_square_white_n(const board_t* board, register square_t square) {
 	return (square & Square_Rank) != Square_Rank8
 		&&    (check_vector_knight(board, square, Vec_NWW, Piece_White)
 			|| check_vector_diag  (board, square, Vec_NW,  Piece_White)
@@ -731,12 +731,12 @@ bool check_neighbors_white_n(const board_t* board, register square_t square) {
 }
 
 static inline
-bool check_to_white(const board_t* board, register square_t square) {
-	return check_neighbors_ss(board, square, Piece_White)
-		|| check_neighbors_white_s(board, square)
-		|| check_neighbors_we(board, square, Piece_White)
-		|| check_neighbors_white_n(board, square)
-		|| check_neighbors_nn(board, square, Piece_White);
+bool check_square_white(const board_t* board, register square_t square) {
+	return check_square_ss(board, square, Piece_White)
+		|| check_square_white_s(board, square)
+		|| check_square_we(board, square, Piece_White)
+		|| check_square_white_n(board, square)
+		|| check_square_nn(board, square, Piece_White);
 }
 
 static inline
@@ -752,7 +752,7 @@ move_t* gen_ep_black(move_t* moves, from_to_t sec) {
 }
 
 static inline
-bool check_neighbors_black_s(const board_t* board, register square_t square) {
+bool check_square_black_s(const board_t* board, register square_t square) {
 	return (square & Square_Rank)
 		&&    (check_vector_knight(board, square, Vec_SWW, Piece_Black)
 			|| check_vector_diag  (board, square, Vec_SW,  Piece_Black)
@@ -762,7 +762,7 @@ bool check_neighbors_black_s(const board_t* board, register square_t square) {
 }
 
 static inline
-bool check_neighbors_black_n(const board_t* board, register square_t square) {
+bool check_square_black_n(const board_t* board, register square_t square) {
 	return (square & Square_Rank) != Square_Rank8
 		&&    (check_vector_knight(board, square, Vec_NWW, Piece_Black)
 			|| check_vector_pawn  (board, square, Vec_NW,  Piece_Black)
@@ -772,12 +772,12 @@ bool check_neighbors_black_n(const board_t* board, register square_t square) {
 }
 
 static inline
-bool check_to_black(const board_t* board, register square_t square) {
-	return check_neighbors_ss(board, square, Piece_Black)
-		|| check_neighbors_black_s(board, square)
-		|| check_neighbors_we(board, square, Piece_Black)
-		|| check_neighbors_black_n(board, square)
-		|| check_neighbors_nn(board, square, Piece_Black);
+bool check_square_black(const board_t* board, register square_t square) {
+	return check_square_ss(board, square, Piece_Black)
+		|| check_square_black_s(board, square)
+		|| check_square_we(board, square, Piece_Black)
+		|| check_square_black_n(board, square)
+		|| check_square_nn(board, square, Piece_Black);
 }
 
 static inline
@@ -950,13 +950,13 @@ move_t* gen_black(move_t* moves, const board_t* board, register const uint64_t p
 static inline
 bool check_white(const board_t* board) {
 	bank_t bank = board->banks[Type_King + Type_Count];
-	return check_to_white(board, get_piece(bank, 0).square);
+	return check_square_white(board, get_piece(bank, 0).square);
 }
 
 static inline
 bool check_black(const board_t* board) {
 	bank_t bank = board->banks[Type_King];
-	return check_to_black(board, get_piece(bank, 0).square);
+	return check_square_black(board, get_piece(bank, 0).square);
 }
 
 static inline
