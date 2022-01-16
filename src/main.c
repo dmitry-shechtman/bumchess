@@ -1075,7 +1075,7 @@ char* fen_write_castling(char* str, uint8_t i) {
 	piece_t color = color_values[i >> Shift_Castling];
 	piece_t rook = Piece_Rook | color | (i & Piece_Castling);
 	piece_t king = Piece_King | color;
-	if ((state.piecemask & (1ull << rook))
+	if ((state.piecemask & (1ull << (rook & Piece_Index)))
 		&& !(get_piece(rook & Piece_Index).piece & Piece_Moved)
 		&& !(get_piece(king & Piece_Index).piece & Piece_Moved)) {
 			*str++ = castling_chars[i];
