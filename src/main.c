@@ -320,6 +320,11 @@ piece_square_t get_piece(bank_t bank, register piece_t piece) {
 }
 
 static inline
+bool has_piece(piece_t piece, uint64_t piecemask) {
+	return piecemask & (1ull << (piece & Piece_Index));
+}
+
+static inline
 uint64_t clear_piece(register piece_square_t ps, register uint64_t piecemask) {
 	register piece_t piece = ps.piece & Piece_Index;
 	return piecemask &= ~(1ull << piece);
@@ -330,6 +335,16 @@ uint64_t set_piece(board_t* board, register piece_square_t ps, register uint64_t
 	register piece_t piece = ps.piece & Piece_Index;
 	board->pieces[piece] = ps;
 	return piecemask |= (1ull << piece);
+}
+
+static inline
+bool has_ep(move_t move) {
+	return (move.sec.to.piece & Piece_Type4) == Piece_EP;
+}
+
+static inline
+void set_ep(move_t* move) {
+	move->sec.to.piece = Piece_EP;
 }
 
 static inline
@@ -362,14 +377,14 @@ piece_square_t find_index_king(piece_square_t ps, const uint64_t piecemask) {
 
 piece_square_t find_index_pawn(piece_square_t ps, const uint64_t piecemask) {
 	ps.piece |= (ps.square & Square_File);
-	return (piecemask & (1ull << (ps.value & Piece_Index)))
+	return has_piece(ps.piece, piecemask)
 		? find_index_error(ps)
 		: ps;
 }
 
 piece_square_t find_index_rook(piece_square_t ps, const uint64_t piecemask) {
 	ps.piece |= (piecemask >> (Piece_King | (ps.piece & Piece_Black))) & Piece_Castling;
-	return (piecemask & (1ull << (ps.value & Piece_Index)))
+	return has_piece(ps.piece, piecemask)
 		? find_index_error(ps)
 		: ps;
 }
@@ -1308,7 +1323,9 @@ const char* fen_read_castling(const char* str, board_t* board) {
 	piece_square_t ps;
 	if ((i = find_castling(c)) == Castling_Count
 		|| (ps.piece = get_square(board, ps.square = castling_rooks[i]))
-			!= (Piece_Rook | Piece_Moved | color_values[i >> Shift_Castling])) {
+			!= (Piece_Rook | Piece_Moved | color_values[i >> Shift_Castling])
+		|| get_square(board, color_kings[i >> Shift_Castling])
+			!= (Piece_King | color_values[i >> Shift_Castling])) {
 				return fen_read_error(c);
 	}
 	ps.piece &= ~Piece_Moved;
@@ -1349,7 +1366,7 @@ char* fen_write_castling_chars(char* str, const board_t* board) {
 }
 
 const char* fen_read_ep_square(const char* str, uint64_t* piecemask, move_t* move) {
-	*piecemask |= (1ull << Piece_EP);
+	set_ep(move);
 	return fen_read_square(str, &move->sec.from.square);
 }
 
@@ -1378,7 +1395,7 @@ const char* fen_read_ep(const char* str, uint64_t* piecemask, move_t* move) {
 }
 
 char* fen_write_ep(char* str, move_t move) {
-	if ((move.sec.to.piece & Piece_Type4) != Piece_EP) {
+	if (!has_ep(move)) {
 		*str++ = '-';
 	} else {
 		str = fen_write_ep_square(str, move);
@@ -1471,7 +1488,7 @@ bool set_pieces_ep_get(board_t* board, move_t* move) {
 }
 
 bool set_pieces_ep_unmoved(board_t* board, uint64_t* piecemask, move_t* move) {
-	if (*piecemask & (1ull << Piece_EP)) {
+	if (has_ep(*move)) {
 		if (!set_pieces_ep_get(board, move)) {
 			return false;
 		}
@@ -1482,7 +1499,7 @@ bool set_pieces_ep_unmoved(board_t* board, uint64_t* piecemask, move_t* move) {
 }
 
 uint64_t set_pieces_ep_moved(board_t* board, uint64_t* piecemask, move_t* move) {
-	if (*piecemask & (1ull << Piece_EP)) {
+	if (has_ep(*move)) {
 		move->prim.to.piece = get_square(board, move->prim.to.square) | Piece_Moved;
 		clear_square(board, move->prim.to);
 		gen_push2_pawn(move, board, *move, board->color);
@@ -1494,7 +1511,7 @@ uint64_t set_pieces_ep_moved(board_t* board, uint64_t* piecemask, move_t* move) 
 bool validate_kings(uint64_t* piecemask) {
 	for (uint8_t i = 0; i < Count_Colors; ++i) {
 		piece_t piece = Piece_King | color_values[i];
-		if (!(*piecemask & (1ull << (piece & Piece_Index)))) {
+		if (!has_piece(piece, *piecemask)) {
 			fprintf(stderr, "Missing %c.\n", get_piece_char(piece));
 			return false;
 		}
