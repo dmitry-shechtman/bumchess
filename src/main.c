@@ -586,33 +586,57 @@ move_t* gen_vector_leaper(move_t* moves, const board_t* board, register piece_sq
 }
 
 static inline
-bool check_square_knight(const board_t* board, register square_t square,
-	const uint8_t color)
+bool check_vector_knight(const board_t* board, register square_t square,
+	const vector_t vector, const uint8_t color)
 {
-	register piece_t piece = (square & Square_Invalid) ? 0 : get_square(board, square);
-	return (piece & (Piece_Type | Piece_Color)) == (Piece_Knight | color);
+	return !((square += vector) & Square_Invalid)
+		? (get_square(board, square) & (Piece_Type | Piece_Color)) == (Piece_Knight | color)
+		: false;
+}
+
+static inline
+move_t* gen_vector_slider(move_t* moves, const board_t* board, register piece_square_t from,
+	const vector_t vector, const uint8_t color)
+{
+	register piece_square_t to = from;
+	register piece_square_t from2 = { 0 };
+	while (!from2.piece
+		&& !((to.square += vector) & Square_Invalid)
+		&& !((from2.piece = get_square(board, from2.square = to.square)) & color)) {
+			register move_t move = {
+				.prim = {
+					.from = from,
+					.to = to
+				},
+				.sec = {
+					.from = from2,
+					.to = { PieceSquare_Invalid }
+				}
+			};
+			*moves++ = move;
+	}
+	return moves;
+}
+
+static inline
+bool check_vector_slider(const board_t* board, register square_t square,
+	const piece_t piece_type, const vector_t vector, const uint8_t color)
+{
+	register piece_t piece = 0;
+	while (!((square += vector) & Square_Invalid) && !(piece = get_square(board, square)));
+	return (piece & (piece_type | color)) == (piece_type | color);
 }
 
 static inline
 bool check_vector(const board_t* board, register square_t square,
 	const type_mask_t type_mask, const piece_t piece_type, const vector_t vector, const uint8_t color)
 {
-	if ((square += vector) & Square_Invalid) {
-		return false;
-	}
-	register piece_t piece = get_square(board, square);
-	if (piece) {
-		return (piece & color) && (type_mask & (1 << (piece & Piece_Type)));
-	}
-	while (!((square += vector) & Square_Invalid) && !(piece = get_square(board, square)));
-	return (piece & (piece_type | color)) == (piece_type | color);
-}
-
-static inline
-bool check_vector_knight(const board_t* board, register square_t square,
-	const vector_t vector, const uint8_t color)
-{
-	return check_square_knight(board, square + vector, color);
+	register piece_t piece;
+	return !((square += vector) & Square_Invalid)
+		? (piece = get_square(board, square))
+			? (piece & color) && (type_mask & (1 << (piece & Piece_Type)))
+			: check_vector_slider(board, square, piece_type, vector, color)
+		: false;
 }
 
 static inline
@@ -631,30 +655,6 @@ static inline
 bool check_vector_ortho(const board_t* board, register square_t square, const vector_t vector, const uint8_t color) {
 	return check_vector(board, square, TypeMask_Queen | TypeMask_Rook | TypeMask_King,
 		Piece_Rook, vector, color);
-}
-
-static inline
-move_t* gen_vector_slider(move_t* moves, const board_t* board, register piece_square_t from,
-	const vector_t vector, const uint8_t color)
-{
-	register piece_square_t to = from;
-	register piece_square_t from2 = {0};
-	while (!from2.piece
-		&& !((to.square += vector) & Square_Invalid)
-		&& !((from2.piece = get_square(board, from2.square = to.square)) & color)) {
-			register move_t move = {
-				.prim = {
-					.from = from,
-					.to = to
-				},
-				.sec = {
-					.from = from2,
-					.to = { PieceSquare_Invalid }
-				}
-			};
-			*moves++ = move;
-	}
-	return moves;
 }
 
 static inline
