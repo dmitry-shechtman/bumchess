@@ -246,6 +246,10 @@ piece_square_t get_piece(piece_t piece) {
 	return pieces[piece];
 }
 
+bool has_piece(piece_t piece) {
+	return state.piecemask & (1ull << (piece & Piece_Index));
+}
+
 void clear_piece(piece_square_t ps) {
 	piece_t piece = ps.piece & Piece_Index;
 	state.piecemask &= ~(1ull << piece);
@@ -287,7 +291,7 @@ piece_square_t find_index_king(piece_square_t ps) {
 
 piece_square_t find_index_pawn(piece_square_t ps) {
 	ps.piece |= (ps.square & Square_File);
-	return (state.piecemask & (1ull << (ps.value & Piece_Index)))
+	return has_piece(ps.piece)
 		? find_index_error(ps)
 		: ps;
 }
@@ -302,7 +306,7 @@ piece_square_t find_index_bishop(piece_square_t ps) {
 
 piece_square_t find_index_rook(piece_square_t ps) {
 	ps.piece |= (state.piecemask >> (Piece_King | (ps.piece & Piece_Black))) & Piece_Castling;
-	return (state.piecemask & (1ull << (ps.value & Piece_Index)))
+	return has_piece(ps.piece)
 		? find_index_error(ps)
 		: ps;
 }
@@ -1075,7 +1079,7 @@ char* fen_write_castling(char* str, uint8_t i) {
 	piece_t color = color_values[i >> Shift_Castling];
 	piece_t rook = Piece_Rook | color | (i & Piece_Castling);
 	piece_t king = Piece_King | color;
-	if ((state.piecemask & (1ull << (rook & Piece_Index)))
+	if (has_piece(rook)
 		&& !(get_piece(rook & Piece_Index).piece & Piece_Moved)
 		&& !(get_piece(king & Piece_Index).piece & Piece_Moved)) {
 			*str++ = castling_chars[i];
@@ -1243,7 +1247,7 @@ bool set_pieces_ep_moved(piece_square_t* ep_pawn) {
 bool validate_kings() {
 	for (uint8_t i = 0; i < Count_Colors; ++i) {
 		piece_t piece = Piece_King | color_values[i];
-		if (!(state.piecemask & (1ull << (piece & Piece_Index)))) {
+		if (!has_piece(piece)) {
 			fprintf(stderr, "Missing %c.\n", get_piece_char(piece));
 			return false;
 		}
