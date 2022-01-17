@@ -76,13 +76,13 @@ enum Piece {
 	Piece_EP       = Piece_Black,
 };
 
-enum PieceMask {
-	PieceMask_King    = 0x00000010,
-	PieceMask_Pawns   = 0x0000FF00,
-	PieceMask_Knights = 0x000F0000,
-	PieceMask_Bishops = 0x00F00000,
-	PieceMask_Rooks   = 0x0F000000,
-	PieceMask_Queens  = 0x70000000,
+enum TypeMask {
+	TypeMask_King   = 0x00000010,
+	TypeMask_Pawn   = 0x0000FF00,
+	TypeMask_Knight = 0x000F0000,
+	TypeMask_Bishop = 0x00F00000,
+	TypeMask_Rook   = 0x0F000000,
+	TypeMask_Queen  = 0x70000000,
 };
 
 enum Square {
@@ -175,6 +175,7 @@ typedef uint8_t piece_t;
 typedef uint8_t square_t;
 typedef int8_t  vector_t;
 
+typedef uint32_t type_mask_t;
 typedef uint64_t piecemask_t;
 typedef uint64_t check_t;
 
@@ -333,13 +334,8 @@ piece_square_t get_piece(bank_t bank, register piece_t piece) {
 }
 
 static inline
-piecemask_t get_mask(piece_t piece) {
-	return 1ull << (piece & Piece_Index);
-}
-
-static inline
 bool has_piece(piece_t piece, uint64_t piecemask) {
-	return piecemask & get_mask(piece);
+	return piecemask & (1ull << (piece & Piece_Index));
 }
 
 static inline
@@ -605,7 +601,7 @@ check_t check_vector_knight(const board_t* board, register square_t square,
 	register piece_t piece;
 	return !((square += vector) & Square_Invalid)
 		&& ((piece = get_square(board, square)) & (Piece_Type | Piece_Color)) == (Piece_Knight | color)
-			? ((piecemask_t)PieceMask_Knights << (color & Piece_Black)) | dir
+			? ((piecemask_t)TypeMask_Knight << (color & Piece_Black)) | dir
 			: 0;
 }
 
@@ -646,9 +642,10 @@ check_t check_vector_slider(const board_t* board, register square_t square,
 
 static inline
 check_t check_vector(const board_t* board, register square_t square,
-	const piecemask_t piecemask, const piece_t piece_type,
-	const vector_t vector, const uint8_t color)
+	const type_mask_t type_mask, const piece_t piece_type,
+	const vector_t vector, const dir_t dir, const uint8_t color)
 {
+	const piecemask_t piecemask = ((piecemask_t)type_mask << (color & Piece_Black)) | dir;
 	register piece_t piece;
 	return !((square += vector) & Square_Invalid)
 		? (piece = get_square(board, square))
@@ -664,8 +661,8 @@ check_t check_vector_pawn(const board_t* board, register square_t square,
 	const vector_t vector, const dir_t dir, const uint8_t color)
 {
 	return check_vector(board, square,
-		(piecemask_t)(PieceMask_Queens | PieceMask_Bishops | PieceMask_Pawns | PieceMask_King) << (color & Piece_Black) | dir,
-		Piece_Bishop, vector, color);
+		TypeMask_Queen | TypeMask_Bishop | TypeMask_King | TypeMask_Pawn,
+		Piece_Bishop, vector, dir, color);
 }
 
 static inline
@@ -673,8 +670,8 @@ check_t check_vector_diag(const board_t* board, register square_t square,
 	const vector_t vector, const dir_t dir, const uint8_t color)
 {
 	return check_vector(board, square,
-		(piecemask_t)(PieceMask_Queens | PieceMask_Bishops | PieceMask_King) << (color & Piece_Black) | dir,
-		Piece_Bishop, vector, color);
+		TypeMask_Queen | TypeMask_Bishop | TypeMask_King,
+		Piece_Bishop, vector, dir, color);
 }
 
 static inline
@@ -682,8 +679,8 @@ check_t check_vector_ortho(const board_t* board, register square_t square,
 	const vector_t vector, const dir_t dir, const uint8_t color)
 {
 	return check_vector(board, square,
-		(piecemask_t)(PieceMask_Queens | PieceMask_Rooks | PieceMask_King) << (color & Piece_Black) | dir,
-		Piece_Rook, vector, color);
+		TypeMask_Queen | TypeMask_Rook | TypeMask_King,
+		Piece_Rook, vector, dir, color);
 }
 
 static inline
