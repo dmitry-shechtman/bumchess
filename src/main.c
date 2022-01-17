@@ -628,17 +628,6 @@ piece_t check_vector_slider(const board_t* board, register square_t square,
 }
 
 static inline
-piece_t check_vector_slider2(const uint64_t row, register square_t square,
-	const piece_t piece_type, const vector_t vector, const uint8_t color)
-{
-	register piece_t piece = 0;
-	while (!((square += vector) & Square_Invalid) && !(piece = get_square2(row, square)));
-	return (piece & (piece_type | color)) == (piece_type | color)
-		? piece & Piece_Index
-		: 0;
-}
-
-static inline
 piece_t check_vector(const board_t* board, register square_t square,
 	const type_mask_t type_mask, const piece_t piece_type, const vector_t vector, const uint8_t color)
 {
@@ -649,20 +638,6 @@ piece_t check_vector(const board_t* board, register square_t square,
 				? piece
 				: 0
 			: check_vector_slider(board, square, piece_type, vector, color)
-		: 0;
-}
-
-static inline
-piece_t check_vector2(const uint64_t row, register square_t square,
-	const type_mask_t type_mask, const piece_t piece_type, const vector_t vector, const uint8_t color)
-{
-	register piece_t piece;
-	return !((square += vector) & Square_Invalid)
-		? (piece = get_square2(row, square))
-			? (piece & color) && (type_mask & (1ull << (piece & Piece_Type4)))
-				? piece
-				: 0
-			: check_vector_slider2(row, square, piece_type, vector, color)
 		: 0;
 }
 
@@ -684,15 +659,6 @@ piece_t check_vector_diag(const board_t* board, register square_t square, const 
 static inline
 piece_t check_vector_ortho(const board_t* board, register square_t square, const vector_t vector, const uint8_t color) {
 	return check_vector(board, square,
-		get_mask(Piece_Queen | color) | get_mask(Piece_Rook | color) | get_mask(Piece_King | color),
-		Piece_Rook, vector, color);
-}
-
-static inline
-piece_t check_vector_ortho2(const uint64_t row, register square_t square,
-	const vector_t vector, const uint8_t color)
-{
-	return check_vector2(row, square,
 		get_mask(Piece_Queen | color) | get_mask(Piece_Rook | color) | get_mask(Piece_King | color),
 		Piece_Rook, vector, color);
 }
@@ -742,10 +708,9 @@ piece_t check_square_ss(const board_t* board, register square_t square, const ui
 
 static inline
 piece_t check_square_we(const board_t* board, register square_t square, const uint8_t color) {
-	uint64_t row = get_row(board, square);
 	piece_t piece;
-	return (piece = check_vector_ortho2(row, square, Vec_W, color))
-		|| (piece = check_vector_ortho2(row, square, Vec_E, color))
+	return (piece = check_vector_ortho(board, square, Vec_W, color))
+		|| (piece = check_vector_ortho(board, square, Vec_E, color))
 			? piece
 			: 0;
 }
