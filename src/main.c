@@ -166,8 +166,14 @@ enum Castling {
 };
 
 typedef enum Dir {
-	Dir_SW, Dir_SE, Dir_NW, Dir_NE,
-	Dir_S,  Dir_W,  Dir_E,  Dir_N
+	Dir_SW,
+	Dir_SE,
+	Dir_NW,
+	Dir_NE,
+	Dir_S,
+	Dir_W,
+	Dir_E,
+	Dir_N
 } dir_t;
 
 typedef uint8_t piece_t;
