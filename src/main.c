@@ -305,8 +305,8 @@ row_t get_row(const board_t* board, square_t square) {
 }
 
 static inline
-uint64_t get_row2(piece_t piece, square_t square) {
-	return (uint64_t)piece << ((square & Square_File) << Shift_File);
+row_t get_row2(piece_t piece, square_t square) {
+	return (row_t)piece << ((square & Square_File) << Shift_File);
 }
 
 static inline
