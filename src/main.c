@@ -164,11 +164,19 @@ enum Castling {
 	Castling_Count = 4
 };
 
+typedef enum Dir {
+	Dir_SW,  Dir_SE,  Dir_NW,  Dir_NE,
+	Dir_S,   Dir_W,   Dir_E,   Dir_N,
+	Dir_SSW, Dir_SSE, Dir_SWW, Dir_SEE,
+	Dir_NWW, Dir_NEE, Dir_NNW, Dir_NNE
+} dir_t;
+
 typedef uint8_t piece_t;
 typedef uint8_t square_t;
 typedef int8_t  vector_t;
 
 typedef uint64_t piecemask_t;
+typedef uint64_t check_t;
 
 typedef union {
 	uint16_t value;
@@ -591,13 +599,13 @@ move_t* gen_vector_leaper(move_t* moves, const board_t* board, register piece_sq
 }
 
 static inline
-piece_t check_vector_knight(const board_t* board, register square_t square,
-	const vector_t vector, const uint8_t color)
+check_t check_vector_knight(const board_t* board, register square_t square,
+	const vector_t vector, const dir_t dir, const uint8_t color)
 {
 	register piece_t piece;
 	return !((square += vector) & Square_Invalid)
 		&& ((piece = get_square(board, square)) & (Piece_Type | Piece_Color)) == (Piece_Knight | color)
-			? piece
+			? ((piecemask_t)PieceMask_Knights << (color & Piece_Black)) | dir
 			: 0;
 }
 
@@ -626,48 +634,55 @@ move_t* gen_vector_slider(move_t* moves, const board_t* board, register piece_sq
 }
 
 static inline
-piece_t check_vector_slider(const board_t* board, register square_t square,
-	const piece_t piece_type, const vector_t vector, const uint8_t color)
+check_t check_vector_slider(const board_t* board, register square_t square,
+	const piece_t piece_type, const vector_t vector, const piecemask_t piecemask, const uint8_t color)
 {
 	register piece_t piece = 0;
 	while (!((square += vector) & Square_Invalid) && !(piece = get_square(board, square)));
 	return (piece & (piece_type | color)) == (piece_type | color)
-		? piece & Piece_Index
+		? piecemask
 		: 0;
 }
 
 static inline
-piece_t check_vector(const board_t* board, register square_t square,
-	const piecemask_t piecemask, const piece_t piece_type, const vector_t vector, const uint8_t color)
+check_t check_vector(const board_t* board, register square_t square,
+	const piecemask_t piecemask, const piece_t piece_type,
+	const vector_t vector, const uint8_t color)
 {
 	register piece_t piece;
 	return !((square += vector) & Square_Invalid)
 		? (piece = get_square(board, square))
 			? (has_piece(piece, piecemask))
-				? piece
+				? piecemask
 				: 0
-			: check_vector_slider(board, square, piece_type, vector, color)
+			: check_vector_slider(board, square, piece_type, vector, piecemask, color)
 		: 0;
 }
 
 static inline
-piece_t check_vector_pawn(const board_t* board, register square_t square, const vector_t vector, const uint8_t color) {
+check_t check_vector_pawn(const board_t* board, register square_t square,
+	const vector_t vector, const dir_t dir, const uint8_t color)
+{
 	return check_vector(board, square,
-		(piecemask_t)(PieceMask_Queens | PieceMask_Bishops | PieceMask_Pawns | PieceMask_King) << (color & Piece_Black),
+		(piecemask_t)(PieceMask_Queens | PieceMask_Bishops | PieceMask_Pawns | PieceMask_King) << (color & Piece_Black) | dir,
 		Piece_Bishop, vector, color);
 }
 
 static inline
-piece_t check_vector_diag(const board_t* board, register square_t square, const vector_t vector, const uint8_t color) {
+check_t check_vector_diag(const board_t* board, register square_t square,
+	const vector_t vector, const dir_t dir, const uint8_t color)
+{
 	return check_vector(board, square,
-		(piecemask_t)(PieceMask_Queens | PieceMask_Bishops | PieceMask_King) << (color & Piece_Black),
+		(piecemask_t)(PieceMask_Queens | PieceMask_Bishops | PieceMask_King) << (color & Piece_Black) | dir,
 		Piece_Bishop, vector, color);
 }
 
 static inline
-piece_t check_vector_ortho(const board_t* board, register square_t square, const vector_t vector, const uint8_t color) {
+check_t check_vector_ortho(const board_t* board, register square_t square,
+	const vector_t vector, const dir_t dir, const uint8_t color)
+{
 	return check_vector(board, square,
-		(piecemask_t)(PieceMask_Queens | PieceMask_Rooks | PieceMask_King) << (color & Piece_Black),
+		(piecemask_t)(PieceMask_Queens | PieceMask_Rooks | PieceMask_King) << (color & Piece_Black) | dir,
 		Piece_Rook, vector, color);
 }
 
@@ -705,69 +720,69 @@ move_t* gen_ep_white(move_t* moves, from_to_t sec) {
 }
 
 static inline
-piece_t check_square_ss(const board_t* board, register square_t square, const uint8_t color) {
-	piece_t piece;
+check_t check_square_ss(const board_t* board, register square_t square, const uint8_t color) {
+	check_t check;
 	return (square & Square_Rank) > Square_Rank2
-		&&    ((piece = check_vector_knight(board, square, Vec_SSW, color))
-			|| (piece = check_vector_knight(board, square, Vec_SSE, color)))
-				? piece
+		&&    ((check = check_vector_knight(board, square, Vec_SSW, Dir_SSW, color))
+			|| (check = check_vector_knight(board, square, Vec_SSE, Dir_SSE, color)))
+				? check
 				: 0;
 }
 
 static inline
-piece_t check_square_we(const board_t* board, register square_t square, const uint8_t color) {
-	piece_t piece;
-	return (piece = check_vector_ortho(board, square, Vec_W, color))
-		|| (piece = check_vector_ortho(board, square, Vec_E, color))
-			? piece
+check_t check_square_we(const board_t* board, register square_t square, const uint8_t color) {
+	check_t check;
+	return (check = check_vector_ortho(board, square, Vec_W, Dir_W, color))
+		|| (check = check_vector_ortho(board, square, Vec_E, Dir_E, color))
+			? check
 			: 0;
 }
 
 static inline
-piece_t check_square_nn(const board_t* board, register square_t square, const uint8_t color) {
-	piece_t piece;
+check_t check_square_nn(const board_t* board, register square_t square, const uint8_t color) {
+	check_t check;
 	return (square & Square_Rank) < Square_Rank7
-		&&    ((piece = check_vector_knight(board, square, Vec_NNW, color))
-			|| (piece = check_vector_knight(board, square, Vec_NNE, color)))
-				? piece
+		&&    ((check = check_vector_knight(board, square, Vec_NNW, Dir_NNW, color))
+			|| (check = check_vector_knight(board, square, Vec_NNE, Dir_NNE, color)))
+				? check
 				: 0;
 }
 
 static inline
-piece_t check_square_white_s(const board_t* board, register square_t square) {
-	piece_t piece;
+check_t check_square_white_s(const board_t* board, register square_t square) {
+	check_t check;
 	return (square & Square_Rank)
-		&&    ((piece = check_vector_knight(board, square, Vec_SWW, Piece_White))
-			|| (piece = check_vector_pawn  (board, square, Vec_SW,  Piece_White))
-			|| (piece = check_vector_ortho (board, square, Vec_S,   Piece_White))
-			|| (piece = check_vector_pawn  (board, square, Vec_SE,  Piece_White))
-			|| (piece = check_vector_knight(board, square, Vec_SEE, Piece_White)))
-				? piece
+		&&    ((check = check_vector_knight(board, square, Vec_SWW, Dir_SWW, Piece_White))
+			|| (check = check_vector_pawn  (board, square, Vec_SW,  Dir_SW,  Piece_White))
+			|| (check = check_vector_ortho (board, square, Vec_S,   Dir_S,   Piece_White))
+			|| (check = check_vector_pawn  (board, square, Vec_SE,  Dir_SE,  Piece_White))
+			|| (check = check_vector_knight(board, square, Vec_SEE, Dir_SEE, Piece_White)))
+				? check
 				: 0;
 }
 
 static inline
-piece_t check_square_white_n(const board_t* board, register square_t square) {
-	piece_t piece;
+check_t check_square_white_n(const board_t* board, register square_t square) {
+	check_t check;
 	return (square & Square_Rank) != Square_Rank8
-		&&    ((piece = check_vector_knight(board, square, Vec_NWW, Piece_White))
-			|| (piece = check_vector_diag  (board, square, Vec_NW,  Piece_White))
-			|| (piece = check_vector_ortho (board, square, Vec_N,   Piece_White))
-			|| (piece = check_vector_diag  (board, square, Vec_NE,  Piece_White))
-			|| (piece = check_vector_knight(board, square, Vec_NEE, Piece_White)))
-				? piece
+		&&    ((check = check_vector_knight(board, square, Vec_NWW, Dir_NWW, Piece_White))
+			|| (check = check_vector_diag  (board, square, Vec_NW,  Dir_NW,  Piece_White))
+			|| (check = check_vector_ortho (board, square, Vec_N,   Dir_N,   Piece_White))
+			|| (check = check_vector_diag  (board, square, Vec_NE,  Dir_NE,  Piece_White))
+			|| (check = check_vector_knight(board, square, Vec_NEE, Dir_NEE, Piece_White)))
+				? check
 				: 0;
 }
 
 static inline
-piece_t check_square_white(const board_t* board, register square_t square) {
-	piece_t piece;
-	return (piece = check_square_ss(board, square, Piece_White))
-		|| (piece = check_square_white_s(board, square))
-		|| (piece = check_square_we(board, square, Piece_White))
-		|| (piece = check_square_white_n(board, square))
-		|| (piece = check_square_nn(board, square, Piece_White))
-			? piece
+check_t check_square_white(const board_t* board, register square_t square) {
+	check_t check;
+	return (check = check_square_ss(board, square, Piece_White))
+		|| (check = check_square_white_s(board, square))
+		|| (check = check_square_we(board, square, Piece_White))
+		|| (check = check_square_white_n(board, square))
+		|| (check = check_square_nn(board, square, Piece_White))
+			? check
 			: 0;
 }
 
@@ -784,36 +799,40 @@ move_t* gen_ep_black(move_t* moves, from_to_t sec) {
 }
 
 static inline
-piece_t check_square_black_s(const board_t* board, register square_t square) {
-	piece_t piece;
+check_t check_square_black_s(const board_t* board, register square_t square) {
+	check_t check;
 	return (square & Square_Rank)
-		&&    ((piece = check_vector_knight(board, square, Vec_SWW, Piece_Black))
-			|| (piece = check_vector_diag  (board, square, Vec_SW,  Piece_Black))
-			|| (piece = check_vector_ortho (board, square, Vec_S,   Piece_Black))
-			|| (piece = check_vector_diag  (board, square, Vec_SE,  Piece_Black))
-			|| (piece = check_vector_knight(board, square, Vec_SEE, Piece_Black)));
+		&&    ((check = check_vector_knight(board, square, Vec_SWW, Dir_SWW, Piece_Black))
+			|| (check = check_vector_diag  (board, square, Vec_SW,  Dir_SW,  Piece_Black))
+			|| (check = check_vector_ortho (board, square, Vec_S,   Dir_S,   Piece_Black))
+			|| (check = check_vector_diag  (board, square, Vec_SE,  Dir_SE,  Piece_Black))
+			|| (check = check_vector_knight(board, square, Vec_SEE, Dir_SEE, Piece_Black)))
+				? check
+				: 0;
 }
 
 static inline
-piece_t check_square_black_n(const board_t* board, register square_t square) {
-	piece_t piece;
+check_t check_square_black_n(const board_t* board, register square_t square) {
+	check_t check;
 	return (square & Square_Rank) != Square_Rank8
-		&&    ((piece = check_vector_knight(board, square, Vec_NWW, Piece_Black))
-			|| (piece = check_vector_pawn  (board, square, Vec_NW,  Piece_Black))
-			|| (piece = check_vector_ortho (board, square, Vec_N,   Piece_Black))
-			|| (piece = check_vector_pawn  (board, square, Vec_NE,  Piece_Black))
-			|| (piece = check_vector_knight(board, square, Vec_NEE, Piece_Black)));
+		&&    ((check = check_vector_knight(board, square, Vec_NWW, Dir_NWW, Piece_Black))
+			|| (check = check_vector_pawn  (board, square, Vec_NW,  Dir_NW,  Piece_Black))
+			|| (check = check_vector_ortho (board, square, Vec_N,   Dir_N,   Piece_Black))
+			|| (check = check_vector_pawn  (board, square, Vec_NE,  Dir_NE,  Piece_Black))
+			|| (check = check_vector_knight(board, square, Vec_NEE, Dir_NEE, Piece_Black)))
+				? check
+				: 0;
 }
 
 static inline
-piece_t check_square_black(const board_t* board, register square_t square) {
-	piece_t piece;
-	return (piece = check_square_ss(board, square, Piece_Black))
-		|| (piece = check_square_black_s(board, square))
-		|| (piece = check_square_we(board, square, Piece_Black))
-		|| (piece = check_square_black_n(board, square))
-		|| (piece = check_square_nn(board, square, Piece_Black))
-			? piece
+check_t check_square_black(const board_t* board, register square_t square) {
+	check_t check;
+	return (check = check_square_ss(board, square, Piece_Black))
+		|| (check = check_square_black_s(board, square))
+		|| (check = check_square_we(board, square, Piece_Black))
+		|| (check = check_square_black_n(board, square))
+		|| (check = check_square_nn(board, square, Piece_Black))
+			? check
 			: 0;
 }
 
@@ -985,13 +1004,13 @@ move_t* gen_black(move_t* moves, const board_t* board, register const uint64_t p
 }
 
 static inline
-piece_t check_white(const board_t* board) {
+check_t check_white(const board_t* board) {
 	bank_t bank = board->banks[Type_King + Type_Count];
 	return check_square_white(board, get_piece(bank, 0).square);
 }
 
 static inline
-piece_t check_black(const board_t* board) {
+check_t check_black(const board_t* board) {
 	bank_t bank = board->banks[Type_King];
 	return check_square_black(board, get_piece(bank, 0).square);
 }
@@ -1004,7 +1023,7 @@ move_t* gen(move_t* moves, const board_t* board, register const uint64_t piecema
 }
 
 static inline
-piece_t check(const board_t* board) {
+check_t check(const board_t* board) {
 	return board->color == Piece_White
 		? check_white(board)
 		: check_black(board);
