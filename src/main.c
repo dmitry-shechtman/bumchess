@@ -634,7 +634,7 @@ piece_t check_vector(const board_t* board, register square_t square,
 	register piece_t piece;
 	return !((square += vector) & Square_Invalid)
 		? (piece = get_square(board, square))
-			? (piece & color) && (type_mask & (1ull << (piece & Piece_Type4)))
+			? (type_mask & (1ull << (piece & Piece_Type4)))
 				? piece
 				: 0
 			: check_vector_slider(board, square, piece_type, vector, color)
