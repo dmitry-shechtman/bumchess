@@ -259,15 +259,16 @@ square_t color_kings[Count_Colors] = {
 	Square_FileE | Square_Rank8
 };
 
-typedef uint8_t depth_t;
-typedef uint8_t pcount_t;
+typedef uint8_t  depth_t;
+typedef uint8_t  pcount_t;
+typedef uint64_t ncount_t;
 
 typedef struct {
 	const char* fen;
 	depth_t  min;
 	depth_t  max;
 	depth_t  div;
-	uint64_t result;
+	ncount_t result;
 	pcount_t pcount;
 } params_t;
 
@@ -277,7 +278,7 @@ typedef struct {
 	board_t     board;
 	piecemask_t piecemask;
 	move_t    moves[Max_Moves];
-	uint64_t  count;
+	ncount_t  count;
 	mcount_t  mcount;
 	depth_t   depth;
 	pthread_t thread;
@@ -1066,10 +1067,10 @@ void move_unmake(board_t* board, register move_t move, piecemask_t* piecemask) {
 	set(board, move.sec.from, piecemask);
 }
 
-uint64_t perft_opt(move_t* moves, board_t* board, register piecemask_t piecemask, from_to_t sec, register depth_t depth);
+ncount_t perft_opt(move_t* moves, board_t* board, register piecemask_t piecemask, from_to_t sec, register depth_t depth);
 
-uint64_t perft_one(move_t* moves, board_t* board, piecemask_t piecemask, depth_t depth, mcount_t mcount) {
-	uint64_t count = 0;
+ncount_t perft_one(move_t* moves, board_t* board, piecemask_t piecemask, depth_t depth, mcount_t mcount) {
+	ncount_t count = 0;
 	for (mcount_t i = 0; i < mcount; ++i) {
 		move_make(board, moves[i], &piecemask);
 #if !NDEBUG
@@ -1085,7 +1086,7 @@ uint64_t perft_one(move_t* moves, board_t* board, piecemask_t piecemask, depth_t
 	return count;
 }
 
-uint64_t perft_opt(move_t* moves, board_t* board, register piecemask_t piecemask, from_to_t sec, register depth_t depth) {
+ncount_t perft_opt(move_t* moves, board_t* board, register piecemask_t piecemask, from_to_t sec, register depth_t depth) {
 	mcount_t mcount = (mcount_t)(gen(moves, board, piecemask, sec) - moves);
 	return perft_one(moves, board, piecemask, depth - 1, mcount);
 }
@@ -1126,8 +1127,8 @@ bool perft_run(move_t* moves, mcount_t mcount, board_t* board, piecemask_t piece
 	return true;
 }
 
-uint64_t perft_count(pstate_t* states, pcount_t pcount) {
-	uint64_t result = 0;
+ncount_t perft_count(pstate_t* states, pcount_t pcount) {
+	ncount_t result = 0;
 	for (pcount_t i = 0; i < pcount; ++i) {
 		if (pthread_join(states[i].thread, 0)) {
 			return 0;
@@ -1137,10 +1138,10 @@ uint64_t perft_count(pstate_t* states, pcount_t pcount) {
 	return result;
 }
 
-uint64_t perft_dyn(move_t* moves, board_t* board, piecemask_t piecemask, from_to_t sec, depth_t depth, pcount_t pcount) {
+ncount_t perft_dyn(move_t* moves, board_t* board, piecemask_t piecemask, from_to_t sec, depth_t depth, pcount_t pcount) {
 	mcount_t mcount = perft_init(moves, board, piecemask, sec, &pcount);
 	pstate_t* states;
-	uint64_t result = 0;
+	ncount_t result = 0;
 	if ((states = malloc(pcount * sizeof(pstate_t)))) {
 		if (perft_run(moves, mcount, board, piecemask, depth, states, pcount)) {
 			result = perft_count(states, pcount);
@@ -1150,26 +1151,26 @@ uint64_t perft_dyn(move_t* moves, board_t* board, piecemask_t piecemask, from_to
 	return result;
 }
 
-uint64_t perft_do(move_t* moves, board_t* board, piecemask_t piecemask, from_to_t sec, depth_t depth, pcount_t pcount) {
+ncount_t perft_do(move_t* moves, board_t* board, piecemask_t piecemask, from_to_t sec, depth_t depth, pcount_t pcount) {
 	return pcount <= 1
 		? perft_opt(moves, board, piecemask, sec, depth)
 		: perft_dyn(moves, board, piecemask, sec, depth, pcount);
 }
 
-uint64_t perft(move_t* moves, board_t* board, piecemask_t piecemask, from_to_t sec, depth_t depth, depth_t div, char* buffer, char* str, pcount_t pcount);
+ncount_t perft(move_t* moves, board_t* board, piecemask_t piecemask, from_to_t sec, depth_t depth, depth_t div, char* buffer, char* str, pcount_t pcount);
 char* move_write(char* str, move_t move);
 
-uint64_t perft_divide(move_t* moves, board_t* board, piecemask_t piecemask, move_t move, depth_t depth, depth_t div, char* buffer, char* str, pcount_t pcount) {
+ncount_t perft_divide(move_t* moves, board_t* board, piecemask_t piecemask, move_t move, depth_t depth, depth_t div, char* buffer, char* str, pcount_t pcount) {
 	str = move_write(str, move);
 	*str++ = ' ';
-	uint64_t count = perft(moves, board, piecemask, move.sec, depth, div, buffer, str, pcount);
+	ncount_t count = perft(moves, board, piecemask, move.sec, depth, div, buffer, str, pcount);
 	*str = 0;
 	printf("%s%11" PRIu64 "\n", buffer, count);
 	return count;
 }
 
-uint64_t perft(move_t* moves, board_t* board, piecemask_t piecemask, from_to_t sec, depth_t depth, depth_t div, char* buffer, char* str, pcount_t pcount) {
-	uint64_t count = 0;
+ncount_t perft(move_t* moves, board_t* board, piecemask_t piecemask, from_to_t sec, depth_t depth, depth_t div, char* buffer, char* str, pcount_t pcount) {
+	ncount_t count = 0;
 	if (!depth)
 		return 1;
 	if (!div)
@@ -1713,7 +1714,7 @@ int main(int argc, const char* argv[]) {
 
 	board_t board;
 	params_t params;
-	uint64_t count = 0;
+	ncount_t count = 0;
 
 	if (!args_read(argc, argv, &params)) {
 		printf("Usage: perft [<fen>] [<depth> [<result>]] [-d<divide>] [-p<threads>] [-l]\n");
