@@ -176,8 +176,7 @@ typedef uint8_t square_t;
 typedef int8_t  vector_t;
 
 typedef uint32_t type_mask_t;
-typedef uint64_t piecemask_t;
-typedef uint64_t check_t;
+typedef uint16_t check_t;
 
 typedef union {
 	uint16_t value;
@@ -596,12 +595,12 @@ move_t* gen_vector_leaper(move_t* moves, const board_t* board, register piece_sq
 
 static inline
 check_t check_vector_knight(const board_t* board, register square_t square,
-	const vector_t vector, const dir_t dir, const uint8_t color)
+	const vector_t vector, const uint8_t color)
 {
 	register piece_t piece;
 	return !((square += vector) & Square_Invalid)
 		&& ((piece = get_square(board, square)) & (Piece_Type | Piece_Color)) == (Piece_Knight | color)
-			? ((piecemask_t)TypeMask_Knight << (color & Piece_Black)) | dir
+			? piece | (square << Shift_Square)
 			: 0;
 }
 
@@ -631,12 +630,12 @@ move_t* gen_vector_slider(move_t* moves, const board_t* board, register piece_sq
 
 static inline
 check_t check_vector_slider(const board_t* board, register square_t square,
-	const piece_t piece_type, const vector_t vector, const piecemask_t piecemask, const uint8_t color)
+	const piece_t piece_type, const vector_t vector, const dir_t dir, const uint8_t color)
 {
 	register piece_t piece = 0;
 	while (!((square += vector) & Square_Invalid) && !(piece = get_square(board, square)));
 	return (piece & (piece_type | color)) == (piece_type | color)
-		? piecemask
+		? dir | (piece_type | color) | (square << Shift_Square)
 		: 0;
 }
 
@@ -645,14 +644,13 @@ check_t check_vector(const board_t* board, register square_t square,
 	const type_mask_t type_mask, const piece_t piece_type,
 	const vector_t vector, const dir_t dir, const uint8_t color)
 {
-	const piecemask_t piecemask = ((piecemask_t)type_mask << (color & Piece_Black)) | dir;
 	register piece_t piece;
 	return !((square += vector) & Square_Invalid)
 		? (piece = get_square(board, square))
-			? (has_piece(piece, piecemask))
-				? piecemask
+			? (has_piece(piece, (uint64_t)type_mask << (color & Piece_Black)))
+				? piece | (square << Shift_Square)
 				: 0
-			: check_vector_slider(board, square, piece_type, vector, piecemask, color)
+			: check_vector_slider(board, square, piece_type, vector, dir, color)
 		: 0;
 }
 
@@ -720,8 +718,8 @@ static inline
 check_t check_square_ss(const board_t* board, register square_t square, const uint8_t color) {
 	check_t check;
 	return (square & Square_Rank) > Square_Rank2
-		&&    ((check = check_vector_knight(board, square, Vec_SSW, Dir_SSW, color))
-			|| (check = check_vector_knight(board, square, Vec_SSE, Dir_SSE, color)))
+		&&    ((check = check_vector_knight(board, square, Vec_SSW, color))
+			|| (check = check_vector_knight(board, square, Vec_SSE, color)))
 				? check
 				: 0;
 }
@@ -739,8 +737,8 @@ static inline
 check_t check_square_nn(const board_t* board, register square_t square, const uint8_t color) {
 	check_t check;
 	return (square & Square_Rank) < Square_Rank7
-		&&    ((check = check_vector_knight(board, square, Vec_NNW, Dir_NNW, color))
-			|| (check = check_vector_knight(board, square, Vec_NNE, Dir_NNE, color)))
+		&&    ((check = check_vector_knight(board, square, Vec_NNW, color))
+			|| (check = check_vector_knight(board, square, Vec_NNE, color)))
 				? check
 				: 0;
 }
@@ -749,11 +747,11 @@ static inline
 check_t check_square_white_s(const board_t* board, register square_t square) {
 	check_t check;
 	return (square & Square_Rank)
-		&&    ((check = check_vector_knight(board, square, Vec_SWW, Dir_SWW, Piece_White))
+		&&    ((check = check_vector_knight(board, square, Vec_SWW, Piece_White))
 			|| (check = check_vector_pawn  (board, square, Vec_SW,  Dir_SW,  Piece_White))
 			|| (check = check_vector_ortho (board, square, Vec_S,   Dir_S,   Piece_White))
 			|| (check = check_vector_pawn  (board, square, Vec_SE,  Dir_SE,  Piece_White))
-			|| (check = check_vector_knight(board, square, Vec_SEE, Dir_SEE, Piece_White)))
+			|| (check = check_vector_knight(board, square, Vec_SEE, Piece_White)))
 				? check
 				: 0;
 }
@@ -762,11 +760,11 @@ static inline
 check_t check_square_white_n(const board_t* board, register square_t square) {
 	check_t check;
 	return (square & Square_Rank) != Square_Rank8
-		&&    ((check = check_vector_knight(board, square, Vec_NWW, Dir_NWW, Piece_White))
+		&&    ((check = check_vector_knight(board, square, Vec_NWW, Piece_White))
 			|| (check = check_vector_diag  (board, square, Vec_NW,  Dir_NW,  Piece_White))
 			|| (check = check_vector_ortho (board, square, Vec_N,   Dir_N,   Piece_White))
 			|| (check = check_vector_diag  (board, square, Vec_NE,  Dir_NE,  Piece_White))
-			|| (check = check_vector_knight(board, square, Vec_NEE, Dir_NEE, Piece_White)))
+			|| (check = check_vector_knight(board, square, Vec_NEE, Piece_White)))
 				? check
 				: 0;
 }
@@ -799,11 +797,11 @@ static inline
 check_t check_square_black_s(const board_t* board, register square_t square) {
 	check_t check;
 	return (square & Square_Rank)
-		&&    ((check = check_vector_knight(board, square, Vec_SWW, Dir_SWW, Piece_Black))
+		&&    ((check = check_vector_knight(board, square, Vec_SWW, Piece_Black))
 			|| (check = check_vector_diag  (board, square, Vec_SW,  Dir_SW,  Piece_Black))
 			|| (check = check_vector_ortho (board, square, Vec_S,   Dir_S,   Piece_Black))
 			|| (check = check_vector_diag  (board, square, Vec_SE,  Dir_SE,  Piece_Black))
-			|| (check = check_vector_knight(board, square, Vec_SEE, Dir_SEE, Piece_Black)))
+			|| (check = check_vector_knight(board, square, Vec_SEE, Piece_Black)))
 				? check
 				: 0;
 }
@@ -812,11 +810,11 @@ static inline
 check_t check_square_black_n(const board_t* board, register square_t square) {
 	check_t check;
 	return (square & Square_Rank) != Square_Rank8
-		&&    ((check = check_vector_knight(board, square, Vec_NWW, Dir_NWW, Piece_Black))
+		&&    ((check = check_vector_knight(board, square, Vec_NWW, Piece_Black))
 			|| (check = check_vector_pawn  (board, square, Vec_NW,  Dir_NW,  Piece_Black))
 			|| (check = check_vector_ortho (board, square, Vec_N,   Dir_N,   Piece_Black))
 			|| (check = check_vector_pawn  (board, square, Vec_NE,  Dir_NE,  Piece_Black))
-			|| (check = check_vector_knight(board, square, Vec_NEE, Dir_NEE, Piece_Black)))
+			|| (check = check_vector_knight(board, square, Vec_NEE, Piece_Black)))
 				? check
 				: 0;
 }
