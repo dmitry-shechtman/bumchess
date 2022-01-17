@@ -1536,7 +1536,7 @@ bool set_pieces_ep_unmoved(board_t* board, uint64_t* piecemask, move_t* move) {
 	return true;
 }
 
-uint64_t set_pieces_ep_moved(board_t* board, uint64_t* piecemask, move_t* move) {
+bool set_pieces_ep_moved(board_t* board, uint64_t* piecemask, move_t* move) {
 	if (has_ep(*move)) {
 		move->prim.to.piece = get_square(board, move->prim.to.square) | Piece_Moved;
 		clear_square(board, move->prim.to);
