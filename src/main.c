@@ -781,7 +781,6 @@ bool check_queens(square_t dest) {
 
 bool check_to(square_t dest) {
 	return check_pawns(dest)
-		|| check_kings(dest)
 		|| check_knights(dest)
 		|| check_bishops(dest)
 		|| check_rooks(dest)
@@ -1270,7 +1269,9 @@ bool validate_kings() {
 }
 
 bool validate_check() {
-	if (check()) {
+	piece_t piece = (Piece_King | (color ^ Piece_Color)) & Piece_Index;
+	square_t dest = get_piece(piece).square;
+	if (check_to(dest) || check_kings(dest)) {
 		fprintf(stderr, "Illegal position.\n");
 		return false;
 	}
