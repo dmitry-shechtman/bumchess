@@ -443,10 +443,6 @@ move_t* gen_king(move_t* moves, piece_square_t from) {
 	return gen_leaper(moves, from, 0, 8);
 }
 
-bool check_king(square_t square) {
-	return check_leaper(square, Type_King, 0, 8);
-}
-
 move_t* gen_knight(move_t* moves, piece_square_t from) {
 	return gen_leaper(moves, from, 8, 16);
 }
@@ -496,7 +492,6 @@ move_t* gen_piece(move_t* moves, piece_square_t from) {
 bool check_to(square_t square) {
 	return check_pawn(square)
 		|| check_knight(square)
-		|| check_king(square)
 		|| check_bishop(square)
 		|| check_rook(square);
 }
