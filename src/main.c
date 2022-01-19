@@ -975,15 +975,21 @@ move_t* gen_pieces(move_t* moves, const board_t* board, const bank_t* banks,
 }
 
 static inline
-move_t* gen_white(move_t* moves, const board_t* board, register const piecemask_t piecemask, from_to_t sec) {
-	const bank_t* banks = board->banks;
+move_t* gen_white_pieces(move_t* moves, const board_t* board, register const piecemask_t piecemask) {
+	const bank_t* banks = &board->banks[Type_King];
 	type_mask_t mask = piecemask & 0xFFFFFF00;
 	promo_mask_t pmask = mask >> Shift_PromoMask;
 	piece_t piece = find_next(&mask);
-	moves = gen_kings(moves, board, *++banks, Piece_White);
 	moves = gen_pawns_white(moves, board, *++banks, Piece_Pawn0, &mask, pmask, &piece);
 	moves = gen_pawns_white(moves, board, *++banks, Piece_Pawn1, &mask, pmask, &piece);
-	moves = gen_pieces(moves, board, banks, mask, piece, Piece_White);
+	return gen_pieces(moves, board, banks, mask, piece, Piece_White);
+}
+
+static inline
+move_t* gen_white(move_t* moves, const board_t* board, register const piecemask_t piecemask, from_to_t sec) {
+	bank_t kings = board->banks[Type_King];
+	moves = gen_kings(moves, board, kings, Piece_White);
+	moves = gen_white_pieces(moves, board, piecemask);
 	moves = gen_ep_white(moves, sec);
 #if !NDEBUG
 	*moves++ = nullmove;
@@ -992,15 +998,21 @@ move_t* gen_white(move_t* moves, const board_t* board, register const piecemask_
 }
 
 static inline
-move_t* gen_black(move_t* moves, const board_t* board, register const piecemask_t piecemask, from_to_t sec) {
-	const bank_t* banks = board->banks + Type_Count;
+move_t* gen_black_pieces(move_t* moves, const board_t* board, register const piecemask_t piecemask) {
+	const bank_t* banks = &board->banks[Type_King + Type_Count];
 	type_mask_t mask = (piecemask >> Piece_Black) & 0xFFFFFF00;
 	promo_mask_t pmask = mask >> Shift_PromoMask;
 	piece_t piece = find_next(&mask);
-	moves = gen_kings(moves, board, *++banks, Piece_Black);
 	moves = gen_pawns_black(moves, board, *++banks, Piece_Pawn0, &mask, pmask, &piece);
 	moves = gen_pawns_black(moves, board, *++banks, Piece_Pawn1, &mask, pmask, &piece);
-	moves = gen_pieces(moves, board, banks, mask, piece, Piece_Black);
+	return gen_pieces(moves, board, banks, mask, piece, Piece_Black);
+}
+
+static inline
+move_t* gen_black(move_t* moves, const board_t* board, register const piecemask_t piecemask, from_to_t sec) {
+	bank_t kings = board->banks[Type_King + Type_Count];
+	moves = gen_kings(moves, board, kings, Piece_Black);
+	moves = gen_black_pieces(moves, board, piecemask);
 	moves = gen_ep_black(moves, sec);
 #if !NDEBUG
 	*moves++ = nullmove;
