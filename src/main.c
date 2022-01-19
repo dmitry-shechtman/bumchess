@@ -377,8 +377,8 @@ piece_square_t find_index_to(register piece_square_t ps, register const piecemas
 }
 
 static inline
-piece_square_t find_index_to16(register piece_square_t ps, register const promo_mask_t piecemask) {
-	for (promo_mask_t mask = piecemask >> (ps.value & Piece_Index4);
+piece_square_t find_index_to16(register piece_square_t ps, register const promo_mask_t pmask) {
+	for (promo_mask_t mask = pmask >> (ps.value & Piece_Index4);
 		mask & 1;
 		++ps.value, mask >>= 1);
 	return ps;
@@ -450,23 +450,23 @@ piece_square_t find_index_moved(piece_square_t ps, const piecemask_t piecemask) 
 
 static inline
 move_t* gen_promo(move_t* moves, register move_t move, register piece_square_t to,
-	register const promo_mask_t piecemask, const piece_t piece, const uint8_t color)
+	register const promo_mask_t pmask, const piece_t piece, const uint8_t color)
 {
 	to.piece = piece | color;
-	move.prim.to = find_index_to16(to, piecemask);
+	move.prim.to = find_index_to16(to, pmask);
 	*moves++ = move;
 	return moves;
 }
 
 static inline
 move_t* gen_promo_pawn(move_t* moves, move_t move, piece_square_t to,
-	register const promo_mask_t piecemask, const uint8_t promo, const uint8_t color)
+	register const promo_mask_t pmask, const uint8_t promo, const uint8_t color)
 {
 	if ((to.square & Square_Rank) == promo) {
-		moves = gen_promo(moves, move, to, piecemask, Piece_Knight, color);
-		moves = gen_promo(moves, move, to, piecemask, Piece_Bishop, color);
-		moves = gen_promo(moves, move, to, piecemask, Piece_Rook,   color);
-		moves = gen_promo(moves, move, to, piecemask, Piece_Queen,  color);
+		moves = gen_promo(moves, move, to, pmask, Piece_Knight, color);
+		moves = gen_promo(moves, move, to, pmask, Piece_Bishop, color);
+		moves = gen_promo(moves, move, to, pmask, Piece_Rook,   color);
+		moves = gen_promo(moves, move, to, pmask, Piece_Queen,  color);
 		return moves;
 	}
 	*moves++ = move;
@@ -500,7 +500,7 @@ move_t* gen_push2_pawn(move_t* moves, const board_t* board, register const move_
 }
 
 static inline
-move_t* gen_push_pawn(move_t* moves, const board_t* board, register piece_square_t from, register const promo_mask_t piecemask,
+move_t* gen_push_pawn(move_t* moves, const board_t* board, register piece_square_t from, register const promo_mask_t pmask,
 	const vector_t vector, const uint8_t promo, const uint8_t color, const uint8_t color2)
 {
 	register piece_square_t to = from;
@@ -516,7 +516,7 @@ move_t* gen_push_pawn(move_t* moves, const board_t* board, register piece_square
 				.to = { PieceSquare_Invalid }
 			}
 		};
-		moves = gen_promo_pawn(moves, move, to, piecemask, promo, color);
+		moves = gen_promo_pawn(moves, move, to, pmask, promo, color);
 		if (!(from.piece & Piece_Moved)) {
 			move.prim.to.square += vector;
 			moves = gen_push2_pawn(moves, board, move, color2);
@@ -526,7 +526,7 @@ move_t* gen_push_pawn(move_t* moves, const board_t* board, register piece_square
 }
 
 static inline
-move_t* gen_vector_pawn(move_t* moves, const board_t* board, register piece_square_t from, register const promo_mask_t piecemask,
+move_t* gen_vector_pawn(move_t* moves, const board_t* board, register piece_square_t from, register const promo_mask_t pmask,
 	const vector_t vector, const uint8_t promo, const uint8_t color, const uint8_t color2)
 {
 	register piece_square_t to = from;
@@ -543,7 +543,7 @@ move_t* gen_vector_pawn(move_t* moves, const board_t* board, register piece_squa
 					.to = { PieceSquare_Invalid }
 				}
 			};
-			moves = gen_promo_pawn(moves, move, to, piecemask, promo, color);
+			moves = gen_promo_pawn(moves, move, to, pmask, promo, color);
 	}
 	return moves;
 }
@@ -690,12 +690,12 @@ check_t check_vector_ortho(const board_t* board, register square_t square,
 }
 
 static inline
-move_t* gen_pawn(move_t* moves, const board_t* board, register piece_square_t from, register const promo_mask_t piecemask,
+move_t* gen_pawn(move_t* moves, const board_t* board, register piece_square_t from, register const promo_mask_t pmask,
 	const vector_t vector, const uint8_t promo, const uint8_t color, const uint8_t color2)
 {
-	moves = gen_vector_pawn(moves, board, from, piecemask, vector + Vec_W, promo, color, color2);
-	moves = gen_vector_pawn(moves, board, from, piecemask, vector + Vec_E, promo, color, color2);
-	return gen_push_pawn(moves, board, from, piecemask, vector, promo, color, color2);
+	moves = gen_vector_pawn(moves, board, from, pmask, vector + Vec_W, promo, color, color2);
+	moves = gen_vector_pawn(moves, board, from, pmask, vector + Vec_E, promo, color, color2);
+	return gen_push_pawn(moves, board, from, pmask, vector, promo, color, color2);
 }
 
 static inline
@@ -712,9 +712,9 @@ move_t* gen_ep(move_t* moves, from_to_t sec,
 
 static inline
 move_t* gen_pawn_white(move_t* moves, const board_t* board,
-	register piece_square_t from, register const promo_mask_t piecemask)
+	register piece_square_t from, register const promo_mask_t pmask)
 {
-	return gen_pawn(moves, board, from, piecemask, Vec_N, Square_Rank8, Piece_White, Piece_Black);
+	return gen_pawn(moves, board, from, pmask, Vec_N, Square_Rank8, Piece_White, Piece_Black);
 }
 
 static inline
@@ -791,9 +791,9 @@ check_t check_square_white(const board_t* board, register square_t square) {
 
 static inline
 move_t* gen_pawn_black(move_t* moves, const board_t* board,
-	register piece_square_t from, register const promo_mask_t piecemask)
+	register piece_square_t from, register const promo_mask_t pmask)
 {
-	return gen_pawn(moves, board, from, piecemask, Vec_S, Square_Rank1, Piece_Black, Piece_White);
+	return gen_pawn(moves, board, from, pmask, Vec_S, Square_Rank1, Piece_Black, Piece_White);
 }
 
 static inline
@@ -905,20 +905,20 @@ move_t* gen_kings(move_t* moves, const board_t* board, bank_t bank,
 
 static inline
 move_t* gen_pawns_white(move_t* moves, const board_t* board, bank_t bank, const uint8_t type,
-	type_mask_t* mask, promo_mask_t piecemask, piece_t* piece)
+	type_mask_t* mask, promo_mask_t pmask, piece_t* piece)
 {
 	for (; *piece < type + Max_Pawns0; *piece = find_next(mask)) {
-		moves = gen_pawn_white(moves, board, get_piece(bank, *piece), piecemask);
+		moves = gen_pawn_white(moves, board, get_piece(bank, *piece), pmask);
 	}
 	return moves;
 }
 
 static inline
 move_t* gen_pawns_black(move_t* moves, const board_t* board, bank_t bank, const uint8_t type,
-	type_mask_t* mask, promo_mask_t piecemask, piece_t* piece)
+	type_mask_t* mask, promo_mask_t pmask, piece_t* piece)
 {
 	for (; *piece < type + Max_Pawns0; *piece = find_next(mask)) {
-		moves = gen_pawn_black(moves, board, get_piece(bank, *piece), piecemask);
+		moves = gen_pawn_black(moves, board, get_piece(bank, *piece), pmask);
 	}
 	return moves;
 }
@@ -978,10 +978,11 @@ static inline
 move_t* gen_white(move_t* moves, const board_t* board, register const piecemask_t piecemask, from_to_t sec) {
 	const bank_t* banks = board->banks;
 	type_mask_t mask = piecemask & 0xFFFFFF00;
+	promo_mask_t pmask = mask >> Shift_PromoMask;
 	piece_t piece = find_next(&mask);
 	moves = gen_kings(moves, board, *++banks, Piece_White);
-	moves = gen_pawns_white(moves, board, *++banks, Piece_Pawn0, &mask, mask >> Shift_PromoMask, &piece);
-	moves = gen_pawns_white(moves, board, *++banks, Piece_Pawn1, &mask, mask >> Shift_PromoMask, &piece);
+	moves = gen_pawns_white(moves, board, *++banks, Piece_Pawn0, &mask, pmask, &piece);
+	moves = gen_pawns_white(moves, board, *++banks, Piece_Pawn1, &mask, pmask, &piece);
 	moves = gen_pieces(moves, board, banks, mask, piece, Piece_White);
 	moves = gen_ep_white(moves, sec);
 #if !NDEBUG
@@ -994,10 +995,11 @@ static inline
 move_t* gen_black(move_t* moves, const board_t* board, register const piecemask_t piecemask, from_to_t sec) {
 	const bank_t* banks = board->banks + Type_Count;
 	type_mask_t mask = (piecemask >> Piece_Black) & 0xFFFFFF00;
+	promo_mask_t pmask = mask >> Shift_PromoMask;
 	piece_t piece = find_next(&mask);
 	moves = gen_kings(moves, board, *++banks, Piece_Black);
-	moves = gen_pawns_black(moves, board, *++banks, Piece_Pawn0, &mask, mask >> Shift_PromoMask, &piece);
-	moves = gen_pawns_black(moves, board, *++banks, Piece_Pawn1, &mask, mask >> Shift_PromoMask, &piece);
+	moves = gen_pawns_black(moves, board, *++banks, Piece_Pawn0, &mask, pmask, &piece);
+	moves = gen_pawns_black(moves, board, *++banks, Piece_Pawn1, &mask, pmask, &piece);
 	moves = gen_pieces(moves, board, banks, mask, piece, Piece_Black);
 	moves = gen_ep_black(moves, sec);
 #if !NDEBUG
