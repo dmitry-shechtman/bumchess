@@ -477,17 +477,17 @@ move_t* gen_promo_pawn(move_t* moves, move_t move, piece_square_t to,
 }
 
 static inline
-move_t* gen_push2_pawn(move_t* moves, const board_t* board, register const move_t move,
+move_t* gen_push2_pawn(move_t* moves, row_t row, register const move_t move,
 	const uint8_t color2)
 {
 	register piece_square_t to = move.prim.to;
-	register piece_t left = !((to.square - 1) & Square_FileInvalid)
-		? get_square(board, to.square - 1)
+	piece_t left = !((to.square - 1) & Square_FileInvalid)
+		? get_square2(row, to.square - 1)
 		: 0;
-	register piece_t right = !((to.square + 1) & Square_FileInvalid)
-		? get_square(board, to.square + 1)
+	piece_t right = !((to.square + 1) & Square_FileInvalid)
+		? get_square2(row, to.square + 1)
 		: 0;
-	if (!get_square(board, to.square)) {
+	if (!get_square2(row, to.square)) {
 		register move_t move2 = {
 			.prim = move.prim,
 			.sec = {
@@ -934,6 +934,7 @@ move_t* gen_pawns_push2(move_t* moves, const board_t* board,
 	push2_mask_t umask, const square_t rank, const square_t rank2,
 	const vector_t vector, const uint8_t color, const uint8_t color2)
 {
+	row_t row = get_row(board, rank2);
 	for (piece_t piece = find_next(&umask); umask; piece = find_next(&umask)) {
 		piece_square_t from = {
 			.piece = piece | color,
@@ -956,7 +957,7 @@ move_t* gen_pawns_push2(move_t* moves, const board_t* board,
 				.from = from2
 			}
 		};
-		moves = gen_push2_pawn(moves, board, move, color2);
+		moves = gen_push2_pawn(moves, row, move, color2);
 	}
 	return moves;
 }
@@ -1618,7 +1619,8 @@ bool set_pieces_ep_moved(board_t* board, piecemask_t* piecemask, move_t* move) {
 	if (has_ep(*move)) {
 		move->prim.to.piece = get_square(board, move->prim.to.square) | Piece_Moved;
 		clear_square(board, move->prim.to);
-		gen_push2_pawn(move, board, *move, board->color);
+		row_t row = get_row(board, color_ranks[board->color == Piece_Black] ^ Square_Rank2);
+		gen_push2_pawn(move, row, *move, board->color);
 		set(board, move->prim.to, piecemask);
 	}
 	return true;
