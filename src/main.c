@@ -880,6 +880,7 @@ char* fen_write(char* str) {
 	str = fen_write_castlings(str);
 	*str++ = ' ';
 	str = fen_write_ep(str);
+	*str = 0;
 	return str;
 }
 
