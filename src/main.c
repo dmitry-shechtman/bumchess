@@ -1540,6 +1540,7 @@ char* fen_write(char* str, const board_t* board, move_t move) {
 	str = fen_write_castlings(str, board);
 	*str++ = ' ';
 	str = fen_write_ep(str, move);
+	*str = 0;
 	return str;
 }
 
